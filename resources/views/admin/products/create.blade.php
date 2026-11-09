@@ -71,7 +71,7 @@
                     <label class="form-label">{{ __('proxmox.product.title') }}</label>
                     <div style="font-size:12px;color:#555;background:#f1f5fb;border:1px solid #dbe5f3;border-radius:6px;padding:8px 10px;">{{ __('proxmox.product.create_hint') }}</div>
                 </div>
-                <div class="form-group" style="grid-column:span 2;"><label class="form-label">{{ __('common.form.description') }}</label>@include('admin.products.partials.markdown-editor', ['value' => old('description'), 'rows' => 4])</div>
+                <div class="form-group" style="grid-column:span 2;">@include('admin.products.partials.description-tabs', ['product' => null, 'value' => old('description'), 'translationLanguages' => $translationLanguages ?? collect(), 'rows' => 5])</div>
             </div>
         </div>
     </div>
@@ -79,7 +79,13 @@
     <div class="card" style="margin-bottom:15px;">
         <div class="card-header"><strong>{{ __('admin.products.pricing') }}</strong></div>
         <div class="card-body">
-            @foreach($currencies as $currency)
+            {{-- One price, in the shop currency. A customer who chose another
+                 currency sees it converted at the daily rate; a price typed
+                 against each currency would not be the one charged. --}}
+            @php
+                $currency = $currencies->firstWhere('is_default', true) ?? $currencies->first();
+            @endphp
+            @if($currency)
             <div style="background:#f9f9f9;border:1px solid #eee;border-radius:4px;padding:15px;margin-bottom:12px;">
                 <p style="font-weight:600;font-size:13px;margin:0 0 10px;">{{ $currency->code }} ({{ $currency->prefix }})</p>
                 <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
@@ -91,8 +97,9 @@
                     @endforeach
                 </div>
                 <p style="font-size:11px;color:#999;margin:6px 0 0;">{{ __('admin.products.disable_cycle_hint') }}</p>
+                <p style="font-size:11px;color:#999;margin:4px 0 0;">{{ __('admin.products.pricing_shop_currency_hint') }}</p>
             </div>
-            @endforeach
+            @endif
         </div>
     </div>
 

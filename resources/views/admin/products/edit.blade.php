@@ -63,7 +63,7 @@
                 </div>
                 <div class="form-group"><label class="form-label">{{ __('admin.products.stock_control') }}</label><div style="display:flex;gap:12px;align-items:center;"><label style="font-size:12px;"><input type="checkbox" name="stock_control" value="1" {{ $product->stock_control ? 'checked' : '' }}> {{ __('admin.products.stock_control_hint') }}</label><input type="number" min="0" name="stock_qty" value="{{ $product->stock_qty ?? 0 }}" class="form-control" style="max-width:120px;"></div></div>
                 <div class="form-group" x-show="type === 'ssl'" x-cloak><label class="form-label">{{ __('admin.products.ssl_module') }}</label><select name="ssl_module" class="form-control"><option value="">{{ __('admin.products.ssl_none') }}</option>@foreach($sslModules + array_filter([(string) $product->ssl_module => (string) $product->ssl_module]) as $sslKey => $sslLabel)<option value="{{ $sslKey }}" @selected($product->ssl_module === $sslKey)>{{ $sslLabel }}</option>@endforeach</select></div>
-                <div class="form-group" style="grid-column:span 2;"><label class="form-label">{{ __('common.form.description') }}</label>@include('admin.products.partials.markdown-editor', ['value' => $product->description, 'rows' => 4])</div>
+                <div class="form-group" style="grid-column:span 2;">@include('admin.products.partials.description-tabs', ['product' => $product, 'value' => old('description', $product->description), 'translationLanguages' => $translationLanguages ?? collect(), 'rows' => 5])</div>
                 <div class="form-group" style="grid-column:span 2;display:flex;gap:20px;">
                     <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" name="hidden" value="1" {{ $product->hidden?'checked':'' }}> {{ __('admin.products.hidden') }}</label>
                     <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" name="retired" value="1" {{ $product->retired?'checked':'' }}> {{ __('admin.products.retired') }}</label>
@@ -76,8 +76,16 @@
     <div class="card" style="margin-bottom:15px;">
         <div class="card-header"><strong>{{ __('admin.products.pricing') }}</strong></div>
         <div class="card-body">
-            @foreach($currencies as $currency)
-            @php $p = $pricing[$currency->id] ?? null; @endphp
+            {{-- One price, in the shop currency. A customer who chose another
+                 currency sees it converted at the daily rate; a price typed
+                 against each currency would not be the one charged. --}}
+            @php
+                $currency = $currencies->firstWhere('is_default', true) ?? $currencies->first();
+            @endphp
+            @if($currency)
+            @php
+                $p = $pricing[$currency->id] ?? null;
+            @endphp
             <div style="background:#f9f9f9;border:1px solid #eee;border-radius:4px;padding:15px;margin-bottom:12px;">
                 <p style="font-weight:600;font-size:13px;margin:0 0 10px;">{{ $currency->code }} ({{ $currency->prefix }})</p>
                 <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:8px;">
@@ -96,8 +104,10 @@
                     </div>
                     @endforeach
                 </div>
+                <p style="font-size:11px;color:#999;margin:6px 0 0;">{{ __('admin.products.disable_cycle_hint') }}</p>
+                <p style="font-size:11px;color:#999;margin:4px 0 0;">{{ __('admin.products.pricing_shop_currency_hint') }}</p>
             </div>
-            @endforeach
+            @endif
         </div>
     </div>
 
