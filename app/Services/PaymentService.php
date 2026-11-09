@@ -173,7 +173,9 @@ class PaymentService
     {
         $paid = (float) $this->invoicePayments($invoice)->sum(DB::raw('amount_in - amount_out'));
 
-        return round((float) $invoice->total - $paid, 2);
+        // Account credit spent on the invoice is a payment: the total is the
+        // gross value and credit is recorded separately (invoices.credit).
+        return round((float) $invoice->total - $paid - (float) $invoice->credit, 2);
     }
 
     /**
@@ -202,9 +204,11 @@ class PaymentService
      * Refund an invoice (fully or partially).
      *
      * Calls the original gateway's refund API when possible, records a refund
-     * transaction (amount_out), and moves the invoice to refunded / partially
-     * refunded. 'credit' and 'manual'/'banktransfer' gateways skip the API call
-     * (offline refund) but still record the transaction so books stay balanced.
+     * transaction (amount_out), and marks the invoice refunded when nothing is
+     * left paid on it; otherwise a paid invoice stays paid and a part-paid one
+     * stays partially paid. 'credit' and 'manual'/'banktransfer' gateways skip
+     * the API call (offline refund) but still record the transaction so books
+     * stay balanced.
      *
      * @param  float|null  $amount  null = refund the full paid amount
      * @param  array  $options  ['gateway_refund' => bool (default true), 'reason' => string, 'note' => string]
@@ -290,11 +294,10 @@ class PaymentService
                     'amount' => $fromCredit,
                 ]);
 
-                // Mirrors what cancelling does: the invoice stops counting that
-                // balance as settling it, and its total is what it was again.
+                // The credit never reduced the total — it is the gross value —
+                // so returning it only clears the part spent on this invoice.
                 $invoice->update([
                     'credit' => max(0, round((float) $invoice->credit - $fromCredit, 2)),
-                    'total' => round((float) $invoice->total + $fromCredit, 2),
                 ]);
             }
 
@@ -354,12 +357,21 @@ class PaymentService
                 Log::warning('PaymentService: affiliate reversal failed for invoice #'.$invoice->id.': '.$e->getMessage());
             }
 
+            // Giving part of the money back does not make a settled invoice
+            // owed again. As partially_paid it was open: marked overdue, sent
+            // reminders and a late fee, charged to the card on file for the
+            // amount just refunded, and paying it on a renewal invoice renewed
+            // the service a second time. A paid invoice stays paid until all
+            // of it has gone back; one that was still part paid stays part
+            // paid.
             $fresh = $invoice->fresh();
             $stillPaid = round($this->amountPaid($fresh) + (float) $fresh->credit, 2);
             $invoice->update([
-                'status' => $stillPaid <= 0.009
-                    ? InvoiceStatus::Refunded->value
-                    : InvoiceStatus::PartiallyPaid->value,
+                'status' => match (true) {
+                    $stillPaid <= 0.009 => InvoiceStatus::Refunded->value,
+                    strtolower((string) $fresh->status) === InvoiceStatus::Paid->value => InvoiceStatus::Paid->value,
+                    default => InvoiceStatus::PartiallyPaid->value,
+                },
             ]);
         });
 

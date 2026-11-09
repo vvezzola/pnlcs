@@ -39,6 +39,18 @@
             <strong style="font-size:13px;">{{ __('admin.clients.tax_exempt') }}:</strong>
             <span style="font-size:13px;">{{ $client->tax_exempt ? 'Yes' : 'No' }}</span>
         </div>
+        @if($cardRequestOffered || $storedCardCount > 0)
+        <div style="display:flex;align-items:center;gap:8px;">
+            <strong style="font-size:13px;">{{ __('admin.clients.stored_cards') }}:</strong>
+            <span style="font-size:13px;">{{ $storedCardCount }}</span>
+            @if($cardRequestOffered && auth('admin')->user()?->hasPermission('edit_clients'))
+            <form method="POST" action="{{ route('admin.clients.card-request', $client) }}" style="display:inline;">
+                @csrf
+                <button type="submit" class="btn btn-default btn-sm" title="{{ __('admin.clients.card_request_hint') }}" onclick="return pnConfirm(event, @js(__('admin.clients.card_request_confirm', ['email' => $client->email])))">{{ __('admin.clients.card_request') }}</button>
+            </form>
+            @endif
+        </div>
+        @endif
     </div>
 </div>
 
@@ -398,7 +410,7 @@ $tabs = ['summary'=>__('admin.clients.tab_summary'),'services'=>__('admin.client
     <button type="button" class="btn btn-primary btn-sm" onclick="var f=document.getElementById('add-domain-form');f.style.display=f.style.display==='none'?'block':'none';">{{ __('admin.clients.add_domain') }}</button>
 </div>
 
-<div class="card" id="add-domain-form" style="display:none;margin-bottom:16px;">
+<div class="card" id="add-domain-form" style="display:{{ $errors->any() ? 'block' : 'none' }};margin-bottom:16px;">
     <div class="card-header"><strong>{{ __('admin.clients.add_domain') }}</strong></div>
     <div class="card-body">
         <p class="text-muted" style="font-size:12px;margin-bottom:14px;">{{ __('admin.clients.add_domain_hint') }}</p>

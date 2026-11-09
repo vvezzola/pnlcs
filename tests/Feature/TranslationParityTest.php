@@ -200,7 +200,9 @@ const UNTRANSLATED_VALUE_BUDGET = [
     // for the apps page's ports.
     // +1 2026-10-29 (#332): the settings page's new "Domains" tab is written
     // "Domains" in German too, as the labels above it already are.
-    'de' => 192,
+    // +1 2026-11-09: Panelica's main used the German spare the line above
+    // counted on, so the two provider names now need their own two.
+    'de' => 193,
     'pl' => 111,
     'zh' => 41,
 ];

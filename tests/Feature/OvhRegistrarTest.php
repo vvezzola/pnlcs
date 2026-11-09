@@ -101,6 +101,27 @@ it('reads the expiry and status when syncing a domain', function () {
         ->and($result['locked'])->toBeTrue();
 });
 
+it('does not offer a registration date, because OVH reports the transfer date', function () {
+    ovhSettings();
+    Http::fake([
+        '*/domain/shop.example.com/serviceInfos' => Http::response([
+            'creation' => '2015-04-10T08:00:00+02:00',
+            'expiration' => '2027-06-01T10:00:00+02:00',
+        ], 200),
+        '*/domain/shop.example.com' => Http::response(['status' => 'ok'], 200),
+    ]);
+
+    $result = app(OvhRegistrar::class)->syncDomain(ovhDomain());
+
+    // serviceInfos.creation is when the service was created in the OVH
+    // account. For a domain transferred in, that is the transfer date. The
+    // sync fills registration_date from the registrar first and RDAP only
+    // fills a null one, so offering it here would freeze the wrong date.
+    expect($result['success'])->toBeTrue()
+        ->and($result)->not->toHaveKey('registration_date')
+        ->and($result['expiry_date'])->toBe('2027-06-01');
+});
+
 it('renews a domain at OVH', function () {
     ovhSettings();
     Http::fake(['*/domain/shop.example.com/renew' => Http::response([], 200)]);
@@ -568,4 +589,43 @@ it('imports the OVH TLDs without duplicating existing extensions', function () {
 
     // .com already existed on another registrar: left alone.
     expect(DomainPricing::where('extension', '.com')->value('auto_registrar'))->toBe('hrd');
+});
+
+it('reads WHOIS privacy from the OWO opt-in when syncing', function () {
+    ovhSettings();
+    Http::fake([
+        '*/domain/shop.example.com/serviceInfos' => Http::response(['expiration' => '2027-06-01T10:00:00+02:00'], 200),
+        '*/domain/shop.example.com/configurations/optin' => Http::response([], 200),
+        '*/domain/shop.example.com' => Http::response(['status' => 'ok'], 200),
+    ]);
+
+    expect(app(OvhRegistrar::class)->syncDomain(ovhDomain())['id_protection'])->toBeTrue();
+});
+
+it('reads privacy off when OWO publishes a field', function () {
+    ovhSettings();
+    Http::fake([
+        '*/domain/shop.example.com/serviceInfos' => Http::response(['expiration' => '2027-06-01T10:00:00+02:00'], 200),
+        '*/domain/shop.example.com/configurations/optin' => Http::response([['type' => 'all', 'fields' => ['email']]], 200),
+        '*/domain/shop.example.com' => Http::response(['status' => 'ok'], 200),
+    ]);
+
+    expect(app(OvhRegistrar::class)->syncDomain(ovhDomain())['id_protection'])->toBeFalse();
+});
+
+it('turns OWO privacy on by removing the opt-in and off by opting in', function () {
+    ovhSettings();
+    $domain = ovhDomain();
+    $registrar = app(OvhRegistrar::class);
+
+    Http::fake(['*/domain/shop.example.com/configurations/optin' => Http::response([], 200)]);
+    expect($registrar->setPrivacy($domain, true)['success'])->toBeTrue();
+    Http::assertSent(fn ($request) => $request->method() === 'DELETE'
+        && str_contains($request->url(), '/configurations/optin'));
+
+    Http::fake(['*/domain/shop.example.com/configurations/optin' => Http::response([], 200)]);
+    expect($registrar->setPrivacy($domain, false)['success'])->toBeTrue();
+    Http::assertSent(fn ($request) => $request->method() === 'PUT'
+        && str_contains($request->url(), '/configurations/optin')
+        && str_contains($request->body(), '"type":"all"'));
 });

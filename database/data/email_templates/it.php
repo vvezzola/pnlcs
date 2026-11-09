@@ -88,6 +88,10 @@ return [
         'subject' => 'Conferma ordine n. {order_num} - {CompanyName}',
         'message' => "Gentile {client_name},\n\ngrazie per il tuo ordine n. {order_num}.\n\nTotale ordine: {order_total}\n\nCordiali saluti,\n{CompanyName}",
     ],
+    'Card Setup Request' => [
+        'subject' => 'Aggiungi una carta al tuo account - {CompanyName}',
+        'message' => "Gentile {client_name},\n\naggiungi una carta al tuo account, così le tue fatture potranno essere pagate con essa. Solo tu puoi aggiungerla: inserisci i dati nel modulo sicuro del nostro fornitore di pagamenti, e il nostro staff non li vede mai.\n\n{add_card_url}\n\nSe non ti aspettavi questa email, puoi ignorarla; sul tuo account non cambia nulla.\n\nCordiali saluti,\n{CompanyName}",
+    ],
     'Credit Card Expiry Notice' => [
         'subject' => 'La tua carta sta per scadere - {CompanyName}',
         'message' => "Gentile {client_name},\n\nla carta registrata sul tuo account sta per scadere. Aggiornala su {whmcs_url}, così la prossima fattura non verrà rifiutata.\n\nCordiali saluti,\n{CompanyName}",

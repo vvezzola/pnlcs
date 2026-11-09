@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Setting;
@@ -513,6 +514,19 @@ class InvoicePdfService
             .'<td>'.e(invoice_money_fmt((float) $invoice->total, $invoice)).'</td>'
             .'</tr>';
 
+        // Credit spent on the invoice is a payment: the gross above is the
+        // invoice's value, this is how much of it the balance covered.
+        if ((float) $invoice->credit > 0.009) {
+            $rows .= '<tr>'
+                .'<td>'.e(__('pdf.credit')).'</td>'
+                .'<td>-'.e(invoice_money_fmt((float) $invoice->credit, $invoice)).'</td>'
+                .'</tr>';
+            $rows .= '<tr class="total">'
+                .'<td>'.e(__('pdf.amount_due')).'</td>'
+                .'<td>'.e(invoice_money_fmt($invoice->amountDue(), $invoice)).'</td>'
+                .'</tr>';
+        }
+
         return '<table class="vat-summary"><thead><tr>'
             .'<th>'.e(__('pdf.vat_summary_desc')).'</th>'
             .'<th>'.e(__('pdf.amount')).'</th>'
@@ -628,8 +642,11 @@ class InvoicePdfService
     public function paymentQr(Invoice $invoice): string
     {
         // A settled invoice owes nothing: a zero amount is "type it yourself"
-        // in ZBP and below the minimum in EPC.
-        if ((float) $invoice->amountDue() <= 0) {
+        // in ZBP and below the minimum in EPC. A paid invoice that was partly
+        // refunded still has a balance on paper - the refunded amount - so
+        // the status decides, not the figure.
+        if (in_array(strtolower((string) $invoice->status), InvoiceStatus::settled(), true)
+            || (float) $invoice->amountDue() <= 0) {
             return '';
         }
 

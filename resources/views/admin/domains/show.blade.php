@@ -44,12 +44,14 @@
             <input type="number" name="years" value="1" min="1" max="10" class="form-control" style="width:70px;font-size:13px;padding:2px 6px;">
             <button type="submit" class="btn btn-success btn-sm">{{ __('admin.domains.renew') }}</button>
         </form>
+        @if($canToggleLock)
         <form method="POST" action="{{ route('admin.domains.lock', $domain) }}" style="display:inline;" onsubmit="return pnConfirm(event, @js(__('admin.domains.confirm_lock')))">
             @csrf
             <button type="submit" class="btn btn-{{ $locked ? 'warning' : 'default' }} btn-sm">
                 {{ $locked ? __('admin.domains.unlock') : __('admin.domains.lock') }}
             </button>
         </form>
+        @endif
         <form method="POST" action="{{ route('admin.domains.autorenew', $domain) }}" style="display:inline;">
             @csrf
             <button type="submit" class="btn btn-default btn-sm">{{ $domain->auto_renew ? __('admin.domains.autorenew_disable') : __('admin.domains.autorenew_enable') }}</button>
@@ -67,6 +69,11 @@
         @if($canManageGlue)
         <a href="{{ route('admin.domains.glue', $domain) }}" class="btn btn-default btn-sm">{{ __('client.domains.glue_title') }}</a>
         @endif
+        <form method="POST" action="{{ route('admin.domains.destroy', $domain) }}" style="display:inline;margin-left:auto;" onsubmit="return pnConfirm(event, @js(__('admin.domains.delete_confirm', ['domain' => $domain->domain])))">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-danger btn-sm">{{ __('admin.domains.delete') }}</button>
+        </form>
     </div>
 </div>
 
@@ -113,12 +120,30 @@
     <div class="panel">
         <div class="panel-heading panel-primary">{{ __('admin.domains.billing') }}</div>
         <div class="panel-body">
-            <table style="width:100%;font-size:13px;border-collapse:collapse;">
-                <tr><td style="padding:5px 0;color:#777;width:45%;">{{ __('admin.domains.first_payment') }}</td><td style="padding:5px 0;font-weight:700;">{{ money_fmt($domain->first_payment_amount) }}</td></tr>
-                <tr><td style="padding:5px 0;color:#777;">{{ __('admin.domains.recurring_amount') }}</td><td style="padding:5px 0;font-weight:700;">{{ __('admin.domains.per_year', ['amount' => money_fmt($domain->recurring_amount)]) }}</td></tr>
-                <tr><td style="padding:5px 0;color:#777;">{{ __('admin.domains.payment_method') }}</td><td style="padding:5px 0;">{{ $domain->payment_method ? payment_method_label((string) $domain->payment_method) : '-' }}</td></tr>
-                <tr><td style="padding:5px 0;color:#777;">{{ __('admin.domains.premium') }}</td><td style="padding:5px 0;">{{ $domain->is_premium ? 'Yes' : 'No' }}</td></tr>
-            </table>
+            <form method="POST" action="{{ route('admin.domains.billing', $domain) }}">
+                @csrf
+                <table style="width:100%;font-size:13px;border-collapse:collapse;">
+                    <tr>
+                        <td style="padding:5px 0;color:#777;width:45%;">{{ __('admin.domains.first_payment') }}</td>
+                        <td style="padding:5px 0;"><input type="number" step="0.01" min="0" name="first_payment_amount" value="{{ old('first_payment_amount', $domain->first_payment_amount) }}" class="form-control" style="max-width:160px;font-size:13px;padding:3px 6px;"></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0;color:#777;">{{ __('admin.domains.recurring_amount') }}</td>
+                        <td style="padding:5px 0;"><input type="number" step="0.01" min="0" name="recurring_amount" value="{{ old('recurring_amount', $domain->recurring_amount) }}" class="form-control" style="max-width:160px;font-size:13px;padding:3px 6px;"></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:5px 0;color:#777;">{{ __('admin.domains.client_payment_method') }}</td>
+                        <td style="padding:5px 0;">
+                            {{ $domain->client?->default_payment_method ? payment_method_label((string) $domain->client->default_payment_method) : '-' }}
+                            @if($domain->client)
+                            <a href="{{ route('admin.clients.show', $domain->client_id) }}" style="color:#337ab7;font-size:12px;margin-left:6px;">&rarr;</a>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr><td style="padding:5px 0;color:#777;">{{ __('admin.domains.premium') }}</td><td style="padding:5px 0;">{{ $domain->is_premium ? 'Yes' : 'No' }}</td></tr>
+                </table>
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-top:8px;">{{ __('admin.domains.save') }}</button>
+            </form>
         </div>
     </div>
 </div>

@@ -2,6 +2,209 @@
 
 All notable changes to PNLCS are documented here. Newest first.
 
+## Unreleased
+
+### Added
+
+- **A small Markdown editor for the product description.** A toolbar (bold,
+  italic, heading, lists, link, quote, code) over the existing textarea — no
+  editor library and no build step. The description is rendered as formatted
+  HTML on the configure page and the SSL service page, and as a bounded plain
+  excerpt in the store listing and the upgrade and homepage cards. Existing
+  plain descriptions keep working (#414).
+
+- **The setup fee is charged.** Every product has always had a one-time setup
+  fee per billing cycle and the form saved it, but nothing read it: a plan
+  priced at "100 a month plus 50 setup" was sold for 100. It now appears in the
+  basket, in the checkout summary and as its own line on the first invoice,
+  taxed as its product is. It is not a hosting line, so renewals never repeat
+  it. The two-year and three-year setup columns can be set at last (#411).
+
+### Fixed
+
+- **A top-up or a payment for several invoices is counted once.** Income by
+  Product and Sales Tax Liability counted an Add Funds invoice and a mass-pay
+  invoice as revenue, although the money they take becomes account credit that
+  then pays other invoices — the invoices that carry the actual products. Both
+  reports now leave them out, as the affiliate commission base already did
+  (#412).
+- **Income by Product is worth what the invoice charged.** A line's value is
+  its price times its quantity, and where a line was written with no quantity —
+  a cart config option, or a WHMCS import — the report made it worth nothing
+  while the customer had paid for it. It now reads the quantity the way the
+  invoice does.
+- **Panelica resources are shown only where they mean something.** The panel's
+  own limits (`res_*`) appeared on a product with no Panelica module, so an
+  SSL certificate was advertised as "1 GB RAM, 1 vCPU, 5 GB". The card is now
+  hidden for another panel's module and for an SSL certificate, a product
+  switched to SSL loses those keys, and existing SSL products are cleaned up by
+  a migration. A product with no module at all keeps what the operator typed in
+  (#413).
+
+### Database changes
+
+- `2026_11_09_000001_strip_panelica_resources_from_ssl_products` — removes
+  `res_*` and `panelica_*` from the `config_options` of products of type `ssl`,
+  and clears the server module a hidden form field used to keep on them. It
+  touches no other product. It cannot be undone: the keys it removes describe a
+  hosting plan an SSL certificate never had, and `down()` says so rather than
+  pretending to restore them.
+
+### Security
+
+- **The product description cannot carry script.** It is now rendered through
+  Markdown with the input treated as text and unsafe link schemes dropped. The
+  conversion on its own escapes a bare `<script>` but passes
+  `<img src=x onerror=...>` through and leaves a `javascript:` link live, which
+  would have been stored cross-site scripting on the store, the configure page
+  and the SSL service page, reachable by anyone who may edit a product.
+
+### For theme and module authors
+
+- `Product::descriptionHtml()` returns the description as HTML and
+  `Product::descriptionText()` as a plain excerpt. A theme that prints the
+  description itself should use one of them — and `descriptionHtml()` with
+  `{!! !!}`, never the raw column.
+- A new invoice item type, `Setup`, carries a product's one-time setup fee and
+  the service id in `rel_id`, like a `Hosting` line. Anything that groups
+  invoice lines by type — a report, an export, an accounting integration —
+  should expect it. `Product::setupFeeFor($cycle, $currencyId)` returns the fee,
+  or zero where there is none.
+
+### Views a theme may override that changed
+
+- `admin/products/edit.blade.php`, `admin/products/create.blade.php`,
+  `admin/products/partials/markdown-editor.blade.php` (new),
+  `client/cart/index.blade.php`, `client/cart/checkout.blade.php`,
+  `client/cart/store.blade.php`, `client/cart/configure.blade.php`,
+  `client/services/upgrade.blade.php`, `client/ssl/show.blade.php`,
+  `sections/hosting-plans.blade.php`
+
+## 1.21.0 — 2026-11-09
+
+A stable release, offered to every installation. The headline is that **account
+credit is a payment, not a discount**: an invoice paid from the balance used to
+have its total written down to zero, so the document printed a gross of zero and
+the shop's figures lost the sale. Around it: Add Funds now follows the proforma
+scheme end to end, the admin domain screen gained the four things it was missing,
+two registrars can set WHOIS privacy, a missing registration date is filled from
+the registrar or RDAP, and PNLCS speaks Italian.
+
+Thank you [@hedon77](https://github.com/hedon77) (#398, #399, #400, #401, #402,
+#405), [@vvezzola](https://github.com/vvezzola) (#403),
+[@ertugrulkeyvan](https://github.com/ertugrulkeyvan) (#406, #407, #408) and
+[@5eBeKs](https://github.com/5eBeKs) (#409).
+
+**One thing to know after upgrading.** Every invoice that had credit spent on it
+gets its `total` put back to the gross value, and the credit is taken off when
+the balance is worked out instead. Nothing is re-charged and nothing is owed
+differently: what the customer still has to pay is identical before and after.
+What changes is what the document and the reports show — an invoice paid from a
+120 balance reads 120 with 120 credited, not 0. Issued invoices keep their
+numbers.
+
+### Added
+
+- **WHOIS privacy for HRD and OVH.** Both registrars can now switch a domain's
+  WHOIS privacy from the panel (client area and admin), and the daily sync reads
+  the state back into `id_protection`: HRD via `domain/privacySet`, OVH via its
+  WHOIS opt-in (OWO).
+- **A registrar can say it has no transfer lock.** A module implementing the new
+  `App\Contracts\CannotManageTransferLock` marker (HRD, Manual) no longer shows
+  a Lock/Unlock control that could only pretend to work.
+- **The admin domain screen does the whole job.** A domain can be deleted, its
+  billing edited, the add-domain form validates what it is given, and prices are
+  shown in the currency the shop sells in.
+- **A missing registration date is filled in.** The daily sync and the admin
+  sync button ask the registrar first and fall back to RDAP, so domains imported
+  without that date stop showing a blank. The RDAP pass is capped per run
+  (`DomainSyncRdapMaxPerRun`) so a large import does not turn into a flood of
+  lookups.
+- **Pay a covered order from the balance.** Checkout shows the account balance
+  and, when it covers the order, lets the customer pay with it instead of going
+  out to a gateway.
+- **Staff can email a customer the link to add a card**, with its own template
+  an operator can reword like every other customer email.
+- **Italian.** A complete translation (#403), joining the languages already
+  shipped.
+
+### Changed
+
+- The domain screen — staff and client — hides the transfer-lock control for a
+  registrar whose API has none (HRD, Manual), instead of reporting a change it
+  did not make.
+- A customer reading a ticket sees the staff member's first name, not the name
+  they sign in with.
+- Cancel on the server edit dialog closes the dialog, not the form inside it.
+
+### Fixed
+
+- **Account credit is a payment, not a discount.** Spending credit used to lower
+  `invoices.total`, so a balance-paid invoice printed a gross of zero, the
+  revenue reports lost the sale, and a partly-credited invoice showed a total
+  that matched no line on it. The gross stays the gross, the credit is recorded
+  and taken off when what is due is worked out, and checkout decides an order is
+  covered from what is actually due.
+- **A partial refund leaves a paid invoice paid.** Refunding part of a payment
+  moved the invoice back to partially paid, which then chased the customer for
+  money they had already handed over. Only a refund that clears the whole lot
+  reopens it.
+- **Add Funds invoices follow the proforma scheme.** A top-up is a payment on
+  account, not a supply. It is now numbered and typed the same way — a PRO-
+  proforma when that scheme is on, instead of a PRO- number carrying the `vat`
+  type default that made the document print as an ordinary invoice. A top-up
+  stays untaxed, and paying one issues no VAT invoice: the money becomes
+  credit, and VAT is charged on the services that credit later pays.
+- **A paid Add Funds proforma stays visible.** "Hide paid proformas" hid every
+  paid proforma, assuming a VAT invoice replaced it. A top-up has no VAT
+  invoice, so hiding it made the payment disappear from every list. Only a
+  proforma whose VAT invoice exists is hidden now.
+- **An affiliate commission on tax-inclusive prices leaves the tax out**, so the
+  shop does not pay commission on money it collects for the tax office.
+- **The OVH sync no longer takes a transfer date for a registration date.** OVH
+  reports when a domain entered that account; for a domain transferred in, that
+  is the transfer, and writing it over a correct date from RDAP made the domain
+  look younger than it is.
+
+### Database changes
+
+- `2026_11_07_000001_credit_as_payment_restore_gross_totals` —
+  `invoices.total` is set back to the gross value with
+  `ROUND(total + credit, 2)`. It adds back exactly what the old code took off;
+  `down()` subtracts it again. Invoices with no credit are untouched.
+- `2026_11_07_000001_seed_card_setup_request_template` — adds the **Card Setup
+  Request** email template on installations that already exist (fresh installs
+  get it from the seeder), created through the model so every language gets its
+  copy. It does nothing if a template with that name is already there, so an
+  operator's own wording is never overwritten.
+
+### For theme and module authors
+
+- New optional marker `App\Contracts\CannotManageTransferLock`: implement it in
+  a registrar module that cannot change the registry lock; the panel then hides
+  the Lock/Unlock control for its domains. Modules that do not implement it keep
+  the control, so nothing changes for them.
+- `App\Contracts\SyncsDomainData::syncDomain()` may now also return
+  `registration_date`. It is optional: a module that does not return it behaves
+  exactly as before.
+- Anything reading `invoices.total` as "what is left to pay" must change to read
+  it as the gross and use `Invoice::amountDue()`. A module that charged the
+  total was charging zero on a balance-paid invoice before this release.
+- `dist/` is now ignored and export-ignored. If you build packages from a
+  checkout, the output directory is no longer picked up by a stray `git add`
+  and can never end up inside a package.
+
+### Views a theme may override that changed
+
+- `admin/clients/show.blade.php`, `admin/config/servers.blade.php`,
+  `admin/domains/index.blade.php`, `admin/domains/show.blade.php`,
+  `admin/invoices/show.blade.php`, `admin/settings/general.blade.php`
+- `client/cart/checkout.blade.php`, `client/invoices/show.blade.php`,
+  `client/invoices/partials/payment-notification-form.blade.php`,
+  `client/tickets/show.blade.php`
+- `emails/card-setup-request.blade.php` (new), `emails/invoice-overdue.blade.php`,
+  `emails/payment-reminder.blade.php`, `pdf/invoice.blade.php`
+
 ## 1.20.0 — 2026-11-05
 
 A stable release, offered to every installation. Two registrars can now quote
