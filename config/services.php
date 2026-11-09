@@ -35,17 +35,11 @@ return [
         ],
     ],
 
-    // Translate with AI (App\Services\AiTranslationService). The provider,
-    // key and model are set on Setup > Languages; the addresses only for an
-    // OpenAI-compatible endpoint other than OpenAI's own, or a proxy in front
-    // of the Claude API. The version is the date of the Messages API contract
-    // the Anthropic call was written against.
+    // Translate with AI (App\Services\AiTranslationService). The key and model
+    // are set on Setup > Languages; the address only for an OpenAI-compatible
+    // endpoint other than OpenAI's own.
     'openai' => [
         'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
-    ],
-    'anthropic' => [
-        'base_url' => env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com'),
-        'version' => '2026-10-21',
     ],
 
     // RDAP bootstrap (App\Services\RdapRegistrationDate): read the registry's

@@ -183,14 +183,10 @@ function localeValues(string $locale): array
 // writes the noun pair as "Eksport CSV" / "Import CSV", and the second is
 // spelled as English spells it. Listed in database/data/same_as_english.php;
 // this budget looks at the English value instead, so it still sees it.
-// Raised 2026-11-07 by exactly two in each language, for the AI translation
-// provider choice (Setup > Languages): the provider names "Anthropic (Claude)"
-// and "OpenAI" are written as English writes them. German had one to spare, so
-// it rises by one. Both are listed in database/data/same_as_english.php.
 const UNTRANSLATED_VALUE_BUDGET = [
     // +1 each 2026-10-21: the admin menu entry of the Panelica license module
     // is the product name, "Panelica", in every language.
-    'tr' => 60,
+    'tr' => 58,
     // Measured 2026-09-23: words German writes the same way - Name, Status,
     // Server, Support, Tickets, Logo, Favicon, Downloads, PHP.
     // Raised 2026-09-24 by 25, on a native speaker's review (Dirk Mehmke):
@@ -200,11 +196,9 @@ const UNTRANSLATED_VALUE_BUDGET = [
     // for the apps page's ports.
     // +1 2026-10-29 (#332): the settings page's new "Domains" tab is written
     // "Domains" in German too, as the labels above it already are.
-    // +1 2026-11-09: Panelica's main used the German spare the line above
-    // counted on, so the two provider names now need their own two.
-    'de' => 193,
-    'pl' => 111,
-    'zh' => 41,
+    'de' => 191,
+    'pl' => 109,
+    'zh' => 39,
 ];
 
 test('a complete language is translated, not merely present', function () {

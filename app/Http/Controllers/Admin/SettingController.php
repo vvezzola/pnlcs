@@ -98,7 +98,7 @@ class SettingController extends Controller
         // Saved from the languages screen, which posts to this same endpoint.
         // Its form used to name these settings[OpenAIApiKey] - a shape this
         // handler never reads - so pressing save wrote nothing and said nothing.
-        'AiTranslationProvider', 'OpenAIApiKey', 'OpenAIModel', 'AnthropicApiKey', 'AnthropicModel',
+        'OpenAIApiKey', 'OpenAIModel',
         'GoogleLoginEnabled', 'GoogleClientId', 'GoogleClientSecret',
         'GithubLoginEnabled', 'GithubClientId', 'GithubClientSecret',
         // Google reCAPTCHA, read through App\Services\RecaptchaService: one
@@ -210,9 +210,6 @@ class SettingController extends Controller
         // "keep what I have", not "delete my key".
         if (trim((string) ($data['OpenAIApiKey'] ?? '')) === '') {
             unset($data['OpenAIApiKey']);
-        }
-        if (trim((string) ($data['AnthropicApiKey'] ?? '')) === '') {
-            unset($data['AnthropicApiKey']);
         }
         if (trim((string) ($data['MaxMindLicenseKey'] ?? '')) === '') {
             unset($data['MaxMindLicenseKey']);

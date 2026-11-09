@@ -30,7 +30,6 @@ it('refuses to read a stored credential-bearing setting', function (string $key)
     'TwilioVerifyServiceSid',
     'SMTPPassword',
     'OpenAIApiKey',
-    'AnthropicApiKey',
 ]);
 
 it('refuses to write a stored credential-bearing setting', function () {
