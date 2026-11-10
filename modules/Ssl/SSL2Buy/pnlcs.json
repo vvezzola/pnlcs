@@ -3,7 +3,7 @@
     "type": "ssl",
     "version": "1.0.0",
     "display_name": "SSL2BUY",
-    "description": "SSL2BUY reseller API (full order): Sectigo and Comodo PositiveSSL and EssentialSSL, single domain and wildcard, with test mode.",
+    "description": "SSL2BUY reseller API: buys AlphaSSL and Sectigo PositiveSSL/EssentialSSL (single domain and wildcard); status, download and import for GlobalSign, Sectigo, PrimeSSL and DigiCert orders; test mode.",
     "author": {
         "name": "PNLCS"
     }
