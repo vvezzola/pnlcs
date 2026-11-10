@@ -335,4 +335,14 @@ return [
         'ok' => '确定',
         'confirm_title' => '确定吗？',
     ],
+    'ssl_install' => [
+        'title' => '安装到服务器',
+        'intro' => '将每个框的内容粘贴到控制面板中对应的字段。在 Plesk 中：SSL/TLS 证书，“以文本形式上传证书”。',
+        'key' => '私钥 (*.key)',
+        'cert' => '证书 (*.crt)',
+        'ca' => 'CA 证书 (*-ca.crt)',
+        'copy' => '复制',
+        'copied' => '已复制',
+        'key_elsewhere' => '私钥不保存在此处：它保留在生成 CSR 的地方。如果是在 Plesk 中生成的，请在那里打开现有的证书请求，只粘贴证书和 CA 证书。',
+    ],
 ];
