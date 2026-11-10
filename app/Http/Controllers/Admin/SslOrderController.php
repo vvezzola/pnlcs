@@ -35,6 +35,9 @@ class SslOrderController extends Controller
     public function show(SslOrder $sslOrder)
     {
         $sslOrder->load(['client', 'service.product']);
+        if ($sslOrder->isCompleted()) {
+            $this->sslService->completeChain($sslOrder);
+        }
         return view('admin.ssl.show', ['order' => $sslOrder]);
     }
 

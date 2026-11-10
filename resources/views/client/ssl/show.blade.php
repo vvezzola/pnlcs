@@ -71,6 +71,7 @@
         </div>
 
         <x-ssl-dcv :order="$order" />
+        <x-ssl-install :order="$order" />
 
         @if($order->status === 'Awaiting Configuration')
         <div class="alert alert-warning">

@@ -345,4 +345,14 @@ return [
         'record_value' => 'Değer',
         'after' => 'Sertifika, sertifika otoritesi kontrol ettikten sonra, genellikle birkaç dakika içinde düzenlenir.',
     ],
+    'ssl_install' => [
+        'title' => 'Sunucuya kur',
+        'intro' => 'Her kutuyu kontrol panelinizdeki ilgili alana yapıştırın. Plesk\'te: SSL/TLS Sertifikaları, „Sertifikayı metin olarak yükle“.',
+        'key' => 'Özel anahtar (*.key)',
+        'cert' => 'Sertifika (*.crt)',
+        'ca' => 'CA sertifikası (*-ca.crt)',
+        'copy' => 'Kopyala',
+        'copied' => 'Kopyalandı',
+        'key_elsewhere' => 'Özel anahtar burada saklanmaz: CSR\'nin oluşturulduğu yerde kalır. CSR Plesk\'te oluşturulduysa, oradaki mevcut sertifika isteğini açın ve yalnızca sertifikayı ve CA sertifikasını yapıştırın.',
+    ],
 ];
