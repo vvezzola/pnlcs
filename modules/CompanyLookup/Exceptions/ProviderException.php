@@ -17,6 +17,7 @@ class ProviderException extends RuntimeException
     public const MF_ERROR = 'MF_ERROR';
     public const CEIDG_ERROR = 'CEIDG_ERROR';
     public const OPENBRIS_ERROR = 'OPENBRIS_ERROR';
+    public const VIES_ERROR = 'VIES_ERROR';
     public const API_TIMEOUT = 'API_TIMEOUT';
     public const RATE_LIMIT = 'RATE_LIMIT';
     public const INVALID_RESPONSE = 'INVALID_RESPONSE';
