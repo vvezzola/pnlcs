@@ -180,3 +180,79 @@ test('the administrator sees the DNS record the validation waits for', function 
         ->assertSee('_ABC.shop.example.com')
         ->assertSee('AAA.BBB.sectigo.com');
 });
+
+test('an AlphaSSL wildcard is bought through the GlobalSign call with its own contact block', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response([
+        'SSL2BuyOrderNumber' => 3300001, 'GSOrderNumber' => 'GSXX1', 'DNSText' => '_globalsign-domain-verification=abc', 'DNSVerificationDomains' => ['example.com'], 'StatusCode' => 0,
+    ])]);
+    SslModuleSettings::setSetting('ssl2buy', 'default_product', '102');
+    $order = ssl2buyOrder(['domain' => '*.example.com', 'csr' => ssl2buyCsr('*.example.com')]);
+
+    $result = (new SSL2BuyModule)->purchaseCertificate($order, []);
+
+    expect($result['success'])->toBeTrue();
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://api.ssl2buy.com/orderservice/GlobalSignFullOrder/AlphaSSLWildCardFullOrder'
+        && $request['ApprovalMethod'] === 'DNS'
+        && $request['ApprovalEmail'] === 'admin@example.com'
+        && $request['ContactInfo']['Phone'] === '+39.0301234567'
+        && ! isset($request['WebServer']));
+
+    $order->refresh();
+    expect($order->remote_id)->toBe('3300001')
+        ->and($order->config_data['ssl2buy_family'])->toBe('globalsign')
+        ->and($order->config_data['dcv'])->toBe(['method' => 'DNS', 'name' => 'example.com', 'type' => 'TXT', 'value' => '_globalsign-domain-verification=abc']);
+});
+
+test('an imported order is found under its certificate authority and its certificate downloaded', function () {
+    Http::fake([
+        'api.ssl2buy.com/queryservice/globalsign/getorderdetails' => Http::response([
+            'OrderStatus' => 'COMPLETED', 'StartDate' => '2026-07-29T12:35:43+00:00', 'EndDate' => '2027-02-13T12:35:43+00:00',
+            'BaseOrderDetails' => ['ProductId' => 102, 'ProductName' => 'AlphaSSL Wildcard Certificate'], 'StatusCode' => 0,
+        ]),
+        'api.ssl2buy.com/orderservice/GlobalSignFullOrder/GetCertificate' => Http::response([
+            'X509Cert' => 'CERT', 'InterCert' => 'INTER', 'RootCert' => 'ROOT', 'PKCS7Cert' => '', 'StatusCode' => 0,
+        ]),
+        'api.ssl2buy.com/*' => Http::response(['Errors' => ['ErrorNumber' => -102, 'ErrorMessage' => 'Invalid or missing Order Number.'], 'StatusCode' => -1]),
+    ]);
+    $order = ssl2buyOrder(['remote_id' => '3244452', 'status' => 'Completed', 'csr' => null]);
+
+    (new SSL2BuyModule)->getCertificateStatus($order);
+
+    $order->refresh();
+    expect($order->cert)->toBe('CERT')
+        ->and($order->fullchain)->toBe("CERT\nINTER")
+        ->and($order->cert_type)->toBe('AlphaSSL Wildcard Certificate')
+        ->and($order->crt_expires->toDateString())->toBe('2027-02-13')
+        ->and($order->config_data['ssl2buy_family'])->toBe('globalsign');
+});
+
+test('the server software list is offered as code => name', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response([
+        'WebServerTypeList' => ['$id' => '3', 'Apache/ModSSL' => '2', 'Plesk' => '30', 'OTHER' => '-1'], 'StatusCode' => 0,
+    ])]);
+
+    expect((new SSL2BuyModule)->getWebServerTypes())->toBe(['2' => 'Apache/ModSSL', '30' => 'Plesk', '-1' => 'OTHER']);
+});
+
+test('an order asked under the wrong authority is read again under the one its product names', function () {
+    Http::fake([
+        // SSL2BUY answers "success" with an empty status for another authority's order.
+        'api.ssl2buy.com/queryservice/globalsign/getorderdetails' => Http::response([
+            'OrderStatus' => null, 'BaseOrderDetails' => ['ProductName' => 'PrimeSSL DV Wildcard Certificate'], 'StatusCode' => 0,
+        ]),
+        'api.ssl2buy.com/queryservice/prime/getorderdetails' => Http::response([
+            'OrderStatus' => 'Valid', 'EndDate' => '2027-03-19T00:00:00', 'BaseOrderDetails' => ['ProductName' => 'PrimeSSL DV Wildcard Certificate'], 'StatusCode' => 0,
+        ]),
+        'api.ssl2buy.com/queryservice/prime/getcertificate' => Http::response([
+            'Certificate' => 'CERT', 'IntermediateCertificate1' => 'INT1', 'IntermediateCertificate2' => 'INT2', 'StatusCode' => 0,
+        ]),
+    ]);
+    $order = ssl2buyOrder(['remote_id' => '3128536', 'status' => 'Completed', 'csr' => null]);
+
+    (new SSL2BuyModule)->getCertificateStatus($order);
+
+    $order->refresh();
+    expect($order->status)->toBe('Completed')
+        ->and($order->config_data['ssl2buy_family'])->toBe('prime')
+        ->and($order->fullchain)->toBe("CERT\nINT1\nINT2");
+});
