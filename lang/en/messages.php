@@ -499,6 +499,7 @@ API access may be broken. While the balance cannot be read, no low-balance warni
     'ksef.addon_moved_hint' => 'The KSeF submission status is now shown under Billing → KSeF status.',
     'ksef.queued' => 'The invoice has been queued for KSeF submission.',
     'company_lookup.gus_unavailable' => 'Could not fetch data from the GUS register.',
+    'company_lookup.vies_unavailable' => 'The EU VAT register (VIES) did not answer. Try again in a minute.',
     'company_lookup.mf_unavailable' => 'Could not fetch data from the VAT white list (MF).',
     'company_lookup.fetch' => 'Fetch data',
     'company_lookup.fetching' => 'Fetching data...',

@@ -498,6 +498,7 @@ API 访问可能已中断。在无法读取余额期间，也无法发出余额�
     'ksef.addon_moved_hint' => 'KSeF 提交状态现在显示在 账单 → KSeF 状态 下。',
     'ksef.queued' => '发票已排队等待 KSeF 提交。',
     'company_lookup.gus_unavailable' => '无法从 GUS 登记处获取数据。',
+    'company_lookup.vies_unavailable' => '欧盟增值税登记系统 (VIES) 未响应，请稍后再试。',
     'company_lookup.mf_unavailable' => '无法从增值税白名单（MF）获取数据。',
     'company_lookup.fetch' => '获取数据',
     'company_lookup.fetching' => '正在获取数据…',

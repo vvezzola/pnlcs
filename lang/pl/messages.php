@@ -499,6 +499,7 @@ Dostęp do API może być uszkodzony. Dopóki saldo jest nieczytelne, ostrzeżen
     'ksef.addon_moved_hint' => 'Status wysyłek do KSeF jest teraz dostępny pod Rozliczenia → KSeF status.',
     'ksef.queued' => 'Faktura została zakolejkowana do wysyłki do KSeF.',
     'company_lookup.gus_unavailable' => 'Nie udało się pobrać danych z rejestru GUS.',
+    'company_lookup.vies_unavailable' => 'Unijny rejestr VAT (VIES) nie odpowiedział. Spróbuj ponownie za minutę.',
     'company_lookup.mf_unavailable' => 'Nie udało się pobrać danych z Białej Listy VAT (MF).',
     'company_lookup.fetch' => 'Pobierz dane',
     'company_lookup.fetching' => 'Pobieranie danych...',
