@@ -23,8 +23,9 @@ class CompanyLookupController
 
         $validated = $request->validate([
             'nip' => 'required|string|max:20',
+            'country' => 'nullable|string|size:2',
         ]);
 
-        return response()->json($this->service->lookup((string) $validated['nip']));
+        return response()->json($this->service->lookup((string) $validated['nip'], $validated['country'] ?? null));
     }
 }

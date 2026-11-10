@@ -528,6 +528,7 @@ Der API-Zugriff ist möglicherweise unterbrochen. Während der Kontostand nicht 
     'ksef.addon_moved_hint' => 'Der KSEF-Einreichungsstatus wird jetzt unter Abrechnung → KSEF-Status angezeigt.',
     'ksef.queued' => 'Die Rechnung wurde zur KSEF-Einreichung in die Warteschlange gestellt.',
     'company_lookup.gus_unavailable' => 'Es konnten keine Daten aus dem GUS-Register abgerufen werden.',
+    'company_lookup.vies_unavailable' => 'Das EU-Umsatzsteuerregister (VIES) hat nicht geantwortet. Bitte in einer Minute erneut versuchen.',
     'company_lookup.mf_unavailable' => 'Daten aus der Mehrwertsteuer-Whitelist (MF) konnten nicht abgerufen werden.',
     'company_lookup.fetch' => 'Daten abrufen',
     'company_lookup.fetching' => 'Daten werden abgerufen...',

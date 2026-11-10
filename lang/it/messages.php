@@ -531,6 +531,7 @@ L\'accesso API potrebbe non funzionare. Finché il saldo non si può leggere, no
     'ksef.addon_moved_hint' => 'Lo stato degli invii a KSeF è ora mostrato in Fatturazione → Stato KSeF.',
     'ksef.queued' => 'La fattura è stata messa in coda per l\'invio a KSeF.',
     'company_lookup.gus_unavailable' => 'Impossibile recuperare i dati dal registro GUS.',
+    'company_lookup.vies_unavailable' => 'Il registro IVA europeo (VIES) non ha risposto. Riprova tra un minuto.',
     'company_lookup.mf_unavailable' => 'Impossibile recuperare i dati dalla white list IVA (MF).',
     'company_lookup.fetch' => 'Recupera dati',
     'company_lookup.fetching' => 'Recupero dei dati...',

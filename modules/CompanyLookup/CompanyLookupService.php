@@ -26,15 +26,24 @@ final class CompanyLookupService
         private readonly CompanyDataProviderInterface $openbris,
         private readonly DataNormalizer $normalizer,
         private readonly int $cacheTtl,
+        private readonly ViesProvider $vies = new ViesProvider,
     ) {
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function lookup(string $rawNip): array
+    public function lookup(string $rawNip, ?string $country = null): array
     {
         $startedAt = microtime(true);
+
+        // A VAT number of another EU country - written with its prefix
+        // (IT01234567890), or typed bare on a client whose country is not
+        // Poland - goes to VIES; the Polish registries know only NIPs.
+        $vat = $this->foreignVat($rawNip, $country);
+        if ($vat !== null) {
+            return $this->lookupVies($vat[0], $vat[1], $vat[2], $startedAt);
+        }
 
         $nip = Nip::normalize($rawNip);
         if (! Nip::isValidDigits($nip)) {
@@ -84,6 +93,62 @@ final class CompanyLookupService
         }
 
         $this->logSuccess($nip, $sources, $startedAt);
+
+        return $result;
+    }
+
+    /**
+     * The country and number of a VAT number VIES should answer, or null for
+     * a Polish NIP.
+     *
+     * @return array{0: string, 1: string, 2: string}|null
+     */
+    private function foreignVat(string $raw, ?string $country): ?array
+    {
+        $compact = strtoupper((string) preg_replace('/[\s.\-]/', '', $raw));
+
+        if (preg_match('/^([A-Z]{2})([0-9A-Z]{2,13})$/', $compact, $m) && in_array($m[1], ViesProvider::COUNTRIES, true)) {
+            return $m[1] === 'PL' ? null : [$m[1], $m[2], $compact];
+        }
+
+        $country = strtoupper((string) $country);
+        if ($country === 'GR') {
+            $country = 'EL';
+        }
+        if ($country !== '' && $country !== 'PL' && in_array($country, ViesProvider::COUNTRIES, true) && preg_match('/^[0-9A-Z]{2,13}$/', $compact)) {
+            return [$country, $compact, $compact];
+        }
+
+        return null;
+    }
+
+    /** @return array<string, mixed> */
+    private function lookupVies(string $country, string $number, string $asTyped, float $startedAt): array
+    {
+        $cacheKey = 'company_lookup:vies:'.$country.$number;
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        try {
+            $company = $this->vies->find($country, $number);
+        } catch (ProviderException $e) {
+            $this->logProviderFailure('vies', $e);
+
+            return $this->failed('UNKNOWN_ERROR', $country.$number, $startedAt, warnings: [__('messages.company_lookup.vies_unavailable')]);
+        }
+
+        if ($company === null) {
+            return $this->failed('COMPANY_NOT_FOUND', $country.$number, $startedAt);
+        }
+        // Back in the form the number keeps the shape the operator typed it in.
+        $company->nip = $asTyped;
+
+        $result = ['success' => true, 'company' => $company->toArray(), 'sources' => ['vies' => true], 'warnings' => []];
+        if ($this->cacheTtl > 0) {
+            Cache::put($cacheKey, $result, $this->cacheTtl);
+        }
 
         return $result;
     }

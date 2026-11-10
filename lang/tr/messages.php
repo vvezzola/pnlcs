@@ -526,6 +526,7 @@ API erişimi bozulmuş olabilir. Bakiye okunamadığı sürece düşük bakiye u
     'ksef.addon_output_hint' => 'Ödenmiş faturalar otomatik olarak KSeF\'e iletilir. Aşağıda gönderim durumu görünür.',
     'ksef.queued' => 'Fatura KSeF gönderimi için sıraya alındı.',
     'company_lookup.gus_unavailable' => 'GUS kaydından veri alınamadı.',
+    'company_lookup.vies_unavailable' => 'AB KDV sicili (VIES) yanıt vermedi. Bir dakika sonra tekrar deneyin.',
     'company_lookup.mf_unavailable' => 'KDV beyaz listesinden (MF) veri alınamadı.',
     'company_lookup.fetch' => 'Veri Getir',
     'company_lookup.fetching' => 'Veri getiriliyor…',

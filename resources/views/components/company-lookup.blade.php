@@ -114,7 +114,7 @@
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': root.getAttribute('data-csrf'),
             },
-            body: JSON.stringify({ nip: nip }),
+            body: JSON.stringify({ nip: nip, country: (nipScope.querySelector('[name="country"]') || {}).value || null }),
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
