@@ -6,6 +6,31 @@ All notable changes to PNLCS are documented here. Newest first.
 
 ### Added
 
+- **Panelica licences: sell a term of 1 to 12 months.** Central sells a key
+  either on one of its own cycles or for a term of months paid up front, and
+  PNLCS refused every cycle but monthly and annual at order time — a
+  three- or six-month plan could not be sold at all. Quarterly and
+  semi-annual products are sold as a term now, and a renewal buys exactly the
+  months the customer paid for instead of one period. A longer cycle than a
+  year is still refused, because Central cannot sell it.
+  **Only where Central can do it:** whether the connected Central sells a term
+  is read from its own published schema, remembered for a few hours and asked
+  again on every sync. Where it cannot, the period is refused at order time as
+  before — converting it as monthly would charge one month for three.
+- **Panelica licences: free the server a key is bound to.** A key remembers
+  the machine it was activated on, so a rebuilt or replaced server left the
+  customer unable to activate it again and the partner asking Panelica
+  support. There is a button on the service now, and the panel stops naming a
+  machine the key is no longer tied to.
+- **Panelica licences: end a key for good.** An operator decision of its own,
+  deliberately not what terminating a service does — that suspends, so the
+  period the customer paid for is not thrown away and a termination by mistake
+  can be undone.
+- **Panelica licences: what the balance has been doing.** The page showed the
+  figure and nothing else, so a renewal refused for want of balance meant
+  opening Central to find out where the money went. The month's movement and
+  the last ten entries — what each was, what it moved and what it left behind
+  — are on the page.
 - **The product description in every active language.** The admin description
   is now a tab per active language, with the same Markdown toolbar and a button
   that starts a translation from the default text. A visitor reads the
@@ -50,6 +75,17 @@ All notable changes to PNLCS are documented here. Newest first.
   an empty circle. A new `initial()` helper takes the first character (a whole
   emoji when intl is installed) and upper-cases it for its script (#420). The
   project message list, a fourth place doing the same, uses it too.
+- **Every stored status is read through one helper, so none is left in
+  English.** `status_label()` has turned a stored status into the reader's
+  language since the invoice pass; nine places had not caught up. The filter
+  tabs on the order, service and ticket lists wrote All, Pending, Suspended,
+  Customer Reply, On Hold … as English literals inside the loop that draws
+  them, and six more views — the admin client list, the project list and
+  detail, the customer's domain list and detail, and the running-apps panel —
+  still printed `ucfirst()` on the raw word. All nine go through the helper
+  now: a status with a translation is translated in all five languages, one
+  without still reads as words rather than a key, and what each tab filters by
+  is unchanged (#420).
 - **A language whose flag is not a country's is drawn, not left blank.**
   flagcdn serves ISO 3166-1 alpha-2 codes only, so a regional code such as
   `es-ct` (Catalan — one we ship) answered 404 on both its png and its svg: the
@@ -117,6 +153,10 @@ All notable changes to PNLCS are documented here. Newest first.
 
 ### For theme and module authors
 
+- The Panelica licence module gained `unbindServer()` and `cancelLicense()`,
+  and `PartnerAccount::sellsTerms()` says whether the connected Central sells a
+  term of months. Anything that drives licences should ask that before offering
+  a period Central cannot sell.
 - New component `<x-language-flag :code="..." size="24x18" :alt="..." />`, and
   `fallback="badge"` where a missing flag should still fill a table cell. A
   theme that renders a language flag should use it rather than building a

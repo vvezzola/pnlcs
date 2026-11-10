@@ -27,7 +27,21 @@ return [
         'expired' => 'Süresi doldu',
     ],
 
+    // The kinds of balance movement Central reports; a kind we do not know
+    // yet is shown as the word Central sent.
+    'movement' => [
+        'license_renewal' => 'Yenileme',
+        'license_purchase' => 'Yeni anahtar',
+        'adjustment' => 'Düzeltme',
+        'refund' => 'İade',
+        'renewal' => 'Yenileme',
+    ],
     'field' => [
+        'when' => 'Tarih',
+        'movement' => 'Hareket',
+        'what' => 'Neden',
+        'amount' => 'Tutar',
+        'left' => 'Kalan bakiye',
         'key' => 'Lisans anahtarı',
         'plan' => 'Plan',
         'status' => 'Durum',
@@ -37,6 +51,8 @@ return [
     ],
 
     'action' => [
+        'unbind' => 'Bağlı sunucuyu serbest bırak',
+        'cancel' => 'Anahtarı temelli bitir',
         'check_now' => 'Şimdi kontrol et',
         'new_link' => 'Yeni kurulum bağlantısı al',
         'attach' => 'Lisansı bağla',
@@ -65,6 +81,8 @@ return [
     ],
 
     'admin' => [
+        'unbind_confirm' => 'Bu anahtarın bağlı olduğu sunucu serbest bırakılsın mı? Müşteri sonra başka bir makinede etkinleştirebilir.',
+        'cancel_confirm' => 'Bu anahtar Panelica tarafında temelli bitirilsin mi? Geri alınamaz.',
         'title' => 'Panelica lisansı',
         'license' => 'Lisans',
         'central_id' => 'Central lisans kimliği',
@@ -85,6 +103,8 @@ return [
     ],
 
     'page' => [
+        'movements' => 'Bakiye hareketleri',
+        'this_month' => 'Bu ay: :in giriş, :out çıkış',
         'menu' => 'Panelica',
         'title' => 'Panelica Lisansları',
         'sync' => 'Kurulumları şimdi kontrol et',
@@ -182,6 +202,8 @@ return [
     ],
 
     'result' => [
+        'unbound' => 'Anahtar artık bir sunucuya bağlı değil; müşteri yeniden etkinleştirebilir.',
+        'cancelled' => 'Anahtar Panelica tarafında temelli bitirildi.',
         'already_licensed' => 'Lisans zaten satın alınmış; ücret alınmadı.',
         'waiting' => 'Kurulum bağlantısı hazır. Lisans, müşterinin sunucusu görününce satın alınır.',
         'nothing_bought' => 'Henüz lisans satın alınmadı; Panelica tarafında değişecek bir şey yok.',
@@ -201,6 +223,7 @@ return [
     ],
 
     'error' => [
+        'no_license' => 'Bu hizmetin henüz bir Panelica anahtarı yok.',
         'no_key' => 'Bu sunucu kaydında bayi API anahtarı yok.',
         'unreachable' => 'Panelica Central\'a ulaşılamadı.',
         'ended' => 'Bu hizmetin lisansı sona erdi.',

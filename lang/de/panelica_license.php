@@ -27,7 +27,21 @@ return [
         'expired' => 'Abgelaufen',
     ],
 
+    // The kinds of balance movement Central reports; a kind we do not know
+    // yet is shown as the word Central sent.
+    'movement' => [
+        'license_renewal' => 'Verlängerung',
+        'license_purchase' => 'Neuer Schlüssel',
+        'adjustment' => 'Korrektur',
+        'refund' => 'Rückerstattung',
+        'renewal' => 'Verlängerung',
+    ],
     'field' => [
+        'when' => 'Wann',
+        'movement' => 'Bewegung',
+        'what' => 'Wofür',
+        'amount' => 'Betrag',
+        'left' => 'Guthaben danach',
         'key' => 'Lizenzschlüssel',
         'plan' => 'Tarif',
         'status' => 'Status',
@@ -37,6 +51,8 @@ return [
     ],
 
     'action' => [
+        'unbind' => 'Gebundenen Server freigeben',
+        'cancel' => 'Schlüssel endgültig beenden',
         'check_now' => 'Jetzt prüfen',
         'new_link' => 'Neuen Installationslink anfordern',
         'attach' => 'Lizenz zuordnen',
@@ -65,6 +81,8 @@ return [
     ],
 
     'admin' => [
+        'unbind_confirm' => 'Den Server freigeben, an den dieser Schlüssel gebunden ist? Der Kunde kann ihn dann auf einer anderen Maschine aktivieren.',
+        'cancel_confirm' => 'Diesen Schlüssel bei Panelica endgültig beenden? Das kann nicht rückgängig gemacht werden.',
         'title' => 'Panelica-Lizenz',
         'license' => 'Lizenz',
         'central_id' => 'Lizenz-ID in Central',
@@ -85,6 +103,8 @@ return [
     ],
 
     'page' => [
+        'movements' => 'Guthabenbewegungen',
+        'this_month' => 'Diesen Monat: :in ein, :out aus',
         'menu' => 'Panelica',
         'title' => 'Panelica-Lizenzen',
         'sync' => 'Installationen jetzt prüfen',
@@ -182,6 +202,8 @@ return [
     ],
 
     'result' => [
+        'unbound' => 'Der Schlüssel ist an keinen Server mehr gebunden; der Kunde kann ihn erneut aktivieren.',
+        'cancelled' => 'Der Schlüssel ist bei Panelica endgültig beendet.',
         'already_licensed' => 'Die Lizenz ist bereits gekauft; es wurde nichts berechnet.',
         'waiting' => 'Installationslink bereit. Die Lizenz wird gekauft, sobald der Server des Kunden erscheint.',
         'nothing_bought' => 'Es wurde noch keine Lizenz gekauft; bei Panelica ist nichts zu ändern.',
@@ -201,6 +223,7 @@ return [
     ],
 
     'error' => [
+        'no_license' => 'Dieser Dienst hat noch keinen Panelica-Schlüssel.',
         'no_key' => 'Bei diesem Servereintrag fehlt der Partner-API-Schlüssel.',
         'unreachable' => 'Panelica Central war nicht erreichbar.',
         'ended' => 'Die Lizenz dieses Dienstes ist beendet.',

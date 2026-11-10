@@ -27,7 +27,21 @@ return [
         'expired' => 'Expired',
     ],
 
+    // The kinds of balance movement Central reports; a kind we do not know
+    // yet is shown as the word Central sent.
+    'movement' => [
+        'license_renewal' => 'Renewal',
+        'license_purchase' => 'New key',
+        'adjustment' => 'Adjustment',
+        'refund' => 'Refund',
+        'renewal' => 'Renewal',
+    ],
     'field' => [
+        'when' => 'When',
+        'movement' => 'Movement',
+        'what' => 'What for',
+        'amount' => 'Amount',
+        'left' => 'Balance after',
         'key' => 'License key',
         'plan' => 'Plan',
         'status' => 'Status',
@@ -37,6 +51,8 @@ return [
     ],
 
     'action' => [
+        'unbind' => 'Free the bound server',
+        'cancel' => 'End the key for good',
         'check_now' => 'Check now',
         'new_link' => 'Get a new install link',
         'attach' => 'Attach license',
@@ -65,6 +81,8 @@ return [
     ],
 
     'admin' => [
+        'unbind_confirm' => 'Free the server this key is bound to? The customer can then activate it on another machine.',
+        'cancel_confirm' => 'End this key for good at Panelica? This cannot be undone.',
         'title' => 'Panelica license',
         'license' => 'License',
         'central_id' => 'Central license ID',
@@ -85,6 +103,8 @@ return [
     ],
 
     'page' => [
+        'movements' => 'Balance movements',
+        'this_month' => 'This month: :in in, :out out',
         'menu' => 'Panelica',
         'title' => 'Panelica Licenses',
         'sync' => 'Check installs now',
@@ -182,6 +202,8 @@ return [
     ],
 
     'result' => [
+        'unbound' => 'The key is no longer tied to a server; the customer can activate it again.',
+        'cancelled' => 'The key is ended for good at Panelica.',
         'already_licensed' => 'The license is already bought; nothing was charged.',
         'waiting' => 'Install link ready. The license is bought when the customer\'s server shows up.',
         'nothing_bought' => 'No license has been bought yet; nothing to change at Panelica.',
@@ -201,6 +223,7 @@ return [
     ],
 
     'error' => [
+        'no_license' => 'This service has no Panelica key yet.',
         'no_key' => 'The partner API key is missing on this server record.',
         'unreachable' => 'Panelica Central could not be reached.',
         'ended' => 'This service\'s license has ended.',

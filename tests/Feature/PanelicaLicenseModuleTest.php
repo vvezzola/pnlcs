@@ -61,6 +61,21 @@ function plCentral(array $over = []): array
         ]],
         'convert' => 200,
         'renew' => 200,
+        'unbind' => 200,
+        'cancel' => 200,
+        'balance' => 200,
+        // What Central reports the balance has been doing, newest first.
+        'movements' => [
+            ['id' => 'm1', 'type' => 'license_renewal', 'amount' => '-80.00', 'balance_before' => '180.95',
+                'balance_after' => '100.95', 'description' => 'Renewal of PNLC-AAAA-BBBB-CCCC-DDDD',
+                'created_at' => '2026-11-09T18:33:49.000000Z'],
+            ['id' => 'm2', 'type' => 'adjustment', 'amount' => '100.00', 'balance_before' => '80.95',
+                'balance_after' => '180.95', 'description' => 'Balance adjustment',
+                'created_at' => '2026-11-08T10:00:00.000000Z'],
+        ],
+        // A Central that sells a term of months on convert publishes it in its
+        // schema; false is an older one that takes only monthly or yearly.
+        'terms' => false,
         'script' => 200,
         'filter' => true,
     ], $over);
@@ -77,6 +92,15 @@ function plFake(array &$central): void
         $api = '/api/reseller/v1/';
 
         return match (true) {
+            $path === $api.'openapi.json' => Http::response(['paths' => ['/licenses/{id}/convert' => ['post' => ['requestBody' => ['content' => ['application/json' => ['schema' => ['properties' => array_merge(
+                ['plan_id' => ['type' => 'string'], 'billing_cycle' => ['type' => 'string']],
+                ! empty($central['terms']) ? ['term_months' => ['type' => 'integer']] : [],
+            )]]]]]]]], 200),
+            $path === $api.'balance/transactions' => $ok($central['movements'], ['total' => count($central['movements']), 'current_page' => 1, 'last_page' => 1, 'per_page' => 20]),
+            $path === $api.'balance' => ($central['balance'] ?? 200) === 200
+                ? $ok(['current_balance' => '100.95', 'credit_limit' => '0.00', 'billing_mode' => 'postpaid',
+                    'available_credit' => 100.95, 'this_month_credits' => 100, 'this_month_debits' => 80, 'discount_percentage' => 20])
+                : $no($central['balance'], 'Balance is not available.'),
             $path === $api.'me' => $ok(['id' => 'r1', 'company_name' => 'Acme Hosting', 'status' => 'approved', 'balance' => 500]),
             $path === $api.'plans' => $ok([['id' => PL_PLAN, 'name' => 'Business', 'reseller_price_monthly' => 8, 'reseller_price_yearly' => 80]]),
             $path === $api.'install-link' && $request->method() === 'PUT' => (function () use (&$central, $request, $ok, $no) {
@@ -107,6 +131,12 @@ function plFake(array &$central): void
 
                 return $ok(['id' => PL_LICENSE, 'status' => 'suspended']);
             })(),
+            $path === $api.'licenses/'.PL_LICENSE.'/unbind' => ($central['unbind'] ?? 200) === 200
+                ? $ok(['id' => PL_LICENSE, 'server_ip' => null, 'server_hostname' => null])
+                : $no($central['unbind'], 'This license is not bound to a server.'),
+            $path === $api.'licenses/'.PL_LICENSE.'/cancel' => ($central['cancel'] ?? 200) === 200
+                ? $ok(['id' => PL_LICENSE, 'status' => 'cancelled'])
+                : $no($central['cancel'], 'This license is already cancelled.'),
             $path === $api.'licenses/'.PL_LICENSE.'/activate' => (function () use (&$central, $ok) {
                 $central['license']['status'] = 'active';
 
@@ -268,15 +298,18 @@ test('Create again keeps the same link and never buys a second license', functio
         ->and($central['calls'])->toBe([]);
 });
 
-test('a period Central does not sell is refused before anything is asked of Central', function () {
-    $central = plCentral();
+test('a period Central does not sell is refused before any money moves', function () {
+    // Central is asked one read-only question - its own schema, to learn
+    // whether it sells a term of months - and nothing else: no install command
+    // is handed to the customer and nothing is charged.
+    $central = plCentral(['terms' => false]);
     plFake($central);
-    $service = plService(['billing_cycle' => 'Quarterly']);
+    $service = plService(['billing_cycle' => 'Biennially']);
 
     $result = plModule()->create($service);
 
     expect($result['success'])->toBeFalse()
-        ->and($result['message'])->toContain('Quarterly')
+        ->and($result['message'])->toContain('Biennially')
         ->and($central['calls'])->toBe([]);
 });
 
@@ -1095,4 +1128,256 @@ test('switched off under Setup -> Modules: no menu, no page, no install link, no
 
     app(ModuleRegistry::class)->switchOff('server', PanelicaLicenseModule::NAME, false);
     $this->actingAs($staff, 'admin')->get($menu)->assertOk();
+});
+
+// ---------------------------------------------------------------- terms 1-12
+
+/*
+ * A term of 1 to 12 months.
+ *
+ * Central sells a key either on a cycle (monthly, yearly) or for a term of 1
+ * to 12 months paid up front, and renews a term with POST renew {months}.
+ * PNLCS refused every cycle but monthly and annually at order time, so a
+ * three- or six-month product could not be sold at all.
+ */
+
+function plSold(array &$central, string $cycle): Service
+{
+    $service = plWaiting($central, ['billing_cycle' => $cycle]);
+    $central['installs'] = [plInstall($service)];
+    expect(plModule()->checkInstall($service->fresh())['success'])->toBeTrue();
+
+    return $service->fresh();
+}
+
+test('a quarterly order buys the trial for a three-month term', function () {
+    $central = plCentral(['terms' => true]);
+    plSold($central, 'Quarterly');
+
+    $convert = plCalls($central, 'POST', '/convert');
+    expect($convert)->toHaveCount(1)
+        ->and($convert[0][3])->toBe(['plan_id' => PL_PLAN, 'term_months' => 3]);
+});
+
+test('a six-month order asks for six months', function () {
+    $central = plCentral(['terms' => true]);
+    plSold($central, 'Semi-Annually');
+
+    expect(plCalls($central, 'POST', '/convert')[0][3])->toBe(['plan_id' => PL_PLAN, 'term_months' => 6]);
+});
+
+test('monthly asks for the cycle, not a term', function () {
+    $central = plCentral();
+    plSold($central, 'Monthly');
+
+    expect(plCalls($central, 'POST', '/convert')[0][3])->toBe(['plan_id' => PL_PLAN, 'billing_cycle' => 'monthly']);
+});
+
+test('a Central that does not sell terms refuses the period at order time', function () {
+    // Converting a three-month order as monthly would charge one month and
+    // write one month of licence. Refusing it before the customer is given an
+    // install command is the only honest answer.
+    $central = plCentral(['terms' => false]);
+    plFake($central);
+    $service = plService(['billing_cycle' => 'Quarterly']);
+
+    $result = plModule()->create($service);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('Quarterly')
+        ->and(plCalls($central, 'POST', '/convert'))->toBeEmpty();
+});
+
+
+test('a term renewal buys exactly the months the customer paid for', function () {
+    $central = plCentral(['terms' => true]);
+    $service = plSold($central, 'Quarterly');
+
+    expect(plModule()->renew($service)['success'])->toBeTrue();
+    expect(plCalls($central, 'POST', '/renew')[0][3])->toBe(['months' => 3]);
+});
+
+test('a monthly or annual renewal leaves the period to Central, as before', function () {
+    foreach (['Monthly', 'Annually'] as $cycle) {
+        $central = plCentral();
+        $service = plSold($central, $cycle);
+
+        expect(plModule()->renew($service)['success'])->toBeTrue();
+        expect(plCalls($central, 'POST', '/renew')[0][3])->toBe([]);
+    }
+});
+
+// ------------------------------------------------------- unbind and cancel
+
+/*
+ * Freeing the server a key is bound to, and ending a key for good.
+ *
+ * A Panelica key remembers the machine it was activated on. When that machine
+ * is gone - a rebuilt server, a move to another host - the key cannot be used
+ * again until it is freed, which used to mean asking Panelica support.
+ * Central has POST licenses/{id}/unbind for exactly that, and
+ * POST licenses/{id}/cancel to end a key for good; neither was reachable from
+ * PNLCS.
+ */
+
+test('staff can free the server a key is bound to', function () {
+    $central = plCentral();
+    $service = plSold($central, 'Annually');
+
+    expect($service->module_data['license_server_hostname'])->toBe('srv1.customer.test');
+
+    $this->actingAs(plStaff(), 'admin')
+        ->post(route('admin.services.panelica-license.unbind', $service))
+        ->assertRedirect()->assertSessionHas('success', __('panelica_license.result.unbound'));
+
+    $unbind = plCalls($central, 'POST', '/unbind');
+    $data = $service->fresh()->module_data;
+
+    expect($unbind)->toHaveCount(1)
+        ->and($unbind[0][1])->toEndWith('licenses/'.PL_LICENSE.'/unbind')
+        // The key is no longer tied to that machine, so the panel must not go
+        // on showing it as the server this service runs on.
+        ->and($data['license_server_ip'] ?? null)->toBeNull()
+        ->and($data['license_server_hostname'] ?? null)->toBeNull();
+});
+
+test('freeing a server Central refuses tells staff why, and changes nothing here', function () {
+    $central = plCentral(['unbind' => 409]);
+    $service = plSold($central, 'Annually');
+
+    $this->actingAs(plStaff(), 'admin')
+        ->post(route('admin.services.panelica-license.unbind', $service))
+        ->assertRedirect()->assertSessionHas('error');
+
+    expect($service->fresh()->module_data['license_server_hostname'])->toBe('srv1.customer.test');
+});
+
+test('a service with no license has nothing to free', function () {
+    $central = plCentral();
+    $service = plWaiting($central);
+
+    $this->actingAs(plStaff(), 'admin')
+        ->post(route('admin.services.panelica-license.unbind', $service))
+        ->assertRedirect()->assertSessionHas('error');
+
+    expect(plCalls($central, 'POST', '/unbind'))->toBeEmpty();
+});
+
+test('freeing a server is for staff who may manage services', function () {
+    $central = plCentral();
+    $service = plSold($central, 'Annually');
+
+    $this->actingAs(plStaff(['view_services']), 'admin')
+        ->post(route('admin.services.panelica-license.unbind', $service))
+        ->assertForbidden();
+
+    expect(plCalls($central, 'POST', '/unbind'))->toBeEmpty();
+});
+
+test('staff can end a key for good, and the service stops counting it as live', function () {
+    $central = plCentral();
+    $service = plSold($central, 'Annually');
+
+    $this->actingAs(plStaff(), 'admin')
+        ->post(route('admin.services.panelica-license.cancel', $service))
+        ->assertRedirect()->assertSessionHas('success', __('panelica_license.result.cancelled'));
+
+    $cancel = plCalls($central, 'POST', '/cancel');
+    $data = $service->fresh()->module_data;
+
+    expect($cancel)->toHaveCount(1)
+        ->and($cancel[0][3])->toHaveKey('reason')
+        ->and($data['license_status'])->toBe('cancelled')
+        ->and($data['ended'])->toBeTrue();
+});
+
+test('ending a key for good is not what terminating a service does by itself', function () {
+    // Terminating suspends: the customer paid for the period and it lapses at
+    // the end of it, and a termination by mistake can be undone. Ending for
+    // good is an operator saying so on purpose.
+    $central = plCentral();
+    $service = plSold($central, 'Annually');
+
+    plModule()->terminate($service);
+
+    expect(plCalls($central, 'POST', '/cancel'))->toBeEmpty()
+        ->and(plCalls($central, 'PATCH', '/suspend'))->toHaveCount(1);
+});
+
+test('the service panel offers both actions, and the browser dialog is never used', function () {
+    $central = plCentral();
+    $service = plSold($central, 'Annually');
+
+    $page = $this->actingAs(plStaff(), 'admin')->get(route('admin.services.show', $service))->assertOk()->getContent();
+
+    expect($page)->toContain(__('panelica_license.action.unbind'))
+        ->and($page)->toContain(__('panelica_license.action.cancel'))
+        ->and($page)->toContain(route('admin.services.panelica-license.unbind', $service))
+        ->and($page)->toContain(route('admin.services.panelica-license.cancel', $service))
+        // The panel's own dialog, like the rest of the admin area.
+        ->and($page)->toContain('pnDialog.confirm')
+        ->and($page)->not->toContain('return confirm(');
+});
+
+test('a key with no server bound offers nothing to free', function () {
+    $central = plCentral();
+    $central['license']['server_ip'] = null;
+    $central['license']['server_hostname'] = null;
+    $service = plSold($central, 'Annually');
+    plModule()->unbindServer($service);
+
+    $page = $this->actingAs(plStaff(), 'admin')->get(route('admin.services.show', $service->fresh()))->assertOk()->getContent();
+
+    expect($page)->not->toContain(route('admin.services.panelica-license.unbind', $service))
+        ->and($page)->toContain(route('admin.services.panelica-license.cancel', $service));
+});
+
+// ------------------------------------------------------- balance movements
+
+/*
+ * What the partner's balance has been doing.
+ *
+ * The page showed the figure Central reports in `me` and nothing else, so an
+ * operator who saw a renewal refused for want of balance had to open Central
+ * to find out where the money went. Central answers that with GET balance and
+ * GET balance/transactions.
+ */
+
+test('the licences page shows what the balance has been doing', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+
+    $page = $this->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->get(route('admin.panelica-licenses.index'))->assertOk()->getContent();
+
+    expect($page)->toContain(__('panelica_license.page.movements'))
+        // the newest movement, what it was and what it left behind
+        ->toContain('Renewal of PNLC-AAAA-BBBB-CCCC-DDDD')
+        ->toContain(__('panelica_license.movement.license_renewal'))
+        // what the month took and added, with the figures filled in
+        ->toContain(__('panelica_license.page.this_month', ['in' => '$100.00', 'out' => '$80.00']))
+        // the balance left behind by that movement
+        ->toContain('$100.95');
+});
+
+test('a Central that cannot answer about the balance does not break the page', function () {
+    $central = plCentral(['balance' => 500]);
+    plFake($central);
+    plConnect();
+
+    $this->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->get(route('admin.panelica-licenses.index'))->assertOk()
+        ->assertSee(__('panelica_license.page.balance'), false);
+});
+
+test('the movements are the partner account own, read once per page', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+
+    $this->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')->get(route('admin.panelica-licenses.index'))->assertOk();
+
+    expect(plCalls($central, 'GET', 'balance/transactions'))->toHaveCount(1)
+        ->and(plCalls($central, 'GET', '/balance'))->toHaveCount(1);
 });

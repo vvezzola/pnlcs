@@ -41,6 +41,16 @@ class PanelicaLicenseModule extends AbstractServerModule
     /** PNLCS billing cycle => Central billing cycle. Central sells no other. */
     private const CYCLES = ['monthly' => 'monthly', 'annually' => 'yearly'];
 
+    /**
+     * Cycles Central sells as a term of months paid up front, rather than as
+     * one of its own two cycles. Central stores such a key as monthly with a
+     * first period as long as the term, and renews it with POST renew
+     * {months}. A year stays a yearly cycle: a yearly key is priced as a year,
+     * not as twelve months. Longer than a year Central cannot sell at all, so
+     * those cycles are still refused at order time.
+     */
+    private const TERMS = ['quarterly' => 3, 'semiannually' => 6];
+
     public function getModuleName(): string
     {
         return self::NAME;
@@ -91,7 +101,7 @@ class PanelicaLicenseModule extends AbstractServerModule
             return $this->buildResult(false, __('panelica_license.error.no_plan'));
         }
 
-        if (! $this->centralCycle($service)) {
+        if (! $this->centralCycle($service) && ! $this->termMonths($service)) {
             return $this->buildResult(false, __('panelica_license.error.cycle', ['cycle' => (string) $service->billing_cycle]));
         }
 
@@ -322,7 +332,12 @@ class PanelicaLicenseModule extends AbstractServerModule
         }
 
         $due = $service->fresh()?->next_due_date?->toDateString() ?? now()->toDateString();
-        $response = $client->post('licenses/'.$data['license_id'].'/renew', [], $this->idempotencyKey($service, 'renew-'.$due));
+        // The months the customer paid for, when they are not one of Central's
+        // own periods: a quarterly service renews three months, not one.
+        $months = $this->renewMonths($service);
+        $response = $client->post('licenses/'.$data['license_id'].'/renew',
+            $months ? ['months' => $months] : [],
+            $this->idempotencyKey($service, 'renew-'.$due));
 
         if (! $response->ok) {
             return $this->buildResult(false, $response->isBalanceShort()
@@ -439,10 +454,9 @@ class PanelicaLicenseModule extends AbstractServerModule
             return $this->buildResult(true, __('panelica_license.result.unpaid'));
         }
 
-        $converted = $client->post('licenses/'.$license['id'].'/convert', [
-            'plan_id' => $this->planId($service),
-            'billing_cycle' => $this->centralCycle($service),
-        ], $this->idempotencyKey($service, 'convert-'.$license['id']));
+        $converted = $client->post('licenses/'.$license['id'].'/convert',
+            ['plan_id' => $this->planId($service)] + $this->termOrCycle($service),
+            $this->idempotencyKey($service, 'convert-'.$license['id']));
 
         $this->setModuleData($service, $seen);
 
@@ -524,6 +538,90 @@ class PanelicaLicenseModule extends AbstractServerModule
      * license must belong to this partner account. From then on the service
      * renews, suspends and ends it like one it bought itself.
      */
+    /**
+     * Free the machine the key is bound to.
+     *
+     * A key remembers the server it was activated on; a rebuilt or replaced
+     * machine leaves it bound to something that no longer exists and the
+     * customer cannot activate it again. Central frees it with
+     * POST licenses/{id}/unbind. The server this module remembers is cleared
+     * with it, so the panel does not go on naming a machine the key is no
+     * longer tied to.
+     */
+    public function unbindServer(Service $service): array
+    {
+        $data = $this->getModuleData($service);
+
+        if (empty($data['license_id'])) {
+            return $this->buildResult(false, __('panelica_license.error.no_license'));
+        }
+
+        $client = CentralClient::partner();
+        if (! $client) {
+            return $this->buildResult(false, __('panelica_license.error.no_account'));
+        }
+
+        $response = $client->post('licenses/'.$data['license_id'].'/unbind');
+
+        if (! $response->ok) {
+            return $this->failed($service, __('panelica_license.error.central', ['error' => $response->error]));
+        }
+
+        $this->setModuleData($service, [
+            'license_server_ip' => null,
+            'license_server_hostname' => null,
+            'license_last_heartbeat_at' => null,
+            'last_error' => null,
+        ]);
+
+        $result = $this->buildResult(true, __('panelica_license.result.unbound'));
+        $this->logAction($service, 'unbindServer', $result);
+
+        return $result;
+    }
+
+    /**
+     * End the key for good.
+     *
+     * Deliberately not what terminating a service does: that suspends, so the
+     * period the customer paid for is not thrown away and a termination by
+     * mistake can be undone. This is an operator saying "this key is finished"
+     * on purpose, and Central cannot undo it either.
+     */
+    public function cancelLicense(Service $service): array
+    {
+        $data = $this->getModuleData($service);
+
+        if (empty($data['license_id'])) {
+            return $this->buildResult(false, __('panelica_license.error.no_license'));
+        }
+
+        $client = CentralClient::partner();
+        if (! $client) {
+            return $this->buildResult(false, __('panelica_license.error.no_account'));
+        }
+
+        $response = $client->post('licenses/'.$data['license_id'].'/cancel', [
+            'reason' => 'Ended by the operator in billing',
+        ]);
+
+        if (! $response->ok) {
+            return $this->failed($service, __('panelica_license.error.central', ['error' => $response->error]));
+        }
+
+        $this->setModuleData($service, [
+            'license_status' => 'cancelled',
+            'ended' => true,
+            'suspended_here' => false,
+            'last_error' => null,
+        ]);
+
+        $result = $this->buildResult(true, __('panelica_license.result.cancelled'));
+        $this->logAction($service, 'cancelLicense', $result);
+
+        return $result;
+    }
+
     public function attachLicense(Service $service, string $id): array
     {
         $id = trim($id);
@@ -785,7 +883,47 @@ class PanelicaLicenseModule extends AbstractServerModule
 
     private function centralCycle(Service $service): ?string
     {
-        return self::CYCLES[strtolower(str_replace(['-', ' '], '', (string) $service->billing_cycle))] ?? null;
+        return self::CYCLES[$this->cycleKey($service)] ?? null;
+    }
+
+    /**
+     * The term in months Central should sell, or null for one of its cycles.
+     *
+     * Only when the connected Central actually sells terms on convert
+     * (PartnerAccount::sellsTerms, read from its own schema). Against an older
+     * Central the period is refused at order time instead, because converting
+     * it as monthly would charge one month for three.
+     */
+    private function termMonths(Service $service): ?int
+    {
+        $months = self::TERMS[$this->cycleKey($service)] ?? null;
+
+        return $months !== null && PartnerAccount::sellsTerms() ? $months : null;
+    }
+
+    /** The months to renew, whatever Central can sell today: the period paid for. */
+    private function renewMonths(Service $service): ?int
+    {
+        return self::TERMS[$this->cycleKey($service)] ?? null;
+    }
+
+    /**
+     * How the order is expressed to Central: its own cycle where there is one,
+     * otherwise the term in months. One or the other, never both - Central
+     * takes billing_cycle only when no term is given.
+     *
+     * @return array{billing_cycle?: string, term_months?: int}
+     */
+    private function termOrCycle(Service $service): array
+    {
+        $cycle = $this->centralCycle($service);
+
+        return $cycle !== null ? ['billing_cycle' => $cycle] : ['term_months' => $this->termMonths($service)];
+    }
+
+    private function cycleKey(Service $service): string
+    {
+        return strtolower(str_replace(['-', ' '], '', (string) $service->billing_cycle));
     }
 
     private function idempotencyKey(Service $service, string $what): string
