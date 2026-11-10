@@ -2,6 +2,156 @@
 
 All notable changes to PNLCS are documented here. Newest first.
 
+## 1.25.1-beta.1 — 2026-11-10
+
+A beta, offered on the beta channel only. Fixes to the Panelica Licences page
+that 1.25.0 shipped, and one to duplicating a product.
+
+### Fixed
+
+- **The term grid stopped following the price after the first digit.** Typing
+  50 into the one-month box filled the other terms from the 5 that was there
+  after the first keystroke and never corrected them: the script wrote only to
+  boxes that were still empty, and after the first keystroke none were. It now
+  remembers which boxes were typed into by hand and recomputes every other one
+  on each keystroke, so the grid follows the number rather than its first
+  digit. A box filled in by hand is never written to, and clearing it hands it
+  back to the grid. Typing into any of the twelve boxes works the same way.
+- **A package made on the page could not be removed there.** Adding one was a
+  click; removing one meant leaving for the product screen to find its delete
+  button. The package line carries Remove, which refuses while customers still
+  hold the package and says how many services those are. It is a soft delete,
+  and a customer who already holds a licence keeps it.
+- **Duplicating a product dropped the terms it was sold on.** `copy()` cloned
+  the pricing rows, which hold the named cycles, so a copy of a package sold
+  for seven months arrived sold on nothing but its named terms.
+
+### For theme and module authors
+
+- `Product::heldServices()` is the one rule for whether a product may be
+  deleted - how many services on it a customer still holds. The product screen
+  and the licences page both ask it.
+
+### Views a theme may override that changed
+
+- `admin/panelica-licenses/index` — the Remove button, and the grid's script
+  moved out of the page into `public/js/pnlcs-license-terms.js`.
+
+## 1.25.0 — 2026-11-10
+
+A stable release, offered to every installation. A product can be sold for a
+term of any length from one to twelve months, and the Panelica Licences page
+sells all twelve.
+
+**What a term is.** A billing cycle used to be one of six names, and a
+product's price lived in a column named after it: monthly, quarterly,
+semiannually, annually, biennially, triennially. Panelica Central sells a
+licence for any term of 1 to 12 months, so a partner who wanted to sell seven
+had nowhere to put the price and no period to renew on. A cycle is now either
+one of those names or a term of months, and its price lives in the new
+`product_terms` table. Everything that reads a cycle reads the months out of
+it: the price, the next due date, the period printed on the invoice, the
+renewal.
+
+**Nothing moved.** The six named cycles stay in their own columns and nothing
+reads the new table for them, so every existing product, service and invoice
+behaves exactly as before. The new table is empty until somebody prices a term
+that has no name.
+
+**On the licences page.** Every package now carries a box for each of the
+twelve terms with what Panelica charges for it, the margin under the box, and
+one typed price filling the empty ones at the same price per month. A price
+below cost is saved: what to sell for is the operator's decision. Saving writes
+one, three, six and twelve months to their pricing columns and the other eight
+as product terms; clearing a box withdraws that term.
+
+### Added
+
+- **A term of 1 to 12 months is a billing period like any other.** The cart,
+  the admin order screen, the shop list, the invoice period, the next due date
+  and the renewal all work from the term's length. A period longer than twelve
+  months is refused when a Panelica licence is ordered, as before, because
+  Central cannot sell one.
+- **The Panelica Licences page sells every term Central sells**, with the
+  partner's cost beside each box and the margin under it.
+
+### Changed
+
+- **The cycles a customer may move their service to come from the product**
+  rather than a list of six names, so a term the shop sells is a term they can
+  move to.
+
+### Fixed
+
+- **The billing cycle was printed in English on every screen that showed it.**
+  A Turkish or Chinese customer read "Monthly" beside their service, their
+  renewal amount and their upgrade; the admin service, client and order screens
+  did the same. All nine places now use the reader's own words, and a term of
+  months is written as "7 months" rather than as the `7months` it is stored as.
+
+### Database changes
+
+- **New table `product_terms`** (product, currency, months, price, setup fee).
+  Additive, created empty, safe to run twice, and dropped by its own `down()`.
+  No existing row is read, written or moved.
+
+### For theme and module authors
+
+- `App\Services\BillingCycleHelper::months($cycle)` is the one place that says
+  how long a cycle is, for both spellings, and returns null for anything that
+  is not a cycle; `cycleForMonths($months)` gives the cycle to store for a
+  length; `rule()` is the validation rule for a cycle. A server module that
+  mapped cycle names to months should ask these instead.
+- `Product::pricedCycles()` now includes terms of months, shortest first. Code
+  that listed the six names itself will not see them.
+- `cycle_label($cycle)` is the helper that prints a cycle in the reader's
+  language, beside `status_label()`.
+
+### Views a theme may override that changed
+
+- `client/services/show`, `client/home`, `client/services/upgrade` — the cycle
+  is printed through `cycle_label()`.
+- `admin/services/show`, `admin/clients/show`, `admin/orders/show` — the same.
+- `admin/panelica-licenses/index` and the new `admin/panelica-licenses/terms` —
+  the twelve term boxes.
+
+## 1.24.0 — 2026-11-10
+
+A stable release, offered to every installation. The Panelica Licences page is
+tidied: a plan is a row again, and the price boxes open when they are needed.
+
+The page asked for everything at once. Each plan showed four cost figures, two
+list prices, a price form per package with four boxes standing open, another
+form with five more boxes for creating a package, and up to four margin badges
+— around a dozen inputs and badges for one plan. It now shows the month and
+the year a plan costs, with the three- and six-month figures in the cell's
+tooltip, and one line per package: its name, what it earns, and its prices a
+click away. Creating another package is a click too. Nothing was taken away:
+every box, every figure and every margin is still there, one step further in.
+
+Nothing else in the panel changes, and no migration runs.
+
+### Changed
+
+- **The Panelica Licences plan table is a table again.** The margin column was
+  dropped and the margin now sits beside the package it belongs to; a package
+  sold only by the year used to show no margin at all and now shows its yearly
+  one. The four price boxes of a package, and the form that creates another
+  package, open on a click instead of standing open under every plan, and the
+  boxes are labelled with the term rather than relying on a placeholder.
+
+### Fixed
+
+- **Price boxes were labelled in English on a Spanish, Italian, Russian or
+  Ukrainian panel.** Those four language files never received the six strings
+  the terms are named with — Save, 3 months, 6 months, the two per-term prices
+  and the product name label — so the page fell back to English for them. The
+  translation coverage test only reads English, which is why nothing failed.
+
+### Views a theme may override that changed
+
+- `admin/panelica-licenses/index` — the plan table's markup and its columns.
+
 ## 1.23.0 — 2026-11-10
 
 A stable release, offered to every installation. The Panelica Licences page

@@ -11,11 +11,13 @@ use App\Models\SslOrder;
 use App\Services\Module\ModuleRegistry;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class SslProvisioningService
 {
     public function __construct(
         protected ModuleRegistry $registry,
+        protected SslChainBuilder $chainBuilder,
     ) {}
 
     public function getModuleForOrder(SslOrder $order): ?SslModuleInterface
@@ -96,6 +98,7 @@ class SslProvisioningService
 
         // If certificate was just issued, send notification
         $order->refresh();
+        $this->completeChain($order);
         if ($previousStatus !== 'Completed' && $order->status === 'Completed') {
             $this->sendCertificateIssuedEmail($order);
         }
@@ -159,6 +162,8 @@ class SslProvisioningService
             return ['success' => false, 'message' => __('messages.error.certificate_not_yet_issued')];
         }
 
+        $this->completeChain($order);
+
         return [
             'success' => true,
             'data' => [
@@ -178,7 +183,7 @@ class SslProvisioningService
             if ($client && $client->email) {
                 Mail::to($client->email)->send(new SslConfigurationRequiredMail($order));
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::warning("Failed to send SSL config email for order #{$order->id}: {$e->getMessage()}");
         }
     }
@@ -190,7 +195,7 @@ class SslProvisioningService
             if ($client && $client->email) {
                 Mail::to($client->email)->send(new SslCertificateIssuedMail($order));
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::warning("Failed to send SSL issued email for order #{$order->id}: {$e->getMessage()}");
         }
     }
@@ -291,5 +296,37 @@ class SslProvisioningService
         }
 
         $module->getCertificateStatus($order);
+        $this->completeChain($order->refresh());
+    }
+
+    /**
+     * Replaces the chain the module stored with one rebuilt from the leaf, so
+     * the downloaded bundle installs everywhere whichever authority issued it.
+     * Nothing is touched when the chain cannot be completed, and an order
+     * whose chain is already right is not written again.
+     */
+    public function completeChain(SslOrder $order): void
+    {
+        if (empty($order->cert)) {
+            return;
+        }
+
+        try {
+            $rebuilt = $this->chainBuilder->build($order->cert, $order->ca_cert);
+        } catch (Throwable $e) {
+            Log::warning('SSL chain rebuild failed', ['order' => $order->id, 'error' => $e->getMessage()]);
+
+            return;
+        }
+
+        if ($rebuilt === null) {
+            Log::info('SSL chain could not be completed', ['order' => $order->id]);
+
+            return;
+        }
+
+        if ($rebuilt['ca_cert'] !== $order->ca_cert || $rebuilt['fullchain'] !== $order->fullchain || $rebuilt['cert'] !== $order->cert) {
+            $order->update($rebuilt);
+        }
     }
 }

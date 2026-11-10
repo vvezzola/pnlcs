@@ -35,6 +35,19 @@
     .pl-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;background:#eef2f7;color:#555}
     .pl-badge.ok{background:#e7f6ec;color:#1e7b3a}.pl-badge.wait{background:#fff4e0;color:#9a5b00}.pl-badge.bad{background:#fdecea;color:#a12a1f}
     .pl-price{width:96px;font-size:12.5px;padding:4px 6px}
+    .pl-remove{padding:0 10px 8px;text-align:right}
+    .pl-terms{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px;width:100%}
+    .pl-term{border:1px solid #eceff3;border-radius:5px;padding:5px 7px;background:#fff;display:flex;flex-direction:column;gap:2px}
+    .pl-term.off{background:#f7f8fa}
+    .pl-term .t{font-size:11.5px;font-weight:700;color:#444}
+    .pl-term .c{font-size:11px;color:#777}
+    .pl-term .m{font-size:11px;min-height:14px}
+    .pl-term .m.ok{color:#1e7b3a}.pl-term .m.bad{color:#a12a1f}
+    .pl-term .x{font-size:11px;color:#999;cursor:help}
+    .pl-term input{width:100%;font-size:12.5px;padding:3px 5px;margin-top:2px}
+    .pl-terms-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11.5px;color:#777;margin-top:6px;width:100%}
+    .pl-name{width:100%;font-size:11px;color:#777}
+    .pl-name input{font-size:12.5px;padding:4px 6px;max-width:260px}
     .pl-pkg{border:1px solid #eceff3;border-radius:6px;margin-bottom:6px;background:#fcfdfe}
     .pl-pkg>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:13px}
     .pl-pkg>summary::-webkit-details-marker{display:none}
@@ -43,6 +56,7 @@
     .pl-pkg[open]>summary em{color:#777}
     .pl-new>summary{color:#1a4d80}
     .pl-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:8px 10px;border-top:1px solid #eceff3}
+    .pl-form>button{margin-top:4px}
     .pl-form label{display:block;font-size:11px;color:#777;margin:0}
     @media (max-width:900px){.pl-hero{grid-template-columns:1fr}}
 </style>
@@ -191,11 +205,19 @@
             // The longer terms are in the cost cell's tooltip rather than on
             // four lines of their own; the page is read far more often than
             // the prices are changed.
-            $costTerms = __('panelica_license.page.per_quarter', ['price' => $money($costQ)]).' · '.__('panelica_license.page.per_half_year', ['price' => $money($costH)]);
+            // Central sells any term of 1 to 12 months, charged at the monthly
+            // price, with the twelfth month charged as a year instead (it is
+            // cheaper). The partner page on panelica.com shows the same ladder,
+            // so the operator sees the floor for every term here too - and which
+            // of them PNLCS can actually recur on.
+            $ladder = [];
+            foreach (range(1, 12) as $n) {
+                $ladder[$n] = $n === 12 ? $costY : round($costM * $n, 2);
+            }
         @endphp
         <tr>
             <td style="{{ $td }}"><strong>{{ $plan['name'] ?? '' }}</strong>@if(! empty($plan['description']))<br><small style="{{ $muted }}">{{ \Illuminate\Support\Str::limit((string) $plan['description'], 80) }}</small>@endif</td>
-            <td style="{{ $td }}white-space:nowrap;" title="{{ $costTerms }}">{{ __('panelica_license.page.per_month', ['price' => $money($costM)]) }}<br><small style="{{ $muted }}">{{ __('panelica_license.page.per_year', ['price' => $money($costY)]) }}</small></td>
+            <td style="{{ $td }}white-space:nowrap;">{{ __('panelica_license.page.per_month', ['price' => $money($costM)]) }}<br><small style="{{ $muted }}">{{ __('panelica_license.page.per_year', ['price' => $money($costY)]) }}</small></td>
             <td style="{{ $td }}white-space:nowrap;{{ $muted }}">{{ __('panelica_license.page.per_month', ['price' => $money($plan['price_monthly'] ?? 0)]) }}<br><small>{{ __('panelica_license.page.per_year', ['price' => $money($plan['price_yearly'] ?? 0)]) }}</small></td>
             <td style="{{ $td }}">
                 {{-- One line per package: what it is called, what it earns, and
@@ -205,24 +227,31 @@
                 @php
                     // The margin is shown for the shortest term the package is
                     // actually sold on, so a yearly-only package still shows one.
-                    $marginCycle = collect(\Modules\Servers\PanelicaLicense\Http\Admin\LicensesPageController::SELLABLE_CYCLES)
-                        ->first(fn ($c) => $product->priceFor($c) !== null);
-                    $marginTerm = ['monthly' => 'per_month', 'quarterly' => 'per_quarter', 'semiannually' => 'per_half_year', 'annually' => 'per_year'];
-                    $margin = $marginCycle && $usdRate ? $product->priceFor($marginCycle) - $cost[$marginCycle] * $usdRate : null;
+                    // The shortest term the package is actually sold on, so a
+                    // package sold by the year alone still shows a margin.
+                    $marginMonths = collect(array_keys($ladder))
+                        ->first(fn ($n) => $product->priceFor(\App\Services\BillingCycleHelper::cycleForMonths($n)) !== null);
+                    $margin = $marginMonths && $usdRate
+                        ? $product->priceFor(\App\Services\BillingCycleHelper::cycleForMonths($marginMonths)) - $ladder[$marginMonths] * $usdRate
+                        : null;
                 @endphp
                 <details class="pl-pkg">
                     <summary>
                         <a href="{{ route('admin.products.edit', $product) }}">{{ $product->name }}</a>
-                        @if($margin !== null)<span class="pl-badge {{ $margin >= 0 ? 'ok' : 'bad' }}">{{ __('panelica_license.page.'.$marginTerm[$marginCycle], ['price' => $local($margin)]) }}</span>@endif
+                        @if($margin !== null)<span class="pl-badge {{ $margin >= 0 ? 'ok' : 'bad' }}"><span>{{ trans_choice('panelica_license.page.months', $marginMonths, ['count' => $marginMonths]) }}</span> <span>{{ $local($margin) }}</span></span>@endif
                         <em>{{ __('panelica_license.page.edit_prices') }}</em>
                     </summary>
                     <form method="POST" action="{{ route('admin.panelica-licenses.products.prices', $product) }}" class="pl-form">
                         @csrf
-                        @foreach(\Modules\Servers\PanelicaLicense\Http\Admin\LicensesPageController::SELLABLE_CYCLES as $cycle)
-                        <label>{{ __('panelica_license.page.'.$cycle) }}<input type="number" name="{{ $cycle }}" step="0.01" min="0.01" class="form-control pl-price" value="{{ $product->priceFor($cycle, $currency?->id) ?? '' }}"></label>
-                        @endforeach
-                        <span style="font-size:12px;{{ $muted }}">{{ $currency?->code }}</span>
+                        @include('admin.panelica-licenses.terms', ['ladder' => $ladder, 'prices' => $product, 'suggestMonthly' => null])
                         <button type="submit" class="btn btn-default btn-sm">{{ __('panelica_license.page.save_prices') }}</button>
+                    </form>
+                    {{-- Removing a package is as easy as adding one. Refused
+                         while customers hold it, and a soft delete either way. --}}
+                    <form method="POST" action="{{ route('admin.panelica-licenses.products.destroy', $product) }}" class="pl-remove"
+                          onsubmit="return pnConfirm(event, @js(__('panelica_license.page.confirm_remove_package')))">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="btn btn-danger btn-sm">{{ __('panelica_license.page.remove_package') }}</button>
                     </form>
                 </details>
                 @endforeach
@@ -232,10 +261,7 @@
                         @csrf
                         <input type="hidden" name="plan_id" value="{{ $plan['id'] }}">
                         <label>{{ __('panelica_license.page.product_name_label') }}<input type="text" name="name" required maxlength="255" class="form-control" style="width:170px;font-size:12.5px;padding:4px 6px;" value="{{ __('panelica_license.page.product_name', ['plan' => $plan['name'] ?? '']) }}"></label>
-                        @foreach(\Modules\Servers\PanelicaLicense\Http\Admin\LicensesPageController::SELLABLE_CYCLES as $cycle)
-                        <label>{{ __('panelica_license.page.'.$cycle) }}<input type="number" name="{{ $cycle }}" step="0.01" min="0.01" class="form-control pl-price" value="{{ $suggest[$cycle] ?: '' }}"></label>
-                        @endforeach
-                        <span style="font-size:12px;{{ $muted }}">{{ $currency?->code }}</span>
+                        @include('admin.panelica-licenses.terms', ['ladder' => $ladder, 'prices' => null, 'suggestMonthly' => $suggestM])
                         <button type="submit" class="btn btn-primary btn-sm">{{ __('panelica_license.page.create_product') }}</button>
                     </form>
                 </details>
@@ -427,5 +453,10 @@ document.querySelectorAll('[data-pl-copy]').forEach(function (button) {
     </div>
 </div>
 @endif
+
+{{-- The grid's own script: it fills the terms the operator has not typed into
+     and keeps every margin up to date. public/js so it can be read, cached and
+     measured on its own rather than living inside this page. --}}
+<script src="{{ asset('js/pnlcs-license-terms.js') }}"></script>
 
 @endsection
