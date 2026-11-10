@@ -12,13 +12,17 @@ use RuntimeException;
 use Throwable;
 
 /**
- * SSL2BUY (ssl2buy.com) reseller API, "full order" flow: the panel collects the
- * CSR, contact and validation method, and places the order with them, so the
- * certificate comes back here instead of being configured on SSL2BUY's site.
+ * SSL2BUY (ssl2buy.com) reseller API.
  *
- * Covered: the single-domain and wildcard Sectigo/Comodo DV certificates, which
- * share one request shape. SSL2BUY has no API call to revoke or cancel; that
- * stays on its own panel.
+ * New certificates are bought with the "full order" calls: the panel collects
+ * the CSR, contact and validation method and places the order with them, so
+ * the certificate comes back here instead of being configured on SSL2BUY's
+ * site. That covers AlphaSSL (GlobalSign) and the Sectigo/Comodo DV
+ * certificates. Status, download and import work for every order on the
+ * account, PrimeSSL and DigiCert brands included, since SSL2BUY answers those
+ * per certificate authority ("family").
+ *
+ * SSL2BUY has no API call to revoke or cancel; that stays on its own panel.
  */
 class SSL2BuyModule extends AbstractSslModule
 {
@@ -27,19 +31,59 @@ class SSL2BuyModule extends AbstractSslModule
     public const TEST_URL = 'https://demo-api.ssl2buy.com/';
 
     /**
-     * SSL2BUY product code => the full-order call that buys it.
+     * Where each certificate authority's orders are read: details, the issued
+     * certificate (and the fields it comes in), the approval e-mail resend.
      *
-     * @var array<int, array{path: string, name: string, brand: string, contact: string, wildcard: bool}>
+     * @var array<string, array{details: string, certificate: string|null, cert: string, chain: list<string>, resend: string|null}>
+     */
+    public const FAMILIES = [
+        'globalsign' => [
+            'details' => 'queryservice/globalsign/getorderdetails',
+            'certificate' => 'orderservice/GlobalSignFullOrder/GetCertificate',
+            'cert' => 'X509Cert',
+            'chain' => ['InterCert'],
+            'resend' => 'queryservice/globalsign/resendapprovalemail',
+        ],
+        'comodo' => [
+            'details' => 'queryservice/comodo/getorderdetails',
+            'certificate' => 'queryservice/ComodoFullOrder/GetCertificate',
+            'cert' => 'Certificate',
+            'chain' => ['IntermediateCertificate1', 'IntermediateCertificate2'],
+            'resend' => 'queryservice/ComodoFullOrder/ResendApprovalEmail',
+        ],
+        'prime' => [
+            'details' => 'queryservice/prime/getorderdetails',
+            'certificate' => 'queryservice/prime/getcertificate',
+            'cert' => 'Certificate',
+            'chain' => ['IntermediateCertificate1', 'IntermediateCertificate2'],
+            'resend' => null,
+        ],
+        'digicert' => [
+            'details' => 'queryservice/symantec/getorderdetails',
+            'certificate' => null,
+            'cert' => 'Certificate',
+            'chain' => [],
+            'resend' => 'queryservice/symantec/resendapprovalemail',
+        ],
+    ];
+
+    /**
+     * SSL2BUY product code => the full-order call that buys it, and the
+     * validation methods the authority accepts for it (panel name => API name).
+     *
+     * @var array<int, array{family: string, path: string, name: string, contact: string, wildcard: bool, methods: array<string, string>}>
      */
     public const PRODUCTS = [
-        351 => ['path' => 'SectigoPositiveSSL', 'name' => 'Sectigo PositiveSSL', 'brand' => 'Sectigo', 'contact' => 'ContactDetails', 'wildcard' => false],
-        352 => ['path' => 'SectigoPositiveWildcardSSL', 'name' => 'Sectigo PositiveSSL Wildcard', 'brand' => 'Sectigo', 'contact' => 'ContactDetails', 'wildcard' => true],
-        362 => ['path' => 'SectigoEssentialSSL', 'name' => 'Sectigo EssentialSSL', 'brand' => 'Sectigo', 'contact' => 'OrganisationInfo', 'wildcard' => false],
-        363 => ['path' => 'SectigoEssentialWildcardSSL', 'name' => 'Sectigo EssentialSSL Wildcard', 'brand' => 'Sectigo', 'contact' => 'OrganisationInfo', 'wildcard' => true],
-        301 => ['path' => 'ComodoPositiveSSL', 'name' => 'Comodo PositiveSSL', 'brand' => 'Comodo', 'contact' => 'ContactDetails', 'wildcard' => false],
-        302 => ['path' => 'ComodoPositiveWildcardSSL', 'name' => 'Comodo PositiveSSL Wildcard', 'brand' => 'Comodo', 'contact' => 'ContactDetails', 'wildcard' => true],
-        314 => ['path' => 'ComodoEssentialSSL', 'name' => 'Comodo EssentialSSL', 'brand' => 'Comodo', 'contact' => 'OrganisationInfo', 'wildcard' => false],
-        315 => ['path' => 'ComodoEssentialWildcardSSL', 'name' => 'Comodo EssentialSSL Wildcard', 'brand' => 'Comodo', 'contact' => 'OrganisationInfo', 'wildcard' => true],
+        101 => ['family' => 'globalsign', 'path' => 'orderservice/GlobalSignFullOrder/AlphaSSLFullOrder', 'name' => 'AlphaSSL', 'contact' => 'ContactInfo', 'wildcard' => false, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'DNS', 'HTTP' => 'URL']],
+        102 => ['family' => 'globalsign', 'path' => 'orderservice/GlobalSignFullOrder/AlphaSSLWildCardFullOrder', 'name' => 'AlphaSSL Wildcard', 'contact' => 'ContactInfo', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'DNS']],
+        351 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/SectigoPositiveSSL', 'name' => 'Sectigo PositiveSSL', 'contact' => 'ContactDetails', 'wildcard' => false, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH', 'HTTP' => 'HTTPCSRHASH']],
+        352 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/SectigoPositiveWildcardSSL', 'name' => 'Sectigo PositiveSSL Wildcard', 'contact' => 'ContactDetails', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH']],
+        362 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/SectigoEssentialSSL', 'name' => 'Sectigo EssentialSSL', 'contact' => 'OrganisationInfo', 'wildcard' => false, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH', 'HTTP' => 'HTTPCSRHASH']],
+        363 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/SectigoEssentialWildcardSSL', 'name' => 'Sectigo EssentialSSL Wildcard', 'contact' => 'OrganisationInfo', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH']],
+        301 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/ComodoPositiveSSL', 'name' => 'Comodo PositiveSSL', 'contact' => 'ContactDetails', 'wildcard' => false, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH', 'HTTP' => 'HTTPCSRHASH']],
+        302 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/ComodoPositiveWildcardSSL', 'name' => 'Comodo PositiveSSL Wildcard', 'contact' => 'ContactDetails', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH']],
+        314 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/ComodoEssentialSSL', 'name' => 'Comodo EssentialSSL', 'contact' => 'OrganisationInfo', 'wildcard' => false, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH', 'HTTP' => 'HTTPCSRHASH']],
+        315 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/ComodoEssentialWildcardSSL', 'name' => 'Comodo EssentialSSL Wildcard', 'contact' => 'OrganisationInfo', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH']],
     ];
 
     public function getModuleName(): string
@@ -66,11 +110,11 @@ class SSL2BuyModule extends AbstractSslModule
                 'default' => '0',
             ],
             'default_product' => [
-                'label' => 'Default certificate: SSL2BUY product code (351 Sectigo PositiveSSL, 352 PositiveSSL Wildcard, 362 EssentialSSL, 363 EssentialSSL Wildcard)',
+                'label' => 'Default certificate: SSL2BUY product code (101 AlphaSSL, 102 AlphaSSL Wildcard, 351 Sectigo PositiveSSL, 352 PositiveSSL Wildcard, 362 EssentialSSL, 363 EssentialSSL Wildcard)',
                 'type' => 'text',
             ],
             'product_map' => [
-                'label' => 'Certificate per product: panel product ID=SSL2BUY code, comma separated (e.g. 12=351, 13=352)',
+                'label' => 'Certificate per product: panel product ID=SSL2BUY code, comma separated (e.g. 12=101, 13=102)',
                 'type' => 'text',
             ],
         ];
@@ -117,34 +161,34 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         try {
-            $details = $this->call('queryservice/comodo/getorderdetails', ['OrderNumber' => (int) $order->remote_id]);
+            [$family, $details] = $this->orderDetails($order);
             $remoteStatus = (string) ($details['OrderStatus'] ?? '');
             $status = $this->mapRemoteStatus($remoteStatus);
 
             $updates = ['last_polled_at' => now(), 'status' => $status];
+            $data = (array) ($order->config_data ?? []);
+            $data['ssl2buy_family'] = $family;
+
             $expires = $this->apiDate($details['EndDate'] ?? null);
             if ($expires) {
                 $updates['crt_expires'] = $expires;
             }
+            $productName = (string) ($details['BaseOrderDetails']['ProductName'] ?? '');
+            if ($productName !== '' && empty($order->cert_type)) {
+                $updates['cert_type'] = $productName;
+            }
 
             if ($status === 'Completed') {
-                $certificate = $this->call('queryservice/ComodoFullOrder/GetCertificate', ['OrderNumber' => (int) $order->remote_id]);
-                $cert = trim((string) ($certificate['Certificate'] ?? ''));
-                $chain = implode("\n", array_filter([
-                    trim((string) ($certificate['IntermediateCertificate1'] ?? '')),
-                    trim((string) ($certificate['IntermediateCertificate2'] ?? '')),
-                ]));
-
-                if ($cert !== '') {
-                    $updates['cert'] = $cert;
-                    $updates['ca_cert'] = $chain !== '' ? $chain : null;
-                    $updates['fullchain'] = $chain !== '' ? $cert."\n".$chain : $cert;
-                }
+                $updates += $this->downloadCertificate($family, (string) $order->remote_id);
                 if (! $order->completion_date) {
                     $updates['completion_date'] = $this->apiDate($details['StartDate'] ?? null) ?? now();
                 }
+            } elseif ($family === 'globalsign' && ($dcv = $this->globalSignDcv($details, (string) $order->domain))) {
+                // GlobalSign hands out the DNS/file value once the order exists.
+                $data['dcv'] = $dcv;
             }
 
+            $updates['config_data'] = $data;
             $order->update($updates);
 
             $result = $this->buildResult(true, "Status: {$remoteStatus}", ['status' => $remoteStatus]);
@@ -199,13 +243,13 @@ class SSL2BuyModule extends AbstractSslModule
     public function mapRemoteStatus(string $status): string
     {
         return match (strtoupper(str_replace(' ', '_', trim($status)))) {
-            'COMPLETED', 'ISSUED', 'ACTIVE' => 'Completed',
+            'COMPLETED', 'ISSUED', 'ACTIVE', 'VALID' => 'Completed',
             'CANCELLED', 'CANCELED', 'REJECTED', 'REFUNDED' => 'Cancelled',
             'EXPIRED' => 'Expired',
             'REVOKED' => 'Revoked',
-            // LINKPENDING, INPROCESS, WAIT_FOR_APPROVAL, SECURITY_REVIEW: placed,
-            // not issued. Never "Awaiting Configuration": configuring an order
-            // here buys a new certificate.
+            // LINKPENDING, PENDING_CONFIGURATION, INPROCESS, WAIT_FOR_APPROVAL,
+            // SECURITY_REVIEW: placed, not issued. Never "Awaiting
+            // Configuration": configuring an order here buys a new certificate.
             default => 'Awaiting Issuance',
         };
     }
@@ -225,7 +269,8 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         try {
-            $method = $this->approvalMethod((string) $order->validation_method, $this->isWildcard($order));
+            $this->requireComodo($order, 'reissue');
+            $method = $this->approvalMethod($order, (string) $order->validation_method);
             $response = $this->call('queryservice/ComodoFullOrder/ReissueCertificate', array_filter([
                 'OrderNumber' => (int) $order->remote_id,
                 'CSR' => $newCsr,
@@ -240,7 +285,7 @@ class SSL2BuyModule extends AbstractSslModule
                 'ca_cert' => null,
                 'fullchain' => null,
                 'completion_date' => null,
-                'config_data' => $this->withDcv($order, $newCsr, $method, $response),
+                'config_data' => $this->withDcv($order, 'comodo', $newCsr, $method, $response),
             ]);
 
             $result = $this->buildResult(true, 'Reissue requested', $this->publicFields($response));
@@ -260,7 +305,11 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         try {
-            $this->call('queryservice/ComodoFullOrder/ResendApprovalEmail', ['OrderNumber' => (int) $order->remote_id]);
+            $path = self::FAMILIES[$this->familyFor($order) ?? 'comodo']['resend'];
+            if ($path === null) {
+                throw new RuntimeException('SSL2BUY offers no resend for this certificate: use the SSL2BUY panel');
+            }
+            $this->call($path, ['OrderNumber' => (int) $order->remote_id]);
             $result = $this->buildResult(true, 'Validation email resent');
         } catch (Throwable $e) {
             $result = $this->buildResult(false, "Resend error: {$e->getMessage()}");
@@ -278,7 +327,8 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         try {
-            $approvalMethod = $this->approvalMethod($method, $this->isWildcard($order));
+            $this->requireComodo($order, 'change the validation method');
+            $approvalMethod = $this->approvalMethod($order, $method);
             $response = $this->call('queryservice/ComodoFullOrder/ChangeDCVMethod/', array_filter([
                 'OrderNumber' => (int) $order->remote_id,
                 'DCVMethod' => $approvalMethod,
@@ -287,7 +337,7 @@ class SSL2BuyModule extends AbstractSslModule
 
             $order->update([
                 'validation_method' => strtoupper($method),
-                'config_data' => $this->withDcv($order, (string) $order->csr, $approvalMethod, $response),
+                'config_data' => $this->withDcv($order, 'comodo', (string) $order->csr, $approvalMethod, $response),
             ]);
 
             $result = $this->buildResult(true, 'Validation method changed', $this->publicFields($response));
@@ -317,21 +367,19 @@ class SSL2BuyModule extends AbstractSslModule
         return array_map(fn (string $box) => "{$box}@{$domain}", ['admin', 'administrator', 'webmaster', 'hostmaster', 'postmaster']);
     }
 
-    /** The server software list SSL2BUY passes on to Sectigo, which wants its own codes. */
+    /** The server software list Sectigo wants its own codes from (code => name). */
     public function getWebServerTypes(): array
     {
         try {
             return Cache::remember('ssl2buy_webservers_'.($this->isTestMode() ? 'test' : 'live'), now()->addDay(), function () {
                 $list = $this->call('queryservice/ComodoFullOrder/GetComodoWebServerList')['WebServerTypeList'] ?? [];
                 $types = [];
-                foreach ((array) $list as $key => $value) {
-                    if (is_array($value)) {
-                        $key = $value['Key'] ?? $value['key'] ?? $value['Id'] ?? $key;
-                        $value = $value['Value'] ?? $value['value'] ?? $value['Name'] ?? '';
+                // Sent as {"Apache/ModSSL": "2", ...}: name => code.
+                foreach ((array) $list as $name => $code) {
+                    if (str_starts_with((string) $name, '$') || ! is_scalar($code) || (string) $code === '') {
+                        continue;
                     }
-                    if ((string) $value !== '') {
-                        $types[(string) $key] = (string) $value;
-                    }
+                    $types[(string) $code] = (string) $name;
                 }
                 if ($types === []) {
                     throw new RuntimeException('empty web server list');
@@ -340,7 +388,7 @@ class SSL2BuyModule extends AbstractSslModule
                 return $types;
             });
         } catch (Throwable) {
-            return ['-1' => 'Other'];
+            return ['-1' => 'OTHER'];
         }
     }
 
@@ -351,7 +399,7 @@ class SSL2BuyModule extends AbstractSslModule
             $types[] = [
                 'id' => $code,
                 'name' => $product['name'],
-                'brand' => $product['brand'],
+                'brand' => $product['family'] === 'globalsign' ? 'GlobalSign' : 'Sectigo',
                 'type' => 'DV',
                 'wildcard' => $product['wildcard'],
                 'multi_domain' => false,
@@ -417,9 +465,9 @@ class SSL2BuyModule extends AbstractSslModule
     }
 
     /**
-     * What the domain owner has to publish for an HTTP or DNS validation: the
-     * Sectigo CSR-hash scheme, built from the CSR itself plus the unique value
-     * SSL2BUY returns. Null for email validation.
+     * What the domain owner has to publish for a Sectigo HTTP or DNS
+     * validation: the CSR-hash scheme, built from the CSR itself plus the
+     * unique value SSL2BUY returns. Null for email validation.
      *
      * @return array{method: string, url?: string, content?: string, name?: string, type?: string, value?: string}|null
      */
@@ -475,6 +523,37 @@ class SSL2BuyModule extends AbstractSslModule
         return null;
     }
 
+    /**
+     * The certificate authority an order belongs to, when it can be told
+     * without asking SSL2BUY: remembered from an earlier poll, the product
+     * bought here, or the product name an imported order carries.
+     */
+    public function familyFor(SslOrder $order): ?string
+    {
+        $family = $order->config_data['ssl2buy_family'] ?? null;
+        if (is_string($family) && isset(self::FAMILIES[$family])) {
+            return $family;
+        }
+
+        $code = (int) ($order->config_data['ssl2buy_product'] ?? 0);
+        if (isset(self::PRODUCTS[$code])) {
+            return self::PRODUCTS[$code]['family'];
+        }
+
+        return self::familyForName((string) $order->cert_type);
+    }
+
+    public static function familyForName(string $productName): ?string
+    {
+        return match (true) {
+            (bool) preg_match('/alphassl|globalsign/i', $productName) => 'globalsign',
+            (bool) preg_match('/primessl/i', $productName) => 'prime',
+            (bool) preg_match('/sectigo|comodo|positive|essential|instantssl/i', $productName) => 'comodo',
+            (bool) preg_match('/rapidssl|geotrust|thawte|digicert|symantec/i', $productName) => 'digicert',
+            default => null,
+        };
+    }
+
     private function placeOrder(SslOrder $order, int $years, string $action, string $successMessage): array
     {
         try {
@@ -487,18 +566,41 @@ class SSL2BuyModule extends AbstractSslModule
             }
 
             $product = self::PRODUCTS[$code];
-            $method = $this->approvalMethod((string) $order->validation_method, $product['wildcard']);
+            $method = $this->approvalMethod($order, (string) $order->validation_method, $code);
+            $partnerOrderId = 'pnlcs-'.$order->id.'-'.now()->format('YmdHis');
 
-            $response = $this->call('queryservice/ComodoFullOrder/'.$product['path'], [
-                'Year' => $years,
-                'PartnerOrderID' => 'pnlcs-'.$order->id.'-'.now()->format('YmdHis'),
-                'WebServer' => (string) ($order->webserver_type ?: '-1'),
-                'ApprovalMethod' => $method,
-                'ApprovalEmail' => $method === 'EMAIL' ? (string) $order->approver_email : '',
-                'CSR' => $order->csr,
-                'IsAutoConfig' => false,
-                $product['contact'] => $this->contact($order),
-            ]);
+            $payload = $product['family'] === 'globalsign'
+                ? [
+                    'Year' => $years,
+                    'PartnerOrderID' => $partnerOrderId,
+                    'ApprovalMethod' => $method,
+                    // Required even when the domain is validated by DNS or file.
+                    'ApprovalEmail' => (string) ($order->approver_email ?: 'admin@'.$this->baseDomain((string) $order->domain)),
+                    'CSR' => $order->csr,
+                    'IsAutoConfig' => false,
+                    'ContactInfo' => [
+                        'Title' => '',
+                        'FirstName' => (string) $order->admin_first_name,
+                        'LastName' => (string) $order->admin_last_name,
+                        'Email' => (string) $order->admin_email,
+                        'OrganizationName' => (string) $order->admin_org,
+                        'OrganizationUnit' => '',
+                        'Phone' => (string) $order->admin_phone,
+                        'FunctionInOrg' => '',
+                    ],
+                ]
+                : [
+                    'Year' => $years,
+                    'PartnerOrderID' => $partnerOrderId,
+                    'WebServer' => (string) ($order->webserver_type ?: '-1'),
+                    'ApprovalMethod' => $method,
+                    'ApprovalEmail' => $method === 'EMAIL' ? (string) $order->approver_email : '',
+                    'CSR' => $order->csr,
+                    'IsAutoConfig' => false,
+                    $product['contact'] => $this->sectigoContact($order),
+                ];
+
+            $response = $this->call($product['path'], $payload);
 
             $remoteId = (string) ($response['SSL2BuyOrderNumber'] ?? '');
             if ($remoteId === '' || $remoteId === '0') {
@@ -515,9 +617,10 @@ class SSL2BuyModule extends AbstractSslModule
                 'ca_cert' => null,
                 'fullchain' => null,
                 'completion_date' => null,
-                'config_data' => array_merge($this->withDcv($order, (string) $order->csr, $method, $response), [
+                'config_data' => array_merge($this->withDcv($order, $product['family'], (string) $order->csr, $method, $response), [
                     'ssl2buy_product' => $code,
-                    'ca_order_number' => (string) ($response['ComodoOrderNumber'] ?? ''),
+                    'ssl2buy_family' => $product['family'],
+                    'ca_order_number' => (string) ($response['ComodoOrderNumber'] ?? $response['GSOrderNumber'] ?? ''),
                 ]),
             ]);
 
@@ -531,8 +634,68 @@ class SSL2BuyModule extends AbstractSslModule
         return $result;
     }
 
-    /** @return array<string, string> the one contact block the DV products take */
-    private function contact(SslOrder $order): array
+    /**
+     * The order's details from its certificate authority's endpoint. An order
+     * whose authority is not known yet (imported) is looked up under each one
+     * until SSL2BUY recognises it.
+     *
+     * @return array{0: string, 1: array<string, mixed>}
+     */
+    private function orderDetails(SslOrder $order): array
+    {
+        $known = $this->familyFor($order);
+        $families = $known ? [$known] : array_keys(self::FAMILIES);
+        $lastError = null;
+
+        foreach ($families as $family) {
+            try {
+                $details = $this->call(self::FAMILIES[$family]['details'], ['OrderNumber' => (int) $order->remote_id]);
+            } catch (Throwable $e) {
+                $lastError = $e;
+
+                continue;
+            }
+
+            // Asked under the wrong authority, SSL2BUY may still answer
+            // "success" with an empty status; the product name tells.
+            $named = self::familyForName((string) ($details['BaseOrderDetails']['ProductName'] ?? ''));
+            if ($named !== null && $named !== $family) {
+                return [$named, $this->call(self::FAMILIES[$named]['details'], ['OrderNumber' => (int) $order->remote_id])];
+            }
+            if ($known || trim((string) ($details['OrderStatus'] ?? '')) !== '') {
+                return [$family, $details];
+            }
+            $lastError = new RuntimeException('order not found');
+        }
+
+        throw $lastError ?? new RuntimeException('order not found');
+    }
+
+    /** @return array<string, string|null> cert, ca_cert and fullchain, or nothing when none is issued */
+    private function downloadCertificate(string $family, string $remoteId): array
+    {
+        $spec = self::FAMILIES[$family];
+        if ($spec['certificate'] === null) {
+            return [];
+        }
+
+        $response = $this->call($spec['certificate'], ['OrderNumber' => (int) $remoteId]);
+        $cert = trim((string) ($response[$spec['cert']] ?? ''));
+        if ($cert === '') {
+            return [];
+        }
+
+        $chain = implode("\n", array_filter(array_map(fn (string $field) => trim((string) ($response[$field] ?? '')), $spec['chain'])));
+
+        return [
+            'cert' => $cert,
+            'ca_cert' => $chain !== '' ? $chain : null,
+            'fullchain' => $chain !== '' ? $cert."\n".$chain : $cert,
+        ];
+    }
+
+    /** @return array<string, string> the one contact block the Sectigo DV products take */
+    private function sectigoContact(SslOrder $order): array
     {
         return [
             'FirstName' => (string) $order->admin_first_name,
@@ -549,27 +712,43 @@ class SSL2BuyModule extends AbstractSslModule
         ];
     }
 
-    /** The panel's EMAIL / HTTP / DNS as the CSR-hash methods SSL2BUY names. */
-    private function approvalMethod(string $method, bool $wildcard): string
+    /** The panel's EMAIL / HTTP / DNS as the product's own method name. */
+    private function approvalMethod(SslOrder $order, string $method, ?int $code = null): string
     {
-        $approvalMethod = match (strtoupper(trim($method))) {
-            'HTTP', 'HTTPS', 'HTTPCSRHASH', 'HTTPSCSRHASH' => 'HTTPCSRHASH',
-            'DNS', 'CNAME', 'CNAMECSRHASH' => 'CNAMECSRHASH',
+        $code ??= $this->productCodeFor($order);
+        $methods = $code !== null ? self::PRODUCTS[$code]['methods'] : ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH', 'HTTP' => 'HTTPCSRHASH'];
+
+        $panelMethod = match (strtoupper(trim($method))) {
+            'HTTP', 'HTTPS', 'URL', 'HTTPCSRHASH', 'HTTPSCSRHASH' => 'HTTP',
+            'DNS', 'CNAME', 'CNAMECSRHASH' => 'DNS',
             default => 'EMAIL',
         };
 
-        if ($wildcard && $approvalMethod === 'HTTPCSRHASH') {
-            throw new RuntimeException('a wildcard certificate cannot be validated by HTTP file: use email or DNS');
+        if (! isset($methods[$panelMethod])) {
+            throw new RuntimeException('this certificate cannot be validated by HTTP file (a wildcard never can): use email or DNS');
         }
 
-        return $approvalMethod;
+        return $methods[$panelMethod];
+    }
+
+    /** Reissue and validation changes exist in SSL2BUY's API for Sectigo orders only. */
+    private function requireComodo(SslOrder $order, string $what): void
+    {
+        $family = $this->familyFor($order);
+        if ($family !== null && $family !== 'comodo') {
+            throw new RuntimeException("SSL2BUY cannot {$what} this certificate through its API: use the SSL2BUY panel");
+        }
     }
 
     /** config_data with the validation the domain owner has to publish now. */
-    private function withDcv(SslOrder $order, string $csr, string $method, array $response): array
+    private function withDcv(SslOrder $order, string $family, string $csr, string $method, array $response): array
     {
         $data = (array) ($order->config_data ?? []);
-        $dcv = self::dcvInstructions($csr, $method, (string) ($response['DomainName'] ?? $order->domain), $response['UniqueValue'] ?? null);
+        $domain = (string) ($response['DomainName'] ?? $order->domain);
+
+        $dcv = $family === 'globalsign'
+            ? $this->globalSignDcv($response, $domain)
+            : self::dcvInstructions($csr, $method, $domain, $response['UniqueValue'] ?? null);
 
         if ($dcv) {
             $data['dcv'] = $dcv;
@@ -580,11 +759,37 @@ class SSL2BuyModule extends AbstractSslModule
         return $data;
     }
 
-    private function isWildcard(SslOrder $order): bool
+    /**
+     * GlobalSign's own validation values: a TXT record, or a file under
+     * /.well-known/pki-validation/gsdv.txt holding the meta tag.
+     *
+     * @param  array<string, mixed>  $response
+     * @return array{method: string, url?: string, content?: string, name?: string, type?: string, value?: string}|null
+     */
+    private function globalSignDcv(array $response, string $domain): ?array
     {
-        $code = $this->productCodeFor($order);
+        $dnsText = trim((string) ($response['DNSText'] ?? ''));
+        if ($dnsText !== '') {
+            return [
+                'method' => 'DNS',
+                'name' => $this->baseDomain((string) (((array) ($response['DNSVerificationDomains'] ?? []))[0] ?? $domain)),
+                'type' => 'TXT',
+                'value' => $dnsText,
+            ];
+        }
 
-        return $code !== null ? self::PRODUCTS[$code]['wildcard'] : str_starts_with((string) $order->domain, '*.');
+        $metaTag = trim((string) ($response['URLMetaTag'] ?? ''));
+        if ($metaTag !== '') {
+            $host = preg_replace('#^https?://#', '', (string) (((array) ($response['URLVerificationDomains'] ?? []))[0] ?? $domain));
+
+            return [
+                'method' => 'HTTP',
+                'url' => 'http://'.rtrim($this->baseDomain((string) $host), '/').'/.well-known/pki-validation/gsdv.txt',
+                'content' => $metaTag,
+            ];
+        }
+
+        return null;
     }
 
     private function baseDomain(string $domain): string
