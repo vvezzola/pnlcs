@@ -35,6 +35,9 @@ class SslController extends Controller
         }
 
         $sslOrder->load('service.product');
+        if ($sslOrder->isCompleted()) {
+            $this->sslService->completeChain($sslOrder);
+        }
 
         return view('client.ssl.show', ['order' => $sslOrder]);
     }

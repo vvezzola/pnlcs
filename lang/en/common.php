@@ -335,4 +335,14 @@ return [
         'ok' => 'OK',
         'confirm_title' => 'Are you sure?',
     ],
+    'ssl_install' => [
+        'title' => 'Install on the server',
+        'intro' => 'Paste each box into the matching field of your control panel. In Plesk: SSL/TLS Certificates, "Upload the certificate as text".',
+        'key' => 'Private key (*.key)',
+        'cert' => 'Certificate (*.crt)',
+        'ca' => 'CA certificate (*-ca.crt)',
+        'copy' => 'Copy',
+        'copied' => 'Copied',
+        'key_elsewhere' => 'The private key is not stored here: it stays where the CSR was generated. If that was Plesk, open the existing certificate request there and paste only the certificate and the CA certificate.',
+    ],
 ];

@@ -1,7 +1,10 @@
 <?php
 
+use App\Models\Admin;
+use App\Models\AdminRole;
 use App\Models\Client;
 use App\Models\SslOrder;
+use App\Models\User;
 use App\Services\SslProvisioningService;
 use Illuminate\Support\Facades\Http;
 
@@ -110,4 +113,57 @@ test('a chain that cannot be completed is left as the provider sent it', functio
     expect($order->fresh())
         ->ca_cert->toBeNull()
         ->fullchain->toBe($pki['leaf']);
+});
+
+test('the admin page lays the certificate out in the boxes a control panel asks for', function () {
+    $pki = sslChainHierarchy();
+    Http::preventStrayRequests();
+    $order = sslChainOrder([
+        'cert' => $pki['leaf'],
+        'ca_cert' => $pki['intermediate'],
+        'fullchain' => $pki['leaf'].$pki['intermediate'],
+        'private_key' => "-----BEGIN PRIVATE KEY-----\nsecret-key\n-----END PRIVATE KEY-----",
+    ]);
+    $admin = Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
+
+    $this->actingAs($admin, 'admin')
+        ->get(route('admin.ssl.show', $order))
+        ->assertOk()
+        ->assertSeeInOrder(['secret-key', trim($pki['leaf']), trim($pki['intermediate'])], false);
+});
+
+test('staff who may not download a certificate do not see its private key', function () {
+    $pki = sslChainHierarchy();
+    Http::preventStrayRequests();
+    $order = sslChainOrder([
+        'cert' => $pki['leaf'],
+        'ca_cert' => $pki['intermediate'],
+        'fullchain' => $pki['leaf'].$pki['intermediate'],
+        'private_key' => "-----BEGIN PRIVATE KEY-----\nsecret-key\n-----END PRIVATE KEY-----",
+    ]);
+    $role = AdminRole::factory()->create(['permissions' => ['view_services']]);
+
+    $this->actingAs(Admin::factory()->create(['role_id' => $role->id]), 'admin')
+        ->get(route('admin.ssl.show', $order))
+        ->assertOk()
+        ->assertSee(trim($pki['leaf']), false)
+        ->assertDontSee('secret-key');
+});
+
+test('the client sees the completed chain to paste, and where the key is when the panel has none', function () {
+    $pki = sslChainHierarchy();
+    Http::preventStrayRequests();
+    Http::fake([
+        'http://ca.test/intermediate.crt' => Http::response($pki['intermediateDer']),
+        'http://ca.test/root.crt' => Http::response($pki['root']),
+    ]);
+    $user = User::factory()->create();
+    $order = sslChainOrder(['cert' => $pki['leaf'], 'fullchain' => $pki['leaf']]);
+    $user->clients()->attach($order->client_id);
+
+    $this->actingAs($user)
+        ->get(route('client.ssl.show', $order))
+        ->assertOk()
+        ->assertSee(trim($pki['intermediate']), false)
+        ->assertSee(__('common.ssl_install.key_elsewhere'));
 });

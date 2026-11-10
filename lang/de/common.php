@@ -335,4 +335,14 @@ return [
         'ok' => 'Verstanden',
         'confirm_title' => 'Sind Sie sicher?',
     ],
+    'ssl_install' => [
+        'title' => 'Auf dem Server installieren',
+        'intro' => 'Füge jedes Feld in das passende Feld deines Control Panels ein. In Plesk: SSL/TLS-Zertifikate, „Zertifikat als Text hochladen“.',
+        'key' => 'Privater Schlüssel (*.key)',
+        'cert' => 'Zertifikat (*.crt)',
+        'ca' => 'CA-Zertifikat (*-ca.crt)',
+        'copy' => 'Kopieren',
+        'copied' => 'Kopiert',
+        'key_elsewhere' => 'Der private Schlüssel wird hier nicht gespeichert: Er bleibt dort, wo die CSR erstellt wurde. War das Plesk, öffne dort die vorhandene Zertifikatsanfrage und füge nur das Zertifikat und das CA-Zertifikat ein.',
+    ],
 ];

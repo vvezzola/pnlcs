@@ -335,4 +335,14 @@ return [
         'ok' => 'OK',
         'confirm_title' => 'Sei sicuro?',
     ],
+    'ssl_install' => [
+        'title' => 'Installa sul server',
+        'intro' => 'Incolla ogni riquadro nel campo corrispondente del tuo pannello. In Plesk: Certificati SSL/TLS, "Carica il certificato come testo".',
+        'key' => 'Chiave privata (*.key)',
+        'cert' => 'Certificato (*.crt)',
+        'ca' => 'Certificato CA (*-ca.crt)',
+        'copy' => 'Copia',
+        'copied' => 'Copiato',
+        'key_elsewhere' => 'La chiave privata non è salvata qui: resta dove è stato generato il CSR. Se l\'hai generato in Plesk, apri lì la richiesta di certificato esistente e incolla solo il certificato e il certificato CA.',
+    ],
 ];

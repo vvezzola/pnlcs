@@ -335,4 +335,14 @@ return [
         'ok' => 'Rozumiem',
         'confirm_title' => 'Czy na pewno?',
     ],
+    'ssl_install' => [
+        'title' => 'Zainstaluj na serwerze',
+        'intro' => 'Wklej każde pole do odpowiedniego pola w panelu sterowania. W Plesku: Certyfikaty SSL/TLS, „Prześlij certyfikat jako tekst”.',
+        'key' => 'Klucz prywatny (*.key)',
+        'cert' => 'Certyfikat (*.crt)',
+        'ca' => 'Certyfikat CA (*-ca.crt)',
+        'copy' => 'Kopiuj',
+        'copied' => 'Skopiowano',
+        'key_elsewhere' => 'Klucz prywatny nie jest tu przechowywany: pozostaje tam, gdzie wygenerowano CSR. Jeśli był to Plesk, otwórz tam istniejące żądanie certyfikatu i wklej tylko certyfikat oraz certyfikat CA.',
+    ],
 ];
