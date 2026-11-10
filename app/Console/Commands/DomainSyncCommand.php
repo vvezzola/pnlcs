@@ -40,12 +40,14 @@ class DomainSyncCommand extends Command
      *
      * The module declares what it needs in getConfigFields(); this reads the
      * same list rather than knowing anything about a particular registrar.
+     * Settings are stored under the registrar's key (internetbs), not under
+     * the name it shows (Internet.bs).
      *
      * @return array<int, string>
      */
-    private function missingRegistrarSettings(RegistrarModuleInterface $module): array
+    private function missingRegistrarSettings(RegistrarModuleInterface $module, string $registrarKey): array
     {
-        $stored = RegistrarSettings::where('registrar', $module->getModuleName())
+        $stored = RegistrarSettings::where('registrar', $registrarKey)
             ->get()
             ->filter(fn ($row) => trim((string) $row->value) !== '')
             ->pluck('setting')
@@ -104,7 +106,7 @@ class DomainSyncCommand extends Command
             // refuses, and leaves "lookup failed" against every domain - which
             // sends the operator looking for a network problem instead of the
             // setting they never filled in.
-            $missing = $this->missingRegistrarSettings($module);
+            $missing = $this->missingRegistrarSettings($module, (string) $domain->registrar);
 
             if ($missing !== []) {
                 $failed++;
