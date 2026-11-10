@@ -103,6 +103,13 @@ return [
     ],
 
     'page' => [
+        'save_prices' => 'Save',
+        'prices_saved' => 'The prices of :name are saved.',
+        'add_package' => 'Add another package',
+        'quarterly' => '3 months',
+        'semiannually' => '6 months',
+        'per_quarter' => ':price / 3 mo',
+        'per_half_year' => ':price / 6 mo',
         'movements' => 'Balance movements',
         'this_month' => 'This month: :in in, :out out',
         'menu' => 'Panelica',
@@ -148,6 +155,7 @@ return [
         'monthly' => 'Monthly',
         'annually' => 'Annually',
         'create_product' => 'Create product',
+        'edit_prices' => 'Prices',
         'no_plans' => 'Panelica Central lists no plans for this account.',
         'no_usd_rate' => 'Panelica prices are in US dollars. Add a USD currency with its rate (Setup, Currencies) to see suggested prices and your margin in your own currency.',
         'market_usd_rate' => 'Suggested prices and margins use today\'s market rate, 1 USD = :rate :code, checked once a day. Add a USD currency (Setup, Currencies) to use your own rate.',

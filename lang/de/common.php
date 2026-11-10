@@ -334,4 +334,14 @@ return [
         'ok' => 'Verstanden',
         'confirm_title' => 'Sind Sie sicher?',
     ],
+    'ssl_dcv' => [
+        'title' => 'Domain-Validierung',
+        'http_intro' => 'Veröffentlichen Sie diese Datei auf der Website, sodass sie unter folgender Adresse erreichbar ist:',
+        'file_content' => 'Dateiinhalt',
+        'dns_intro' => 'Fügen Sie diesen Eintrag zum DNS der Domain hinzu:',
+        'record_name' => 'Eintragsname',
+        'record_type' => 'Typ',
+        'record_value' => 'Wert',
+        'after' => 'Das Zertifikat wird ausgestellt, sobald die Zertifizierungsstelle es geprüft hat, meist innerhalb weniger Minuten.',
+    ],
 ];

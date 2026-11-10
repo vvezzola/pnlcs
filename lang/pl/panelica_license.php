@@ -103,6 +103,13 @@ return [
     ],
 
     'page' => [
+        'save_prices' => 'Zapisz',
+        'prices_saved' => 'Ceny pakietu :name zostały zapisane.',
+        'add_package' => 'Dodaj kolejny pakiet',
+        'quarterly' => '3 miesiące',
+        'semiannually' => '6 miesięcy',
+        'per_quarter' => ':price / 3 mies.',
+        'per_half_year' => ':price / 6 mies.',
         'movements' => 'Ruchy na saldzie',
         'this_month' => 'W tym miesiącu: :in wpływy, :out wypływy',
         'menu' => 'Panelica',
@@ -148,6 +155,7 @@ return [
         'monthly' => 'Miesięcznie',
         'annually' => 'Rocznie',
         'create_product' => 'Utwórz produkt',
+        'edit_prices' => 'Ceny',
         'no_plans' => 'Panelica Central nie udostępnia planów dla tego konta.',
         'no_usd_rate' => 'Ceny Panelica są w dolarach amerykańskich. Dodaj walutę USD z kursem (Konfiguracja, Waluty), aby zobaczyć sugerowane ceny i swoją marżę we własnej walucie.',
         'market_usd_rate' => 'Sugerowane ceny i marże korzystają z dzisiejszego kursu rynkowego, 1 USD = :rate :code, sprawdzanego raz dziennie. Dodaj walutę USD (Konfiguracja, Waluty), aby użyć własnego kursu.',

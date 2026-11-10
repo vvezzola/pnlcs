@@ -103,6 +103,13 @@ return [
     ],
 
     'page' => [
+        'save_prices' => '保存',
+        'prices_saved' => '已保存 :name 的价格。',
+        'add_package' => '添加另一个套餐',
+        'quarterly' => '3 个月',
+        'semiannually' => '6 个月',
+        'per_quarter' => ':price / 3 个月',
+        'per_half_year' => ':price / 6 个月',
         'movements' => '余额变动',
         'this_month' => '本月：收入 :in，支出 :out',
         'menu' => 'Panelica',
@@ -148,6 +155,7 @@ return [
         'monthly' => '按月',
         'annually' => '按年',
         'create_product' => '创建产品',
+        'edit_prices' => '价格',
         'no_plans' => 'Panelica Central 未为此账户列出任何套餐。',
         'no_usd_rate' => 'Panelica 价格以美元计。添加带汇率的 USD 货币（设置，货币），即可用您自己的货币查看建议价格和利润。',
         'market_usd_rate' => '建议价格和利润按今日市场汇率计算：1 USD = :rate :code，每天检查一次。添加 USD 货币（设置，货币）即可使用您自己的汇率。',

@@ -3,9 +3,10 @@
 namespace Modules\Servers\PanelicaLicense\Http\Admin;
 
 use App\Models\Currency;
-use App\Models\Setting;
+use App\Models\Pricing;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Models\Setting;
 use App\Models\Service;
 use App\Services\ExchangeRateService;
 use App\Services\ProductCreator;
@@ -26,6 +27,13 @@ use Modules\Servers\PanelicaLicense\PartnerAccount;
 class LicensesPageController
 {
     /** The product group the products made here go into. */
+    /**
+     * The terms this page sells, in months: the cycles PNLCS itself bills.
+     * Central sells any 1-12 month term; these are the ones that have a price
+     * column and a renewal rhythm here.
+     */
+    public const SELLABLE_CYCLES = ['monthly', 'quarterly', 'semiannually', 'annually'];
+
     private const GROUP_SLUG = 'panelica-licenses';
 
     public function index()
@@ -220,10 +228,17 @@ class LicensesPageController
             'plan_id' => ['required', 'string', 'max:64'],
             'name' => ['required', 'string', 'max:255'],
             'monthly' => ['nullable', 'numeric', 'min:0.01', 'max:99999999'],
+            'quarterly' => ['nullable', 'numeric', 'min:0.01', 'max:99999999'],
+            'semiannually' => ['nullable', 'numeric', 'min:0.01', 'max:99999999'],
             'annually' => ['nullable', 'numeric', 'min:0.01', 'max:99999999'],
         ]);
 
-        if (blank($validated['monthly'] ?? null) && blank($validated['annually'] ?? null)) {
+        // The terms PNLCS can bill are its own cycles: one, three, six and
+        // twelve months. Central sells any term of 1-12 months, but a cycle
+        // here is a column on the pricing table and a rhythm the invoicing,
+        // renewal and upgrade code follows, so a seven-month product would
+        // have nowhere to recur.
+        if (collect(self::SELLABLE_CYCLES)->every(fn ($c) => blank($validated[$c] ?? null))) {
             return back()->withInput()->with('error', __('panelica_license.page.price_needed'));
         }
 
@@ -238,14 +253,7 @@ class LicensesPageController
             'headline' => __('panelica_license.page.group_headline'),
         ]);
 
-        $pricing = [];
-        foreach (Currency::all() as $currency) {
-            $rate = $currency->is_default ? 1.0 : (float) $currency->rate;
-            $pricing[$currency->id] = [
-                'monthly' => filled($validated['monthly'] ?? null) && $rate > 0 ? round((float) $validated['monthly'] * $rate, 2) : -1,
-                'annually' => filled($validated['annually'] ?? null) && $rate > 0 ? round((float) $validated['annually'] * $rate, 2) : -1,
-            ];
-        }
+        $pricing = $this->pricingRows($validated);
 
         $product = app(ProductCreator::class)->create([
             'name' => $validated['name'],
@@ -265,6 +273,64 @@ class LicensesPageController
      * minutes. LicenseSync itself: the command behind the schedule is
      * registered for the console only, and is not there in a web request.
      */
+    /**
+     * Change what a package costs, from this page.
+     *
+     * The page used to be a first-run screen: a package's name was a link to
+     * the ordinary product screen and a price could only be changed there.
+     * Clearing a box means "not sold on that term" - the same -1 the product
+     * screen writes - so a term can be withdrawn here too; a package with no
+     * price at all would be unsellable, so that is refused.
+     */
+    public function updateProductPrices(Request $request, Product $product)
+    {
+        $this->guard();
+
+        abort_unless(strtolower((string) $product->server_type) === PanelicaLicenseModule::NAME, 404);
+
+        $validated = $request->validate(collect(self::SELLABLE_CYCLES)
+            ->mapWithKeys(fn ($cycle) => [$cycle => ['nullable', 'numeric', 'min:0.01', 'max:99999999']])
+            ->all());
+
+        if (collect(self::SELLABLE_CYCLES)->every(fn ($c) => blank($validated[$c] ?? null))) {
+            return back()->with('error', __('panelica_license.page.price_needed'));
+        }
+
+        foreach ($this->pricingRows($validated) as $currencyId => $row) {
+            Pricing::updateOrCreate(
+                ['type' => 'product', 'currency_id' => $currencyId, 'rel_id' => $product->id],
+                $row,
+            );
+        }
+
+        return back()->with('success', __('panelica_license.page.prices_saved', ['name' => $product->name]));
+    }
+
+    /**
+     * What each currency's price row should hold: the figures the operator
+     * typed for the currency the site sells in, converted by its rate for the
+     * others, and -1 ("not sold") where a box was left empty.
+     *
+     * @param  array<string, mixed>  $prices
+     * @return array<int|string, array<string, float>>
+     */
+    private function pricingRows(array $prices): array
+    {
+        $rows = [];
+        foreach (Currency::all() as $currency) {
+            $rate = $currency->is_default ? 1.0 : (float) $currency->rate;
+            $row = [];
+            foreach (self::SELLABLE_CYCLES as $cycle) {
+                $row[$cycle] = filled($prices[$cycle] ?? null) && $rate > 0
+                    ? round((float) $prices[$cycle] * $rate, 2)
+                    : -1;
+            }
+            $rows[$currency->id] = $row;
+        }
+
+        return $rows;
+    }
+
     public function sync(LicenseSync $sync)
     {
         $this->guard();

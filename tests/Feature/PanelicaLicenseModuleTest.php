@@ -1381,3 +1381,203 @@ test('the movements are the partner account own, read once per page', function (
     expect(plCalls($central, 'GET', 'balance/transactions'))->toHaveCount(1)
         ->and(plCalls($central, 'GET', '/balance'))->toHaveCount(1);
 });
+
+// ------------------------------------------- selling three and six months
+
+/*
+ * The Panelica Licences page makes the product that sells a plan. It offered
+ * two boxes, monthly and annual, so a partner who wanted to sell three or six
+ * months had to go and build the product by hand - even though PNLCS bills
+ * those cycles and Central now sells them as a 3- or 6-month term.
+ *
+ * The terms PNLCS can bill are its own cycles: 1, 3, 6 and 12 months. A term
+ * like 7 months is not offered because PNLCS has no cycle to renew it on.
+ */
+
+test('the page offers a price box for every term it can bill', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+
+    $page = $this->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->get(route('admin.panelica-licenses.index'))->assertOk()->getContent();
+
+    foreach (['monthly', 'quarterly', 'semiannually', 'annually'] as $cycle) {
+        expect($page)->toContain('name="'.$cycle.'"');
+    }
+    // Months Central can sell but PNLCS cannot bill are not offered.
+    expect($page)->not->toContain('name="term_months"');
+});
+
+test('a three-month price is stored on the quarterly cycle, and six on the half-year', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    Currency::query()->update(['is_default' => false]);
+    $usd = Currency::firstOrCreate(['code' => 'USD'], ['prefix' => '$', 'suffix' => '', 'format' => 1, 'rate' => 1]);
+    $usd->forceFill(['is_default' => true, 'rate' => 1])->save();
+
+    $this->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->post(route('admin.panelica-licenses.products.store'), [
+            'plan_id' => PL_PLAN, 'name' => 'Business', 'quarterly' => 27, 'semiannually' => 50,
+        ])->assertRedirect()->assertSessionHas('success');
+
+    $product = Product::where('server_type', 'panelicalicense')->latest('id')->firstOrFail();
+
+    expect($product->priceFor('Quarterly', $usd->id))->toBe(27.0)
+        ->and($product->priceFor('Semi-Annually', $usd->id))->toBe(50.0)
+        // Nothing was invented for the cycles the operator left empty.
+        ->and($product->priceFor('Monthly', $usd->id))->toBeNull()
+        ->and($product->priceFor('Annually', $usd->id))->toBeNull();
+});
+
+test('the page says what three and six months cost the partner', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+
+    $page = $this->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->get(route('admin.panelica-licenses.index'))->assertOk()->getContent();
+
+    // The fake plan costs the partner 8 a month, so three months cost 24 and
+    // six cost 48 - months are charged at the monthly price, as Central does.
+    expect($page)->toContain(__('panelica_license.page.per_quarter', ['price' => '$24.00']))
+        ->and($page)->toContain(__('panelica_license.page.per_half_year', ['price' => '$48.00']));
+});
+
+// ------------------------------------- managing packages from the page
+
+/*
+ * The Panelica Licences page was a first-run screen: the "create product" form
+ * was drawn only while a plan had no product at all, and a product's name was
+ * a link to the ordinary product screen. So a partner could not add a second
+ * package for a plan (a three-month one beside the monthly one) and could not
+ * change a price without leaving the page.
+ */
+
+function plPageCurrency(): Currency
+{
+    Currency::query()->update(['is_default' => false]);
+    $usd = Currency::firstOrCreate(['code' => 'USD'], ['prefix' => '$', 'suffix' => '', 'format' => 1, 'rate' => 1]);
+    $usd->forceFill(['is_default' => true, 'rate' => 1])->save();
+
+    return $usd;
+}
+
+function plPagePost(array $body): \Illuminate\Testing\TestResponse
+{
+    return test()->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->post(route('admin.panelica-licenses.products.store'), $body);
+}
+
+function plPageHtml(): string
+{
+    return test()->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->get(route('admin.panelica-licenses.index'))->assertOk()->getContent();
+}
+
+test('another package can be added to a plan that already sells one', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    plPageCurrency();
+
+    plPagePost(['plan_id' => PL_PLAN, 'name' => 'Business monthly', 'monthly' => 12])->assertSessionHas('success');
+    plPagePost(['plan_id' => PL_PLAN, 'name' => 'Business 3 months', 'quarterly' => 30])->assertSessionHas('success');
+
+    $page = plPageHtml();
+    expect(Product::where('server_type', 'panelicalicense')->count())->toBe(2)
+        ->and($page)->toContain('Business monthly')
+        ->and($page)->toContain('Business 3 months')
+        // the form is still there, so a third can be added
+        ->and($page)->toContain(e(__('panelica_license.page.create_product')));
+});
+
+test('a package price can be changed on the page itself', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    $usd = plPageCurrency();
+    $eur = Currency::updateOrCreate(['code' => 'EUR'], ['prefix' => '€', 'suffix' => '', 'format' => 1, 'rate' => 0.5, 'is_default' => false]);
+
+    plPagePost(['plan_id' => PL_PLAN, 'name' => 'Business', 'monthly' => 12, 'annually' => 120])->assertSessionHas('success');
+    $product = Product::where('name', 'Business')->firstOrFail();
+
+    // the page offers the prices it already has, ready to change
+    $page = plPageHtml();
+    expect($page)->toContain(route('admin.panelica-licenses.products.prices', $product))
+        ->and($page)->toContain('value="12"');
+
+    test()->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->post(route('admin.panelica-licenses.products.prices', $product), [
+            'monthly' => 15, 'quarterly' => 40, 'semiannually' => 75, 'annually' => 140,
+        ])->assertRedirect()->assertSessionHas('success');
+
+    $fresh = $product->fresh();
+    expect($fresh->priceFor('monthly', $usd->id))->toBe(15.0)
+        ->and($fresh->priceFor('quarterly', $usd->id))->toBe(40.0)
+        ->and($fresh->priceFor('semiannually', $usd->id))->toBe(75.0)
+        ->and($fresh->priceFor('annually', $usd->id))->toBe(140.0)
+        // other currencies follow their rate, as creating one does
+        ->and($fresh->priceFor('monthly', $eur->id))->toBe(7.5);
+});
+
+test('clearing a price stops that term being sold', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    $usd = plPageCurrency();
+
+    plPagePost(['plan_id' => PL_PLAN, 'name' => 'Business', 'monthly' => 12, 'annually' => 120])->assertSessionHas('success');
+    $product = Product::where('name', 'Business')->firstOrFail();
+
+    test()->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->post(route('admin.panelica-licenses.products.prices', $product), ['monthly' => 12])
+        ->assertRedirect()->assertSessionHas('success');
+
+    expect($product->fresh()->priceFor('monthly', $usd->id))->toBe(12.0)
+        ->and($product->fresh()->priceFor('annually', $usd->id))->toBeNull();
+});
+
+test('a package cannot be left with no price at all', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    $usd = plPageCurrency();
+
+    plPagePost(['plan_id' => PL_PLAN, 'name' => 'Business', 'monthly' => 12])->assertSessionHas('success');
+    $product = Product::where('name', 'Business')->firstOrFail();
+
+    test()->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->post(route('admin.panelica-licenses.products.prices', $product), [])
+        ->assertRedirect()->assertSessionHas('error');
+
+    expect($product->fresh()->priceFor('monthly', $usd->id))->toBe(12.0);
+});
+
+test('changing a price is for staff who may manage products', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    plPageCurrency();
+    plPagePost(['plan_id' => PL_PLAN, 'name' => 'Business', 'monthly' => 12])->assertSessionHas('success');
+    $product = Product::where('name', 'Business')->firstOrFail();
+
+    test()->actingAs(plStaff(['list_products']), 'admin')
+        ->post(route('admin.panelica-licenses.products.prices', $product), ['monthly' => 99])
+        ->assertForbidden();
+
+    expect($product->fresh()->priceFor('monthly'))->toBe(12.0);
+});
+
+test('only a package of this module can be priced here', function () {
+    $central = plCentral();
+    plFake($central);
+    plConnect();
+    plPageCurrency();
+    $other = Product::factory()->create(['group_id' => ProductGroup::factory()->create()->id, 'server_type' => 'cpanel']);
+
+    test()->actingAs(plStaff(['manage_products', 'manage_servers']), 'admin')
+        ->post(route('admin.panelica-licenses.products.prices', $other), ['monthly' => 99])
+        ->assertNotFound();
+});

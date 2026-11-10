@@ -70,6 +70,8 @@
             </div>
         </div>
 
+        <x-ssl-dcv :order="$order" />
+
         @if($order->status === 'Awaiting Configuration')
         <div class="alert alert-warning">
             <strong>{{ __('client.ssl.action_required') }}:</strong> {{ __('client.ssl.needs_configuration') }}

@@ -1,0 +1,10 @@
+{
+    "name": "ssl2buy",
+    "type": "ssl",
+    "version": "1.0.0",
+    "display_name": "SSL2BUY",
+    "description": "SSL2BUY reseller API (full order): Sectigo and Comodo PositiveSSL and EssentialSSL, single domain and wildcard, with test mode.",
+    "author": {
+        "name": "PNLCS"
+    }
+}

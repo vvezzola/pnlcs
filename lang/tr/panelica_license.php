@@ -103,6 +103,13 @@ return [
     ],
 
     'page' => [
+        'save_prices' => 'Kaydet',
+        'prices_saved' => ':name paketinin fiyatları kaydedildi.',
+        'add_package' => 'Başka paket ekle',
+        'quarterly' => '3 aylık',
+        'semiannually' => '6 aylık',
+        'per_quarter' => ':price / 3 ay',
+        'per_half_year' => ':price / 6 ay',
         'movements' => 'Bakiye hareketleri',
         'this_month' => 'Bu ay: :in giriş, :out çıkış',
         'menu' => 'Panelica',
@@ -148,6 +155,7 @@ return [
         'monthly' => 'Aylık',
         'annually' => 'Yıllık',
         'create_product' => 'Ürün oluştur',
+        'edit_prices' => 'Fiyatlar',
         'no_plans' => 'Panelica Central bu hesap için plan listelemiyor.',
         'no_usd_rate' => 'Panelica fiyatları ABD doları cinsindendir. Önerilen fiyatları ve kârınızı kendi para biriminizde görmek için kuruyla birlikte bir USD para birimi ekleyin (Kurulum, Para birimleri).',
         'market_usd_rate' => 'Önerilen fiyatlar ve kâr bugünkü piyasa kuruyla hesaplanır: 1 USD = :rate :code (günde bir kez denetlenir). Kendi kurunuzu kullanmak için bir USD para birimi ekleyin (Kurulum, Para birimleri).',

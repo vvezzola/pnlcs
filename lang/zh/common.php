@@ -334,4 +334,14 @@ return [
         'ok' => '确定',
         'confirm_title' => '确定吗？',
     ],
+    'ssl_dcv' => [
+        'title' => '域名验证',
+        'http_intro' => '请在网站上发布此文件，使其可通过以下地址访问：',
+        'file_content' => '文件内容',
+        'dns_intro' => '请将此记录添加到域名的 DNS：',
+        'record_name' => '名称',
+        'record_type' => '类型',
+        'record_value' => '值',
+        'after' => '证书颁发机构检查通过后即会签发证书，通常只需几分钟。',
+    ],
 ];
