@@ -5,6 +5,7 @@ namespace Modules\Registrars\InternetBS;
 use App\Contracts\ManagesWhoisPrivacy;
 use App\Contracts\RegistrarModuleInterface;
 use App\Contracts\SyncsDomainData;
+use App\Enums\DomainStatus;
 use App\Models\Domain;
 use App\Models\RegistrarSettings;
 use Carbon\Carbon;
@@ -447,10 +448,12 @@ class InternetBSRegistrar implements ManagesWhoisPrivacy, RegistrarModuleInterfa
     protected function mapStatus(string $status): string
     {
         return match (strtoupper(trim($status))) {
-            'REGISTERED', 'OK', 'ACTIVE' => 'active',
-            'EXPIRED', 'REDEMPTIONPERIOD', 'PENDINGDELETE' => 'expired',
-            'TRANSFERRED AWAY', 'TRANSFERRED_AWAY' => 'transferred-away',
-            default => 'pending',
+            'REGISTERED', 'REGISTRAR LOCKED', 'OK', 'ACTIVE' => DomainStatus::Active->value,
+            'REDEMPTIONPERIOD', 'REDEMPTION PERIOD' => DomainStatus::Redemption->value,
+            'EXPIRED', 'PENDINGDELETE', 'PENDING DELETE' => DomainStatus::Expired->value,
+            'DELETED' => DomainStatus::Cancelled->value,
+            'TRANSFERRED AWAY', 'TRANSFERRED_AWAY' => DomainStatus::TransferredAway->value,
+            default => DomainStatus::Pending->value,
         };
     }
 
