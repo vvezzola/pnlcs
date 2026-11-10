@@ -17,6 +17,7 @@ use Modules\Gateways\Tpay\TpayModule;
 use Modules\Registrars\DomainNameApi\DomainNameApiRegistrar;
 use Modules\Registrars\Enom\EnomRegistrar;
 use Modules\Registrars\HRD\HrdRegistrar;
+use Modules\Registrars\InternetBS\InternetBSRegistrar;
 use Modules\Registrars\Manual\ManualRegistrar;
 use Modules\Registrars\Namecheap\NamecheapRegistrar;
 use Modules\Registrars\OpenProvider\OpenProviderRegistrar;
@@ -109,6 +110,8 @@ class ModuleServiceProvider extends ServiceProvider
             // ResellerClub / LogicBoxes Registrar
             $registry->registerRegistrar('resellerclub', ResellerClubRegistrar::class);
             $registry->registerRegistrar('openprovider', OpenProviderRegistrar::class);
+            // Internet.bs Registrar
+            $registry->registerRegistrar('internetbs', InternetBSRegistrar::class);
             // eNom Registrar
             $registry->registerRegistrar('enom', EnomRegistrar::class);
             // Manual Registrar
