@@ -103,5 +103,5 @@ test('the built-in manifests register nothing on their own', function () {
     expect($registry->getServerModules())->toEqualCanonicalizing(['custom', 'panelica', 'cpanel', 'plesk', 'directadmin', 'proxmox', 'hestiacp', 'aapanel', 'vultr', 'panelicalicense'])
         ->and($registry->getGatewayModules())->toEqualCanonicalizing(['banktransfer', 'stripe', 'paypal', 'authorize', 'mollie', 'razorpay', 'tpay', 'iyzico'])
         ->and($registry->getRegistrarModules())->toEqualCanonicalizing(['namecheap', 'resellerclub', 'openprovider', 'enom', 'manual', 'hrd', 'domainnameapi', 'ovh'])
-        ->and($registry->getSslModules())->toEqual(['gogetssl']);
+        ->and($registry->getSslModules())->toEqual(['gogetssl', 'ssl2buy']);
 });

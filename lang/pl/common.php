@@ -335,4 +335,14 @@ return [
         'ok' => 'Rozumiem',
         'confirm_title' => 'Czy na pewno?',
     ],
+    'ssl_dcv' => [
+        'title' => 'Weryfikacja domeny',
+        'http_intro' => 'Opublikuj ten plik w witrynie tak, aby otwierał się pod adresem:',
+        'file_content' => 'Zawartość pliku',
+        'dns_intro' => 'Dodaj ten rekord do DNS domeny:',
+        'record_name' => 'Nazwa',
+        'record_type' => 'Typ',
+        'record_value' => 'Wartość',
+        'after' => 'Certyfikat zostanie wystawiony po sprawdzeniu przez urząd certyfikacji, zwykle w ciągu kilku minut.',
+    ],
 ];
