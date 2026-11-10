@@ -334,4 +334,14 @@ return [
         'ok' => 'OK',
         'confirm_title' => 'Are you sure?',
     ],
+    'ssl_dcv' => [
+        'title' => 'Domain validation',
+        'http_intro' => 'Publish this file on the website, so that it opens at:',
+        'file_content' => 'File content',
+        'dns_intro' => 'Add this record to the domain\'s DNS:',
+        'record_name' => 'Name',
+        'record_type' => 'Type',
+        'record_value' => 'Value',
+        'after' => 'The certificate is issued once the authority has checked it, usually within minutes.',
+    ],
 ];

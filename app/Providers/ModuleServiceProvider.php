@@ -33,6 +33,7 @@ use Modules\Servers\Plesk\PleskModule;
 use Modules\Servers\Proxmox\ProxmoxModule;
 use Modules\Servers\Vultr\VultrModule;
 use Modules\Ssl\GoGetSSL\GoGetSslModule;
+use Modules\Ssl\SSL2Buy\SSL2BuyModule;
 
 class ModuleServiceProvider extends ServiceProvider
 {
@@ -134,6 +135,8 @@ class ModuleServiceProvider extends ServiceProvider
 
             // SSL Modules
             $registry->registerSsl('gogetssl', GoGetSslModule::class);
+            // SSL2BUY (Sectigo/Comodo DV, full-order API)
+            $registry->registerSsl('ssl2buy', SSL2BuyModule::class);
 
             $this->discoverModules($registry);
 

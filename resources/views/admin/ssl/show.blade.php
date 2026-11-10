@@ -91,6 +91,8 @@
             </div>
         </div>
 
+        <x-ssl-dcv :order="$order" />
+
         {{-- Admin Contact --}}
         @if($order->admin_first_name)
         <div class="card mb-4">

@@ -334,4 +334,14 @@ return [
         'ok' => 'Tamam',
         'confirm_title' => 'Emin misiniz?',
     ],
+    'ssl_dcv' => [
+        'title' => 'Alan adı doğrulaması',
+        'http_intro' => 'Bu dosyayı web sitesinde yayınlayın, şu adreste açılmalıdır:',
+        'file_content' => 'Dosya içeriği',
+        'dns_intro' => 'Bu kaydı alan adının DNS\'ine ekleyin:',
+        'record_name' => 'Ad',
+        'record_type' => 'Tür',
+        'record_value' => 'Değer',
+        'after' => 'Sertifika, sertifika otoritesi kontrol ettikten sonra, genellikle birkaç dakika içinde düzenlenir.',
+    ],
 ];
