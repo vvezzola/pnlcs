@@ -64,3 +64,16 @@ it('still syncs a registrar that has credentials', function () {
 
     Http::assertSentCount(1);
 });
+
+it('finds the credentials of a registrar whose name differs from its key', function () {
+    Http::preventStrayRequests();
+    Http::fake(['https://testapi.internet.bs/Domain/Info' => Http::response("status=SUCCESS\nexpirationdate=2027/12/01\ndomainstatus=REGISTERED")]);
+
+    RegistrarSettings::updateOrCreate(['registrar' => 'internetbs', 'setting' => 'api_key'], ['value' => 'key-1']);
+    RegistrarSettings::updateOrCreate(['registrar' => 'internetbs', 'setting' => 'password'], ['value' => 'pass-1']);
+    $domain = domainAtRegistrar('internetbs');
+
+    $this->artisan('pnlcs:domain-sync')->assertSuccessful();
+
+    expect($domain->fresh()->expiry_date->toDateString())->toBe('2027-12-01');
+});
