@@ -216,3 +216,16 @@ test('it lists the domains in the account', function () {
     expect((new InternetBSRegistrar)->listDomains())->toBe(['rossi.it', 'bianchi.com']);
     Http::assertSent(fn (Request $request) => $request['ResponseFormat'] === 'JSON');
 });
+
+test('sync maps the registry status onto the domain status', function (string $registry, string $status) {
+    ibsSettings();
+    fakeIbs(['Domain/Info' => "status=SUCCESS\nexpirationdate=2027/12/01\ndomainstatus={$registry}"]);
+
+    expect((new InternetBSRegistrar)->syncDomain(ibsDomain())['status'])->toBe($status);
+})->with([
+    'locked at the registrar is still active' => ['REGISTRAR LOCKED', 'active'],
+    'redemption' => ['REDEMPTIONPERIOD', 'redemption'],
+    'deleted' => ['DELETED', 'cancelled'],
+    'transferred away' => ['TRANSFERRED AWAY', 'transferred_away'],
+    'a transfer in flight' => ['PENDING TRANSFER', 'pending'],
+]);
