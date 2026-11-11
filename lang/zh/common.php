@@ -344,4 +344,18 @@ return [
         'record_value' => '值',
         'after' => '证书颁发机构检查通过后即会签发证书，通常只需几分钟。',
     ],
+    'ssl2buy' => [
+        'partner_email' => 'SSL2BUY 登录邮箱',
+        'api_key' => 'API 密钥',
+        'test_mode' => '测试模式（demo-api.ssl2buy.com，不收费）',
+        'default_product' => '默认证书',
+        'no_default' => '无：按产品选择',
+        'product_map' => '按产品指定证书：面板产品 ID=SSL2BUY 代码，用逗号分隔（例如 12=101, 13=102）',
+        'catalogue' => 'SSL2BUY 价目表（:count 个证书）',
+        'col_name' => '证书',
+        'col_code' => '产品代码',
+        'col_price' => '价格（1 年）',
+        'col_extra_domain' => '附加域名',
+        'col_orderable' => '可在面板中订购',
+    ],
 ];
