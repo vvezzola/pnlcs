@@ -30,6 +30,23 @@
                                 {{ ($settings[$name][$key] ?? $field['default'] ?? '0') === '1' ? 'checked' : '' }}>
                             <label class="form-check-label">{{ __('common.status.enabled') }}</label>
                         </div>
+                    @elseif(($field['type'] ?? 'text') === 'select')
+                        <select name="settings[{{ $key }}]" class="form-control">
+                            @foreach(($field['options'] ?? []) as $optValue => $optLabel)
+                                <option value="{{ $optValue }}" @selected((string) ($settings[$name][$key] ?? '') === (string) $optValue)>{{ $optLabel }}</option>
+                            @endforeach
+                        </select>
+                    @elseif(($field['type'] ?? 'text') === 'table')
+                        <div class="table-responsive" style="max-height:320px;overflow-y:auto;">
+                            <table class="table table-sm mb-0">
+                                <thead><tr>@foreach(($field['headers'] ?? []) as $header)<th>{{ $header }}</th>@endforeach</tr></thead>
+                                <tbody>
+                                    @foreach(($field['rows'] ?? []) as $row)
+                                        <tr>@foreach($row as $cell)<td>{{ $cell }}</td>@endforeach</tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @elseif(($field['type'] ?? 'text') === 'password')
                         {{-- Never echoed back: blank keeps the stored password. --}}
                         <input type="password" name="settings[{{ $key }}]" class="form-control" value="" autocomplete="new-password"

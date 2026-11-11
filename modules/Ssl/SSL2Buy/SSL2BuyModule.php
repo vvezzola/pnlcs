@@ -4,6 +4,8 @@ namespace Modules\Ssl\SSL2Buy;
 
 use App\Models\SslOrder;
 use Carbon\Carbon;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -86,6 +88,21 @@ class SSL2BuyModule extends AbstractSslModule
         315 => ['family' => 'comodo', 'path' => 'queryservice/ComodoFullOrder/ComodoEssentialWildcardSSL', 'name' => 'Comodo EssentialSSL Wildcard', 'contact' => 'OrganisationInfo', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'CNAMECSRHASH']],
     ];
 
+    /**
+     * The product codes SSL2BUY sells. It has no call that lists them, only one
+     * that prices a code, so the names and prices are read code by code.
+     *
+     * @var list<int>
+     */
+    public const CATALOGUE = [
+        101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+        201, 202, 204, 205, 208, 209, 210, 211, 212, 213, 214, 215,
+        301, 302, 303, 305, 308, 311, 314, 315, 316, 318, 319, 321, 322,
+        351, 352, 354, 355, 357, 358, 360, 361, 362, 363, 364, 365, 366, 367, 368, 370, 371, 373, 374,
+        401, 402, 410, 412,
+        501, 502, 503, 504, 505, 506, 507, 508, 510, 512, 513, 514,
+    ];
+
     public function getModuleName(): string
     {
         return 'ssl2buy';
@@ -93,31 +110,146 @@ class SSL2BuyModule extends AbstractSslModule
 
     public function getConfigFields(): array
     {
-        return [
+        $catalogue = $this->catalogue();
+
+        $fields = [
             'partner_email' => [
-                'label' => 'SSL2BUY login email',
+                'label' => __('common.ssl2buy.partner_email'),
                 'type' => 'text',
                 'required' => true,
             ],
             'api_key' => [
-                'label' => 'API Key',
+                'label' => __('common.ssl2buy.api_key'),
                 'type' => 'password',
                 'required' => true,
             ],
             'test_mode' => [
-                'label' => 'Test mode (demo-api.ssl2buy.com, nothing is charged)',
+                'label' => __('common.ssl2buy.test_mode'),
                 'type' => 'checkbox',
                 'default' => '0',
             ],
             'default_product' => [
-                'label' => 'Default certificate: SSL2BUY product code (101 AlphaSSL, 102 AlphaSSL Wildcard, 351 Sectigo PositiveSSL, 352 PositiveSSL Wildcard, 362 EssentialSSL, 363 EssentialSSL Wildcard)',
-                'type' => 'text',
+                'label' => __('common.ssl2buy.default_product'),
+                'type' => 'select',
+                'options' => $this->orderableOptions($catalogue),
             ],
             'product_map' => [
-                'label' => 'Certificate per product: panel product ID=SSL2BUY code, comma separated (e.g. 12=101, 13=102)',
+                'label' => __('common.ssl2buy.product_map'),
                 'type' => 'text',
             ],
         ];
+
+        if ($catalogue !== []) {
+            $fields['catalogue'] = [
+                'label' => __('common.ssl2buy.catalogue', ['count' => count($catalogue)]),
+                'type' => 'table',
+                'headers' => [
+                    __('common.ssl2buy.col_name'),
+                    __('common.ssl2buy.col_code'),
+                    __('common.ssl2buy.col_price'),
+                    __('common.ssl2buy.col_extra_domain'),
+                    __('common.ssl2buy.col_orderable'),
+                ],
+                'rows' => array_map(fn (int $code, array $product) => [
+                    $product['name'],
+                    (string) $code,
+                    number_format($product['price'], 2),
+                    $product['extra_domain'] > 0 ? number_format($product['extra_domain'], 2) : '—',
+                    isset(self::PRODUCTS[$code]) ? __('common.yes') : __('common.no'),
+                ], array_keys($catalogue), $catalogue),
+            ];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * The certificates the panel can buy, for the drop-down, with the price
+     * when the account could be read.
+     *
+     * @param  array<int, array{name: string, price: float, extra_domain: float}>  $catalogue
+     * @return array<int|string, string>
+     */
+    private function orderableOptions(array $catalogue): array
+    {
+        $options = ['' => __('common.ssl2buy.no_default')];
+
+        foreach (self::PRODUCTS as $code => $product) {
+            $options[$code] = isset($catalogue[$code])
+                ? $product['name'].' ('.$code.') - '.number_format($catalogue[$code]['price'], 2)
+                : $product['name'].' ('.$code.')';
+        }
+
+        return $options;
+    }
+
+    /**
+     * What SSL2BUY sells, as it prices it for this account for one year: code
+     * => name and prices. Empty until the credentials are set or when they do
+     * not work. Kept for a day, or five minutes after a failure so the settings
+     * page does not wait on a provider that is down at every load.
+     *
+     * @return array<int, array{name: string, price: float, extra_domain: float}>
+     */
+    public function catalogue(): array
+    {
+        if (blank($this->getSetting('partner_email')) || blank($this->getSetting('api_key'))) {
+            return [];
+        }
+
+        $key = 'ssl2buy_catalogue_'.($this->isTestMode() ? 'test' : 'live');
+        $cached = Cache::get($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $catalogue = $this->fetchCatalogue();
+        Cache::put($key, $catalogue, $catalogue === [] ? now()->addMinutes(5) : now()->addDay());
+
+        return $catalogue;
+    }
+
+    /** @return array<int, array{name: string, price: float, extra_domain: float}> */
+    private function fetchCatalogue(): array
+    {
+        $url = ($this->isTestMode() ? self::TEST_URL : self::LIVE_URL).'orderservice/order/getproductprice';
+        $credentials = [
+            'PartnerEmail' => (string) $this->getSetting('partner_email', ''),
+            'ApiKey' => (string) $this->getSetting('api_key', ''),
+        ];
+
+        $catalogue = [];
+
+        try {
+            foreach (array_chunk(self::CATALOGUE, 10) as $codes) {
+                $responses = Http::pool(fn (Pool $pool) => array_map(
+                    fn (int $code) => $pool->as((string) $code)->acceptJson()->timeout(15)
+                        ->post($url, $credentials + ['ProductId' => $code, 'Year' => 1]),
+                    $codes
+                ));
+
+                foreach ($responses as $code => $response) {
+                    $json = $response instanceof Response ? $response->json() : null;
+                    if (! is_array($json) || (int) ($json['StatusCode'] ?? -1) !== 0 || blank($json['ProductName'] ?? null)) {
+                        continue;
+                    }
+
+                    $catalogue[(int) $code] = [
+                        'name' => trim((string) $json['ProductName']),
+                        'price' => (float) ($json['Price'] ?? 0),
+                        'extra_domain' => (float) ($json['AddDomainPrice'] ?? 0),
+                    ];
+                }
+            }
+        } catch (Throwable $e) {
+            Log::warning('SSL2BUY catalogue failed', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+
+        ksort($catalogue);
+
+        return $catalogue;
     }
 
     public function testConnection(): bool
