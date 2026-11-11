@@ -42,6 +42,19 @@ rossi.it,12,60.00,Annually,2027-03-15
 
 Per importare servono i permessi **modifica clienti** e **gestione servizi**; chi ha solo **gestione server** può vedere la pagina.
 
+## Account reseller
+
+Un prodotto può vendere un account **reseller** Plesk invece di una singola subscription. Nelle impostazioni del modulo del prodotto, l'elenco dei pacchetti mostra i piani reseller del server dopo i piani di servizio, come **Reseller: <piano>**. Scegline uno e un ordine per quel prodotto crea un reseller su quel piano, con il suo login, invece di un cliente con una subscription. Un servizio reseller non ha bisogno di un dominio.
+
+| Azione | Effetto su Plesk |
+|---|---|
+| Sospendi, riattiva | Il reseller e, con lui, tutti i clienti e i siti che ospita |
+| Termina | **Cancella il reseller con tutti i suoi clienti e siti** |
+| Cambia password | La password di accesso del reseller |
+| Cambia pacchetto | Sposta il reseller su un altro piano reseller; un reseller non può diventare una subscription né il contrario |
+
+I reseller esistenti compaiono nella pagina di sincronizzazione con l'etichetta **Reseller** e il loro piano, e si importano e collegano come le subscription. Spazio e traffico dei reseller vengono letti come per i clienti.
+
 ## Cosa fanno le azioni
 
 | Azione | Effetto su Plesk |
