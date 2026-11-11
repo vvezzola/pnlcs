@@ -2988,7 +2988,7 @@ return [
         'remote_id' => 'Remote ID',
         'renew' => 'Renew',
         'import_remote' => 'Import existing certificates',
-        'import_confirm' => 'Fetch certificates from GoGetSSL and import them into the panel?',
+        'import_confirm' => 'Fetch certificates from :module and import them into the panel?',
         'import_done' => 'Imported :imported new certificate(s), updated :updated, skipped :skipped with no matching service.',
         'resend_validation' => 'Resend Validation',
         'revoke' => 'Revoke',

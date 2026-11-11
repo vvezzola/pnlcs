@@ -2988,7 +2988,7 @@ return [
         'remote_id' => '远程ID',
         'renew' => '续费',
         'import_remote' => '导入现有证书',
-        'import_confirm' => '从 GoGetSSL 获取证书并导入面板？',
+        'import_confirm' => '从 :module 获取证书并导入面板？',
         'import_done' => '已导入 :imported 个新证书，更新 :updated 个，跳过 :skipped 个（无匹配服务）。',
         'resend_validation' => '重新发送验证',
         'revoke' => '撤销',

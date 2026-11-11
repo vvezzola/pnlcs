@@ -2988,7 +2988,7 @@ return [
         'remote_id' => 'Remote-ID',
         'renew' => 'Erneuern',
         'import_remote' => 'Vorhandene Zertifikate importieren',
-        'import_confirm' => 'Zertifikate von GoGetSSL abrufen und in das Panel importieren?',
+        'import_confirm' => 'Zertifikate von :module abrufen und in das Panel importieren?',
         'import_done' => ':imported neue Zertifikate importiert, :updated aktualisiert, :skipped ohne passenden Dienst übersprungen.',
         'resend_validation' => 'Validierung erneut senden',
         'revoke' => 'Widerrufen',
