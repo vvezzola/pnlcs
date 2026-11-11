@@ -40,7 +40,7 @@ Con la validazione **DNS** o **HTTP**, la pagina dell'ordine mostra il record o 
 
 ## Importare i certificati esistenti
 
-In **Servizi → Certificati SSL** usa **Importa i certificati esistenti · SSL2BUY**. Un ordine viene collegato al servizio attivo con lo stesso dominio; un wildcard `*.example.com` si collega a un servizio chiamato `example.com` e mantiene il nome con l'asterisco. Gli ordini senza un servizio corrispondente vengono saltati e conteggiati. Ai clienti non parte nessuna email.
+In **Clienti → Certificati SSL** usa **Importa i certificati esistenti · SSL2BUY**. Un ordine viene collegato al servizio attivo con lo stesso dominio; un wildcard `*.example.com` si collega a un servizio chiamato `example.com` e mantiene il nome con l'asterisco. Gli ordini senza un servizio corrispondente vengono saltati e conteggiati. Ai clienti non parte nessuna email.
 
 ## Operazioni supportate
 
