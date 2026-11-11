@@ -92,7 +92,8 @@
         </div>
 
         <x-ssl-dcv :order="$order" />
-        <x-ssl-install :order="$order" :show-key="(bool) auth('admin')->user()?->hasPermission('manage_services')" />
+        @php($mayDownloadCertificate = (bool) auth('admin')->user()?->hasPermission('manage_services'))
+        <x-ssl-install :order="$order" :show-key="$mayDownloadCertificate" />
 
         {{-- Admin Contact --}}
         @if($order->admin_first_name)
