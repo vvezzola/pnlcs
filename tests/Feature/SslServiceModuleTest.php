@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductGroup;
 use App\Models\Server;
 use App\Models\Service;
+use App\Models\SslModuleSettings;
 use App\Models\SslOrder;
 use App\Services\SslProvisioningService;
 use Illuminate\Support\Facades\Http;
@@ -162,6 +163,34 @@ test('a wildcard certificate downloads under a file name every system accepts', 
     $result = app(SslProvisioningService::class)->downloadCertificate($order);
 
     expect($result['data']['domain'])->toBe('wildcard.shop.example.com');
+});
+
+test('each provider that can list its orders has its own import', function () {
+    Mail::fake();
+    SslModuleSettings::setSetting('ssl2buy', 'partner_email', 'partner@example.com');
+    SslModuleSettings::setSetting('ssl2buy', 'api_key', 'key');
+    $ssl = sslsmService(sslsmProduct(['type' => 'ssl', 'ssl_module' => 'ssl2buy']), ['status' => 'active']);
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.ssl2buy.com/orderservice/order/getorderlist' => Http::response([
+            'OrderList' => [['OrderNumber' => 777, 'DomainName' => 'shop.example.com', 'OrderStatus' => 'Pending Configuration', 'ExpireOn' => null]],
+            'TotalPages' => 1, 'StatusCode' => 0,
+        ]),
+    ]);
+    $admin = sslsmAdmin();
+
+    $this->actingAs($admin, 'admin')->get(route('admin.ssl.index'))
+        ->assertOk()
+        ->assertSee('name="module" value="ssl2buy"', false)
+        ->assertSee('name="module" value="gogetssl"', false);
+
+    $this->actingAs($admin, 'admin')
+        ->post(route('admin.ssl.import'), ['module' => 'ssl2buy'])
+        ->assertSessionHas('success');
+
+    expect(SslOrder::where('remote_id', '777')->firstOrFail())
+        ->module->toBe('ssl2buy')
+        ->service_id->toBe($ssl->id);
 });
 
 test('an order the panel already has keeps its service and client', function () {

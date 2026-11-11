@@ -2953,7 +2953,7 @@ return [
         'remote_id' => 'ID remoto',
         'renew' => 'Rinnova',
         'import_remote' => 'Importa i certificati esistenti',
-        'import_confirm' => 'Recuperare i certificati da GoGetSSL e importarli nel pannello?',
+        'import_confirm' => 'Recuperare i certificati da :module e importarli nel pannello?',
         'import_done' => 'Importati :imported nuovi certificati, aggiornati :updated, saltati :skipped senza un servizio corrispondente.',
         'resend_validation' => 'Invia di nuovo la convalida',
         'revoke' => 'Revoca',

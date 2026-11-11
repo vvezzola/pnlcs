@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SslOrder;
+use App\Services\Module\ModuleRegistry;
 use App\Services\SslProvisioningService;
 use Illuminate\Http\Request;
 
@@ -29,7 +30,15 @@ class SslOrderController extends Controller
 
         $orders = $query->orderByDesc('created_at')->paginate(25);
 
-        return view('admin.ssl.index', compact('orders'));
+        // Only the modules that can read their provider's order list.
+        $registry = app(ModuleRegistry::class);
+        $importModules = array_filter(
+            $registry->sslModuleNames(),
+            fn (string $name) => method_exists($registry->getSslModule($name), 'listRemoteOrders'),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        return view('admin.ssl.index', compact('orders', 'importModules'));
     }
 
     public function show(SslOrder $sslOrder)
@@ -62,9 +71,9 @@ class SslOrderController extends Controller
     }
 
     /** Import certificates that already exist at the provider into the panel. */
-    public function importRemote()
+    public function importRemote(Request $request)
     {
-        $result = $this->sslService->importRemoteOrders('gogetssl');
+        $result = $this->sslService->importRemoteOrders((string) $request->input('module', 'gogetssl'));
 
         if ($result['failed']) {
             return back()->with('error', __('admin.ssl.import_failed'));
