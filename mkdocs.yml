@@ -104,6 +104,7 @@ nav:
       - Tax Rules: guides/tax-rules.md
       - Official Exchange Rates: guides/official-exchange-rates.md
       - Custom Client Fields: guides/custom-fields.md
+      - "Company Lookup: EU VAT (VIES)": guides/company-lookup-vies.md
       - Themes & Branding: guides/themes-and-branding.md
       - Languages & Translations: guides/languages.md
       - Staff & Roles: guides/staff-and-roles.md
