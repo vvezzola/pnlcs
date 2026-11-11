@@ -2954,7 +2954,7 @@ return [
         'remote_id' => 'Uzak ID',
         'renew' => 'Yenile',
         'import_remote' => 'Mevcut sertifikaları içe aktar',
-        'import_confirm' => 'Sertifikalar GoGetSSL üzerinden alınıp panele aktarılsın mı?',
+        'import_confirm' => 'Sertifikalar :module üzerinden alınıp panele aktarılsın mı?',
         'import_done' => 'Yeni sertifika: :imported, güncellenen: :updated, eşleşen hizmeti olmadığı için atlanan: :skipped.',
         'resend_validation' => 'Doğrulamayı Tekrar Gönder',
         'revoke' => 'İptal Et',

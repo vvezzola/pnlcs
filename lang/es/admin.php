@@ -2927,7 +2927,7 @@ return [
 		'remote_id' => 'Identificación remota',
 		'renew' => 'Renovar',
 		'import_remote' => 'Importar certificados existentes',
-		'import_confirm' => '¿Obtener certificados de GoGetSSL e importarlos al panel?',
+		'import_confirm' => '¿Obtener certificados de :module e importarlos al panel?',
 		'import_done' => ':imported certificados nuevos importados, actualizados :updated, :skipped omitidos sin ningún servicio coincidente.',
 		'resend_validation' => 'Reenviar validación',
 		'revoke' => 'Revocar',

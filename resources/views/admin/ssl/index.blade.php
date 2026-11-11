@@ -5,10 +5,15 @@
 @section("content")
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">{{ __('admin.ssl.title') }}</h1>
-    <form method="POST" action="{{ route('admin.ssl.import') }}" onsubmit="return pnConfirm(event, @js(__('admin.ssl.import_confirm')))">
-        @csrf
-        <button type="submit" class="btn btn-outline-primary">{{ __('admin.ssl.import_remote') }}</button>
-    </form>
+    <div class="d-flex gap-2">
+        @foreach($importModules as $importModule => $importLabel)
+            <form method="POST" action="{{ route('admin.ssl.import') }}" onsubmit="return pnConfirm(event, @js(__('admin.ssl.import_confirm', ['module' => $importLabel])))">
+                @csrf
+                <input type="hidden" name="module" value="{{ $importModule }}">
+                <button type="submit" class="btn btn-outline-primary">{{ __('admin.ssl.import_remote') }} · {{ $importLabel }}</button>
+            </form>
+        @endforeach
+    </div>
 </div>
 
 {{-- Filters --}}
