@@ -42,6 +42,19 @@ rossi.it,12,60.00,Annually,2027-03-15
 
 Importing needs the **edit clients** and **manage services** permissions; staff with **manage servers** alone can view the page.
 
+## Reseller accounts
+
+A product can sell a Plesk **reseller** account instead of a single subscription. In the product's module settings, the package list shows the server's reseller plans after the service plans, as **Reseller: <plan>**. Choose one, and an order for that product creates a reseller on that plan, with its own login, instead of a customer and subscription. A reseller service needs no domain.
+
+| Action | Effect on Plesk |
+|---|---|
+| Suspend, unsuspend | The reseller, and with it every customer and site it hosts |
+| Terminate | **Deletes the reseller with all its customers and sites** |
+| Change password | The reseller's login password |
+| Change package | Moves the reseller to another reseller plan; a reseller cannot become a subscription or the other way round |
+
+Existing resellers appear on the sync page marked **Reseller**, with their reseller plan, and are imported and linked like subscriptions. Disk and traffic usage is read for resellers as for customers.
+
 ## What the actions do
 
 | Action | Effect on Plesk |
