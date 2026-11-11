@@ -50,6 +50,7 @@ Open it, enter the credentials from your registrar account, and switch it on.
 | **Enom** | Username (UID), password, test mode |
 | **HRD** (Poland) | Login, API hash, API password, default nameserver group, margin |
 | **OVHcloud** | Application key, application secret, consumer key, region (EU / CA / US), margin |
+| **Internet.bs** | API key, API password, test environment ([guide](internetbs.md)) |
 | **DomainNameAPI** (Turkey) | Reseller ID, live and test API keys, test mode, default nameservers |
 | **Manual** | Nothing: you register names yourself at any registrar and record them in PNLCS |
 
