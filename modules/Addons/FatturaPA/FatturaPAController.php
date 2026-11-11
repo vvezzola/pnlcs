@@ -19,7 +19,7 @@ class FatturaPAController extends Controller
         $invoice = Invoice::where('invoice_num', $validated['number'])->first();
 
         if (! $invoice) {
-            return back()->with('error', 'Nessuna fattura con numero '.$validated['number'].'.');
+            return back()->with('error', __('messages.fatturapa.no_invoice', ['number' => $validated['number']]));
         }
 
         try {
@@ -55,7 +55,7 @@ class FatturaPAController extends Controller
             ->get();
 
         if ($invoices->isEmpty()) {
-            return back()->with('error', 'Nessuna fattura in questo periodo.');
+            return back()->with('error', __('messages.fatturapa.none_in_period'));
         }
 
         $path = tempnam(sys_get_temp_dir(), 'fatturapa');
