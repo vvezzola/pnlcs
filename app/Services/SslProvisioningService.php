@@ -171,7 +171,8 @@ class SslProvisioningService
                 'ca_cert' => $order->ca_cert,
                 'fullchain' => $order->fullchain,
                 'private_key' => $order->private_key,
-                'domain' => $order->domain,
+                // Names the downloaded files, and Windows refuses a * in a file name.
+                'domain' => str_replace('*', 'wildcard', (string) $order->domain),
             ],
         ];
     }
@@ -253,7 +254,7 @@ class SslProvisioningService
             }
 
             $service = Service::with('product')
-                ->where('domain', $domain)
+                ->whereIn('domain', array_unique([$domain, preg_replace('/^\*\./', '', $domain)]))
                 ->whereNotIn('status', [ServiceStatus::Terminated->value, ServiceStatus::Cancelled->value, ServiceStatus::Fraud->value])
                 ->doesntHave('sslOrder')
                 ->orderBy('id')

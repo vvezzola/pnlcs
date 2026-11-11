@@ -135,6 +135,35 @@ test('certificates on the provider account are attached to the service with thei
     Mail::assertNothingSent();
 });
 
+test('a wildcard certificate is attached to the service of its domain and keeps its name', function () {
+    Mail::fake();
+    $ssl = sslsmService(sslsmProduct(['type' => 'ssl', 'ssl_module' => 'gogetssl']), ['status' => 'active']);
+    fakeGoGetSsl([
+        ['order_id' => '9003', 'common_name' => '*.shop.example.com', 'status' => 'active', 'valid_till' => '2027-03-01'],
+    ]);
+
+    $result = app(SslProvisioningService::class)->importRemoteOrders('gogetssl');
+
+    expect($result)->toBe(['imported' => 1, 'updated' => 0, 'skipped' => 0, 'failed' => false]);
+    expect(SslOrder::where('remote_id', '9003')->firstOrFail())
+        ->service_id->toBe($ssl->id)
+        ->domain->toBe('*.shop.example.com');
+});
+
+test('a wildcard certificate downloads under a file name every system accepts', function () {
+    $order = SslOrder::create([
+        'client_id' => Client::factory()->create()->id,
+        'domain' => '*.shop.example.com',
+        'module' => 'gogetssl',
+        'status' => 'Completed',
+        'cert' => '-----BEGIN CERTIFICATE-----X',
+    ]);
+
+    $result = app(SslProvisioningService::class)->downloadCertificate($order);
+
+    expect($result['data']['domain'])->toBe('wildcard.shop.example.com');
+});
+
 test('an order the panel already has keeps its service and client', function () {
     $owner = sslsmService(sslsmProduct(['type' => 'ssl', 'ssl_module' => 'gogetssl']), ['status' => 'active', 'domain' => 'other.example.org']);
     $order = SslOrder::create([
