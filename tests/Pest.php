@@ -47,3 +47,17 @@ pest()->group('serial')->in(
     'Feature/InstallerReachableTest.php',
     'Feature/InstallRequirementsAndImapTest.php',
 );
+
+/*
+ * The custom invoice template is one file, storage/app/invoice-templates/
+ * custom.html, and these tests write it, read it back and delete it. Under
+ * --parallel one process deleted it between another's write and read
+ * (file_get_contents: No such file or directory), so they join the serial pass.
+ */
+pest()->group('serial')->in(
+    'Feature/CompanyBankAccountsTest.php',
+    'Feature/InvoiceTemplateLanguageTest.php',
+    'Feature/InvoiceTemplateTest.php',
+    'Feature/UploadedInvoiceTemplateSurvivesUpdateTest.php',
+    'Feature/VatSummaryTest.php',
+);
