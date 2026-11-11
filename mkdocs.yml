@@ -109,6 +109,7 @@ nav:
       - Staff & Roles: guides/staff-and-roles.md
       - Client Logins & Permissions: guides/client-logins-and-permissions.md
       - Support Mail Piping: guides/support-mail-piping.md
+      - PEC Certified Email: guides/pec.md
       - Migrate from WHMCS: guides/migrate-from-whmcs.md
       - Deploy on Plesk: guides/deploy-plesk.md
   - API:
