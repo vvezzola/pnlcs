@@ -355,4 +355,18 @@ return [
         'copied' => 'Kopiert',
         'key_elsewhere' => 'Der private Schlüssel wird hier nicht gespeichert: Er bleibt dort, wo die CSR erstellt wurde. War das Plesk, öffne dort die vorhandene Zertifikatsanfrage und füge nur das Zertifikat und das CA-Zertifikat ein.',
     ],
+    'ssl2buy' => [
+        'partner_email' => 'SSL2BUY-Anmelde-E-Mail',
+        'api_key' => 'API-Schlüssel',
+        'test_mode' => 'Testmodus (demo-api.ssl2buy.com, keine Kosten)',
+        'default_product' => 'Standardzertifikat',
+        'no_default' => 'Keines: je Produkt wählen',
+        'product_map' => 'Zertifikat je Produkt: Produkt-ID im Panel=SSL2BUY-Code, durch Kommas getrennt (z. B. 12=101, 13=102)',
+        'catalogue' => 'SSL2BUY-Preisliste (:count Zertifikate)',
+        'col_name' => 'Zertifikat',
+        'col_code' => 'Produktcode',
+        'col_price' => 'Preis, 1 Jahr',
+        'col_extra_domain' => 'Zusätzliche Domain',
+        'col_orderable' => 'Im Panel bestellbar',
+    ],
 ];

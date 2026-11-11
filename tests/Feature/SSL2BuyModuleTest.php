@@ -256,3 +256,43 @@ test('an order asked under the wrong authority is read again under the one its p
         ->and($order->config_data['ssl2buy_family'])->toBe('prime')
         ->and($order->fullchain)->toBe("CERT\nINT1\nINT2");
 });
+
+test('the settings page lists what SSL2BUY sells and offers the certificates the panel can buy', function () {
+    SslModuleSettings::setSetting('ssl2buy', 'partner_email', 'partner@example.com');
+    SslModuleSettings::setSetting('ssl2buy', 'api_key', 'key');
+    SslModuleSettings::setSetting('ssl2buy', 'default_product', '102');
+    Http::preventStrayRequests();
+    Http::fake(['api.ssl2buy.com/orderservice/order/getproductprice' => function (Request $request) {
+        return match ($request['ProductId']) {
+            102 => Http::response(['ProductName' => 'AlphaSSL Wildcard Certificate', 'Price' => 57.0, 'AddDomainPrice' => 0.0, 'StatusCode' => 0]),
+            202 => Http::response(['ProductName' => 'PrimeSSL DV Wildcard Certificate', 'Price' => 45.0, 'AddDomainPrice' => 0.0, 'StatusCode' => 0]),
+            default => Http::response(['Errors' => ['ErrorNumber' => -103, 'ErrorMessage' => 'Invalid ProductId or Validity Year.'], 'StatusCode' => -1]),
+        };
+    }]);
+    $admin = Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
+
+    $this->actingAs($admin, 'admin')
+        ->get(route('admin.config.sslModules'))
+        ->assertOk()
+        ->assertSee('PrimeSSL DV Wildcard Certificate')
+        ->assertSee('<option value="102" selected>AlphaSSL Wildcard (102) - 57.00</option>', false)
+        ->assertDontSee('<option value="202"', false);
+});
+
+test('the settings still open, without prices, when SSL2BUY cannot be read', function () {
+    SslModuleSettings::setSetting('ssl2buy', 'partner_email', 'partner@example.com');
+    SslModuleSettings::setSetting('ssl2buy', 'api_key', 'key');
+    Http::preventStrayRequests();
+    Http::fake(['api.ssl2buy.com/orderservice/order/getproductprice' => Http::response('', 500)]);
+
+    $fields = (new SSL2BuyModule)->getConfigFields();
+
+    expect($fields['default_product']['options'][102])->toBe('AlphaSSL Wildcard (102)')
+        ->and($fields)->not->toHaveKey('catalogue');
+});
+
+test('the settings do not call SSL2BUY before the credentials are entered', function () {
+    Http::preventStrayRequests();
+
+    expect((new SSL2BuyModule)->catalogue())->toBe([]);
+});

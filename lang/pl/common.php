@@ -355,4 +355,18 @@ return [
         'copied' => 'Skopiowano',
         'key_elsewhere' => 'Klucz prywatny nie jest tu przechowywany: pozostaje tam, gdzie wygenerowano CSR. Jeśli był to Plesk, otwórz tam istniejące żądanie certyfikatu i wklej tylko certyfikat oraz certyfikat CA.',
     ],
+    'ssl2buy' => [
+        'partner_email' => 'E-mail logowania do SSL2BUY',
+        'api_key' => 'Klucz API',
+        'test_mode' => 'Tryb testowy (demo-api.ssl2buy.com, bez opłat)',
+        'default_product' => 'Domyślny certyfikat',
+        'no_default' => 'Brak: wybór dla każdego produktu',
+        'product_map' => 'Certyfikat dla produktu: ID produktu w panelu=kod SSL2BUY, rozdzielone przecinkami (np. 12=101, 13=102)',
+        'catalogue' => 'Cennik SSL2BUY (certyfikaty: :count)',
+        'col_name' => 'Certyfikat',
+        'col_code' => 'Kod produktu',
+        'col_price' => 'Cena, 1 rok',
+        'col_extra_domain' => 'Dodatkowa domena',
+        'col_orderable' => 'Można zamówić w panelu',
+    ],
 ];

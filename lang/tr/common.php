@@ -355,4 +355,18 @@ return [
         'copied' => 'Kopyalandı',
         'key_elsewhere' => 'Özel anahtar burada saklanmaz: CSR\'nin oluşturulduğu yerde kalır. CSR Plesk\'te oluşturulduysa, oradaki mevcut sertifika isteğini açın ve yalnızca sertifikayı ve CA sertifikasını yapıştırın.',
     ],
+    'ssl2buy' => [
+        'partner_email' => 'SSL2BUY giriş e-postası',
+        'api_key' => 'API anahtarı',
+        'test_mode' => 'Test modu (demo-api.ssl2buy.com, ücret alınmaz)',
+        'default_product' => 'Varsayılan sertifika',
+        'no_default' => 'Yok: ürüne göre seçilir',
+        'product_map' => 'Ürüne göre sertifika: panel ürün kimliği=SSL2BUY kodu, virgülle ayrılmış (örn. 12=101, 13=102)',
+        'catalogue' => 'SSL2BUY fiyat listesi (:count sertifika)',
+        'col_name' => 'Sertifika',
+        'col_code' => 'Ürün kodu',
+        'col_price' => 'Fiyat, 1 yıl',
+        'col_extra_domain' => 'Ek alan adı',
+        'col_orderable' => 'Panelden sipariş edilebilir',
+    ],
 ];

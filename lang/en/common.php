@@ -355,4 +355,18 @@ return [
         'copied' => 'Copied',
         'key_elsewhere' => 'The private key is not stored here: it stays where the CSR was generated. If that was Plesk, open the existing certificate request there and paste only the certificate and the CA certificate.',
     ],
+    'ssl2buy' => [
+        'partner_email' => 'SSL2BUY login email',
+        'api_key' => 'API Key',
+        'test_mode' => 'Test mode (demo-api.ssl2buy.com, nothing is charged)',
+        'default_product' => 'Default certificate',
+        'no_default' => 'None: choose per product',
+        'product_map' => 'Certificate per product: panel product ID=SSL2BUY code, comma separated (e.g. 12=101, 13=102)',
+        'catalogue' => 'SSL2BUY price list (:count certificates)',
+        'col_name' => 'Certificate',
+        'col_code' => 'Product code',
+        'col_price' => 'Price, 1 year',
+        'col_extra_domain' => 'Extra domain',
+        'col_orderable' => 'Can be ordered from the panel',
+    ],
 ];

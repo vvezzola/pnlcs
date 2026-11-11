@@ -355,4 +355,18 @@ return [
         'copied' => '已复制',
         'key_elsewhere' => '私钥不保存在此处：它保留在生成 CSR 的地方。如果是在 Plesk 中生成的，请在那里打开现有的证书请求，只粘贴证书和 CA 证书。',
     ],
+    'ssl2buy' => [
+        'partner_email' => 'SSL2BUY 登录邮箱',
+        'api_key' => 'API 密钥',
+        'test_mode' => '测试模式（demo-api.ssl2buy.com，不收费）',
+        'default_product' => '默认证书',
+        'no_default' => '无：按产品选择',
+        'product_map' => '按产品指定证书：面板产品 ID=SSL2BUY 代码，用逗号分隔（例如 12=101, 13=102）',
+        'catalogue' => 'SSL2BUY 价目表（:count 个证书）',
+        'col_name' => '证书',
+        'col_code' => '产品代码',
+        'col_price' => '价格（1 年）',
+        'col_extra_domain' => '附加域名',
+        'col_orderable' => '可在面板中订购',
+    ],
 ];
