@@ -1,4 +1,4 @@
-# Plesk: collegare le subscription esistenti
+# Plesk: account esistenti e reseller
 
 Se hai già clienti su Plesk, puoi fatturarli da PNLCS senza ricreare nulla, collegando ogni servizio alla sua subscription Plesk esistente.
 

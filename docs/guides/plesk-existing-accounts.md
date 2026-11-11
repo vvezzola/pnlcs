@@ -1,4 +1,4 @@
-# Plesk: linking existing subscriptions
+# Plesk: Existing Accounts & Resellers
 
 If you already host customers on Plesk, you can bill them from PNLCS without recreating anything, by linking each service to its existing Plesk subscription.
 
@@ -38,7 +38,7 @@ rossi.it,12,60.00,Annually,2027-03-15
 ```
 
 !!! note
-    Subscriptions that the Plesk administrator owns have no owner email, so the client can only come from the price list or from data already in PNLCS.
+    Subscriptions that the Plesk administrator owns have no owner email, so their client can only come from the price list or from data already in PNLCS.
 
 Importing needs the **edit clients** and **manage services** permissions; staff with **manage servers** alone can view the page.
 

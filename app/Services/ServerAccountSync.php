@@ -132,7 +132,6 @@ class ServerAccountSync
         return Product::query()
             ->whereRaw('LOWER(server_type) = ?', [strtolower((string) $server->type)])
             ->where('retired', false)
-            ->with('pricing')
             ->orderBy('name')
             ->get();
     }
@@ -285,7 +284,9 @@ class ServerAccountSync
     {
         if (filled($plan)) {
             $match = $products->first(function (Product $product) use ($plan): bool {
-                $config = is_array($product->config_options) ? $product->config_options : (json_decode((string) $product->config_options, true) ?: []);
+                $config = is_string($product->config_options)
+                    ? (json_decode($product->config_options, true) ?: [])
+                    : ($product->config_options ?? []);
 
                 return in_array($plan, [$config['package_name'] ?? null, $config['plesk_plan'] ?? null], true);
             });

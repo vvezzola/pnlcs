@@ -257,8 +257,9 @@ class PleskModule extends AbstractServerModule
      * Customers and resellers by id: login, name and email.
      *
      * The reseller object names its dataset gen-info where the customer one
-     * says gen_info. Asking resellers for gen_info made Plesk reject the whole
-     * packet, so every subscription read as the administrator's.
+     * says gen_info, and wants an explicit <all/> filter: asked any other way,
+     * Plesk rejects the whole packet and every subscription reads as the
+     * administrator's.
      *
      * @return array<string, array{login: string, name: string, email: string}>
      */

@@ -102,6 +102,24 @@ it('lists the subscriptions on the server with who owns them', function () {
     ]);
 });
 
+it('names the reseller that owns a subscription', function () {
+    fakePleskAgent([
+        'webspace-get' => webspaceResult(12, 'rossi.it', 7),
+        'reseller-get' => '<result><status>ok</status><id>7</id><data><gen-info><login>webco</login>'
+            .'<cname>Web Co</cname><pname></pname><email>info@webco.it</email></gen-info></data></result>',
+    ]);
+
+    $accounts = $this->actingAs(existingSubsAdmin(), 'admin')
+        ->get(route('admin.clients.server-accounts', existingSubsServer()))
+        ->assertOk()
+        ->json('accounts');
+
+    expect($accounts)->toBe([
+        ['id' => '12', 'username' => 'rossi.it · Web Co', 'email' => 'info@webco.it', 'status' => 'active'],
+    ]);
+    Http::assertSent(fn (Request $request) => str_contains($request->body(), '<reseller><get><filter><all/></filter><dataset><gen-info/>'));
+});
+
 it('links a recorded service to the subscription and its owner', function () {
     fakePleskAgent([
         'webspace-get' => webspaceResult(12, 'rossi.it', 5),
