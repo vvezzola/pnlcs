@@ -90,6 +90,7 @@ nav:
       - Live Servers: guides/live-servers.md
       - Modules: guides/modules.md
       - Sell Domains: guides/sell-domains.md
+      - SSL Certificate Chains: guides/ssl-certificate-chains.md
       - Sell Docker Apps: guides/sell-docker-apps.md
       - Sell Panelica Licenses: guides/sell-panelica-licenses.md
       - Sell VPS on Proxmox VE:
