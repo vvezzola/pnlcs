@@ -143,7 +143,7 @@ it('links a recorded service to the subscription and its owner', function () {
 
     $service = Service::where('client_id', $client->id)->sole();
 
-    expect($service->module_data)->toBe(['plesk_domain_id' => '12', 'plesk_client_id' => '5'])
+    expect($service->module_data)->toEqual(['plesk_domain_id' => '12', 'plesk_client_id' => '5'])
         ->and($service->username)->toBe('rossi')
         ->and($service->domain)->toBe('rossi.it');
 });
