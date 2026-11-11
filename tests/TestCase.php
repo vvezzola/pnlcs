@@ -15,7 +15,12 @@ abstract class TestCase extends BaseTestCase
         // Force test database connection. Uses DB_DATABASE from the environment
         // (phpunit.xml / .env.testing) so the suite does not silently connect
         // to a hard-coded database that may not exist on this install.
-        config(['database.connections.mysql.database' => env('DB_DATABASE', 'pnlcs_test')]);
+        // Under --parallel each process has its own copy, named the way
+        // Laravel's parallel testing names it; pointing every process back at
+        // the one database made them deadlock and drop tables under each other.
+        $database = env('DB_DATABASE', 'pnlcs_test');
+        $token = \Illuminate\Support\Facades\ParallelTesting::token();
+        config(['database.connections.mysql.database' => $token ? "{$database}_test_{$token}" : $database]);
         DB::purge('mysql');
         DB::reconnect('mysql');
         
