@@ -40,7 +40,7 @@ With **DNS** or **HTTP** validation, the order page shows the record or file to 
 
 ## Importing existing certificates
 
-On **Services → SSL Certificates**, use **Import existing certificates · SSL2BUY**. An order is attached to the active service with the same domain; a wildcard `*.example.com` matches a service named `example.com` and keeps its wildcard name. Orders with no matching service are skipped and counted. No customer is emailed.
+On **Clients → SSL Certificates**, use **Import existing certificates · SSL2BUY**. An order is attached to the active service with the same domain; a wildcard `*.example.com` matches a service named `example.com` and keeps its wildcard name. Orders with no matching service are skipped and counted. No customer is emailed.
 
 ## Supported operations
 
