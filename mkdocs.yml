@@ -85,6 +85,7 @@ nav:
   - Guides:
       - Configure Email: guides/configure-email.md
       - Payment Gateways: guides/payment-gateways.md
+      - "Bank Reconciliation (Qonto)": guides/bank-reconciliation.md
       - Connect a Server: guides/connect-a-server.md
       - "Plesk: Existing Accounts & Resellers": guides/plesk-existing-accounts.md
       - Live Servers: guides/live-servers.md
