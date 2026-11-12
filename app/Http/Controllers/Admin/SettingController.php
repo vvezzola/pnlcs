@@ -25,10 +25,10 @@ class SettingController extends Controller
         $invoiceService = app(\App\Services\InvoiceService::class);
         $proformaFormat = trim((string) ($settings['ProformaNumberFormat'] ?? 'PRO-{year}/{month}-{num}'));
         $proformaFormat = $proformaFormat !== '' ? $proformaFormat : 'PRO-{year}/{month}-{num}';
-        $proformaLast = \App\Models\Invoice::where('invoice_num', 'like', 'PRO-%')->orderBy('id', 'desc')->value('invoice_num');
-        $proformaSeq = 1 + (int) \App\Models\Invoice::where('invoice_num', 'like', 'PRO-%')
-            ->selectRaw('MAX(CAST(REGEXP_REPLACE(invoice_num, "^.*[^0-9]", "") AS UNSIGNED)) as seq')
-            ->value('seq');
+        // Read by type and through the same sequence the invoices use: a
+        // prefix other than PRO- previewed as number 1 forever.
+        $proformaLast = \App\Models\Invoice::where('type', 'proforma')->orderBy('id', 'desc')->value('invoice_num');
+        $proformaSeq = $invoiceService->nextInvoiceSequence($proformaFormat, 'proforma');
 
         return view('admin.settings.general', [
             'settings' => $settings,

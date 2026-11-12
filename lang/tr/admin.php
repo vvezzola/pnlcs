@@ -2744,7 +2744,7 @@ return [
         'invoice_number_last' => 'Son fatura',
         'invoice_number_preview' => 'Önizleme',
         'invoice_number_reset_year' => 'Numaralandırmayı her yıl sıfırla',
-        'invoice_number_tokens' => 'Değişkenler: {year} {yy} {month} {day} {num} — sıra numarası veritabanındaki son faturadan gelir.',
+        'invoice_number_tokens' => 'Değişkenler: {year} {yy} {month} {day} {num} — sıra numarası veritabanındaki son faturadan gelir; {num:4} onu altı yerine dört haneyle yazar.',
         'localization' => 'Yerelleştirme',
         'logo' => 'Logo',
         'mail_configuration' => 'Posta Yapılandırması',

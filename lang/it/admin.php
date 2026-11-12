@@ -2737,7 +2737,7 @@ return [
         'invoice_number_last' => 'Ultima fattura',
         'invoice_number_preview' => 'Anteprima',
         'invoice_number_reset_year' => 'Azzera la numerazione ogni anno',
-        'invoice_number_tokens' => 'Variabili: {year} {yy} {month} {day} {num} — il numero progressivo viene dall\'ultima fattura nel database.',
+        'invoice_number_tokens' => 'Variabili: {year} {yy} {month} {day} {num} — il numero progressivo viene dall\'ultima fattura nel database; {num:4} lo scrive con quattro cifre invece di sei.',
         'localization' => 'Localizzazione',
         'logo' => 'Logo',
         'mail_configuration' => 'Configurazione della posta',
