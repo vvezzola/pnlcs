@@ -821,13 +821,12 @@ function renderInvoicePreview() {
     var m = ('0' + (now.getMonth() + 1)).slice(-2);
     var d = ('0' + now.getDate()).slice(-2);
     var seq = String({{ $invoiceNextSeq }});
-    while (seq.length < 6) { seq = '0' + seq; }
     var out = fmt
+        .replace(/\{num(?::([1-9][0-9]?))?\}/g, function (all, width) { return seq.padStart(width ? Number(width) : 6, '0'); })
         .replace(/\{year\}/g, y)
         .replace(/\{yy\}/g, yy)
         .replace(/\{month\}/g, m)
-        .replace(/\{day\}/g, d)
-        .replace(/\{num\}/g, seq);
+        .replace(/\{day\}/g, d);
     document.getElementById('invoice-number-preview').textContent = out;
 }
 

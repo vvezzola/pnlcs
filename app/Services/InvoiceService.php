@@ -431,7 +431,8 @@ class InvoiceService
      * Generate a unique sequential invoice number from the configurable
      * format setting. The format accepts {year}, {yy}, {month}, {day} and
      * {num} placeholders; {num} is the next number in the series derived
-     * from the last invoice stored in the database.
+     * from the last invoice stored in the database, padded to six digits,
+     * or to N with {num:N} ("ESA{yy}{num:4}" gives ESA270001).
      */
     public function generateInvoiceNumber(?string $type = null): string
     {
@@ -477,9 +478,33 @@ class InvoiceService
 
         // Without {num} the number has nowhere to grow: fall back to the
         // row id, which still keeps them unique.
-        $pos = strpos((string) $format, '{num}');
-        if ($pos === false) {
+        $token = $this->numToken((string) $format);
+        if ($token === null) {
             return 1 + (int) Invoice::where('type', $type)->max('id');
+        }
+        $pos = $token['pos'];
+        $before = substr((string) $format, 0, $pos);
+        $isLast = $pos + strlen($token['text']) === strlen((string) $format);
+
+        // A date placeholder right before {num} ("ESA{yy}{num:4}") runs its
+        // digits into the number's: ESA270001 ends in "270001", which the
+        // trailing-digits reading below took for the sequence. The number
+        // is read after the prefix as it renders today instead, so the
+        // series is the one under today's prefix, and a new year (a new
+        // prefix) starts again from 1.
+        if ($isLast && preg_match('/\{(year|yy|month|day)\}$/', $before) === 1) {
+            $prefix = $this->renderDates($before);
+            $start = strlen($prefix) + 1;
+            $query = Invoice::where('type', $type)
+                ->where('invoice_num', 'like', addcslashes($prefix, '%_\\').'%')
+                ->whereRaw('SUBSTRING(invoice_num, ?) REGEXP ?', [$start, '^[0-9]+$'])
+                ->selectRaw('MAX(CAST(SUBSTRING(invoice_num, ?) AS UNSIGNED)) as seq', [$start]);
+
+            if (Setting::get('InvoiceNumberYearlyReset', '0') === '1') {
+                $query->whereYear('date', now()->year);
+            }
+
+            return 1 + (int) $query->value('seq');
         }
 
         // {num} last: the series continues across format changes, reading
@@ -488,7 +513,7 @@ class InvoiceService
         // there) simply contribute nothing because they do not end in a
         // run of digits. The series only grows, so nothing is ever
         // issued twice.
-        if (substr((string) $format, -5) === '{num}') {
+        if ($isLast) {
             $query = Invoice::where('type', $type)
                 ->where('invoice_num', 'regexp', '[0-9]$')
                 ->selectRaw('MAX(CAST(REGEXP_REPLACE(invoice_num, "^.*[^0-9]", "") AS UNSIGNED)) as seq');
@@ -504,7 +529,7 @@ class InvoiceService
 
         // {num} in the middle: fall back to the static prefix before it,
         // which is where the digits actually sit on issued numbers.
-        $prefix = substr((string) $format, 0, $pos);
+        $prefix = $before;
         if ($prefix === '') {
             return 1 + (int) Invoice::where('type', $type)->max('id');
         }
@@ -522,13 +547,39 @@ class InvoiceService
      */
     public function renderInvoiceNumber(string $format, int $sequence): string
     {
+        $numbered = (string) preg_replace_callback(
+            '/\{num(?::([1-9][0-9]?))?\}/',
+            fn (array $m): string => str_pad((string) $sequence, isset($m[1]) ? (int) $m[1] : 6, '0', STR_PAD_LEFT),
+            $format
+        );
+
+        return $this->renderDates($numbered);
+    }
+
+    /** A format's date placeholders filled in for today. */
+    private function renderDates(string $format): string
+    {
         $now = now();
 
         return str_replace(
-            ['{year}', '{yy}', '{month}', '{day}', '{num}'],
-            [$now->format('Y'), $now->format('y'), $now->format('m'), $now->format('d'), str_pad($sequence, 6, '0', STR_PAD_LEFT)],
+            ['{year}', '{yy}', '{month}', '{day}'],
+            [$now->format('Y'), $now->format('y'), $now->format('m'), $now->format('d')],
             $format
         );
+    }
+
+    /**
+     * The sequence placeholder of a format, {num} or {num:N}, and where it is.
+     *
+     * @return array{text: string, pos: int}|null
+     */
+    private function numToken(string $format): ?array
+    {
+        if (preg_match('/\{num(?::[1-9][0-9]?)?\}/', $format, $m, PREG_OFFSET_CAPTURE) !== 1) {
+            return null;
+        }
+
+        return ['text' => $m[0][0], 'pos' => $m[0][1]];
     }
 
     /**
