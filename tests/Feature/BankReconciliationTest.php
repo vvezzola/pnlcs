@@ -203,3 +203,15 @@ it('lists the transfers to review on the addon page', function () {
 
     expect($html)->toContain('BIANCHI SPA', 'ESA270001', __('messages.bank_reconciliation.reason_ready'));
 });
+
+it('tells a number-first invoice from a longer one ending the same way', function () {
+    reconciliationSettings();
+    $one = openInvoice('1/ELH', 50);
+    $eleven = openInvoice('11/ELH', 80);
+    fakeQonto([['id' => 'tx-9', 'amount' => 80, 'reference' => 'Saldo fatt. n. 11/ELH del 01/01/2027']]);
+
+    app(BankReconciler::class)->sync();
+
+    expect($eleven->fresh()->status)->toBe('paid')
+        ->and($one->fresh()->status)->toBe('unpaid');
+});
