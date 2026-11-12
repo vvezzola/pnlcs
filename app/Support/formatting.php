@@ -566,6 +566,11 @@ if (! function_exists('payment_ref')) {
      * is the invoice id behind a short prefix instead - short, readable over
      * the phone, hard to mistype. The prefix is a setting so that a host can
      * keep the code its customers already know.
+     *
+     * A host whose numbers are already short (ESA{yy}{num:4}: ESA270001)
+     * sets PaymentReferenceSource to "number", and the reference is the
+     * invoice number itself: one code on the invoice and in the transfer,
+     * not two the customer has to choose between.
      */
     function payment_ref($invoice = null): string
     {
@@ -574,9 +579,15 @@ if (! function_exists('payment_ref')) {
         }
 
         try {
+            $source = (string) Setting::get('PaymentReferenceSource', 'id');
             $prefix = strtoupper(trim((string) Setting::get('PaymentReferencePrefix', 'INV')));
         } catch (Throwable) {
+            $source = 'id';
             $prefix = 'INV';
+        }
+
+        if ($source === 'number' && trim((string) ($invoice->invoice_num ?? '')) !== '') {
+            return trim((string) $invoice->invoice_num);
         }
 
         return ($prefix !== '' ? $prefix : 'INV').((int) ($invoice->id ?? 0));

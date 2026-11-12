@@ -125,7 +125,7 @@ class SettingController extends Controller
         // The shop's social media profiles (App\Support\SocialProfiles).
         'SocialX', 'SocialFacebook', 'SocialInstagram', 'SocialLinkedin', 'SocialYoutube', 'SocialTiktok', 'SocialThreads', 'SocialMedium',
         // Billing in a second currency, with an official rate source.
-        'BillingCurrency', 'OfficialRateProvider', 'TcmbRateKind', 'PaymentReferencePrefix',
+        'BillingCurrency', 'OfficialRateProvider', 'TcmbRateKind', 'PaymentReferencePrefix', 'PaymentReferenceSource',
         // Official rate sources the operator adds (App\Services\OfficialRateProviders),
         // and the key sent to those that ask for one.
         'OfficialRateProviders', 'OfficialRateApiKey',
