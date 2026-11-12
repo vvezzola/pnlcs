@@ -531,7 +531,7 @@ class InvoiceService
         // which is where the digits actually sit on issued numbers.
         $prefix = $before;
         if ($prefix === '') {
-            return 1 + (int) Invoice::where('type', $type)->max('id');
+            return $this->nextLeadingSequence(substr((string) $format, $pos + strlen($token['text'])), $type);
         }
 
         $like = addcslashes($prefix, '%_').'%';
@@ -540,6 +540,31 @@ class InvoiceService
             ->where('invoice_num', 'like', $like)
             ->selectRaw('MAX(CAST(SUBSTRING(invoice_num, ?) AS UNSIGNED)) as seq', [strlen($prefix) + 1])
             ->value('seq');
+    }
+
+    /**
+     * The next number of a series written number first ("{num:1}/ELH": 1/ELH,
+     * 2/ELH - the way Italian invoice registers are often numbered). This read
+     * the row id instead, so the series followed whatever else had been
+     * stored. The issued numbers ending in the suffix, as it renders today,
+     * are read for their leading digits; with the yearly reset on, only this
+     * year's count.
+     */
+    private function nextLeadingSequence(string $after, string $type): int
+    {
+        $suffix = $this->renderDates($after);
+        $length = mb_strlen($suffix);
+
+        $query = Invoice::where('type', $type)
+            ->where('invoice_num', 'like', '%'.addcslashes($suffix, '%_\\'))
+            ->whereRaw('LEFT(invoice_num, CHAR_LENGTH(invoice_num) - ?) REGEXP ?', [$length, '^[0-9]+$'])
+            ->selectRaw('MAX(CAST(LEFT(invoice_num, CHAR_LENGTH(invoice_num) - ?) AS UNSIGNED)) as seq', [$length]);
+
+        if (Setting::get('InvoiceNumberYearlyReset', '0') === '1') {
+            $query->whereYear('date', now()->year);
+        }
+
+        return 1 + (int) $query->value('seq');
     }
 
     /**

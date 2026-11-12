@@ -60,3 +60,32 @@ it('previews the next proforma number under any prefix', function () {
         ->assertSee('ESA270007')
         ->assertSee('ESA270008');
 });
+
+function vatNumbered(string $number, string $date): Invoice
+{
+    return Invoice::factory()->create([
+        'client_id' => Client::factory()->create()->id,
+        'type' => 'vat',
+        'invoice_num' => $number,
+        'date' => $date,
+    ]);
+}
+
+it('counts on a register numbered number first', function () {
+    $this->travelTo('2027-02-01');
+    Setting::set('InvoiceNumberFormat', '{num:1}/ELH', 'general');
+    vatNumbered('1/ELH', '2027-01-01');
+    vatNumbered('2/ELH', '2027-01-01');
+    vatNumbered('7/ELS', '2027-01-15');
+
+    expect(app(InvoiceService::class)->generateInvoiceNumber('vat'))->toBe('3/ELH');
+});
+
+it('starts a number-first register again in a new year with the yearly reset', function () {
+    $this->travelTo('2028-01-01');
+    Setting::set('InvoiceNumberFormat', '{num:1}/ELH', 'general');
+    Setting::set('InvoiceNumberYearlyReset', '1', 'general');
+    vatNumbered('214/ELH', '2027-12-01');
+
+    expect(app(InvoiceService::class)->generateInvoiceNumber('vat'))->toBe('1/ELH');
+});
