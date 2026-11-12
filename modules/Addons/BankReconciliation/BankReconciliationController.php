@@ -23,7 +23,7 @@ class BankReconciliationController extends Controller
         return back()->with('success', __('messages.bank_reconciliation.synced', $counts));
     }
 
-    public function confirm(Request $request, BankTransaction $bankTransaction): RedirectResponse
+    public function record(Request $request, BankTransaction $bankTransaction): RedirectResponse
     {
         $validated = $request->validate([
             'invoice_ids' => ['nullable', 'array'],
@@ -40,7 +40,7 @@ class BankReconciliationController extends Controller
             $ids[] = (int) $typed;
         }
 
-        $result = $this->reconciler->confirm($bankTransaction, array_values(array_unique($ids)), $this->by());
+        $result = $this->reconciler->payOnto($bankTransaction, array_values(array_unique($ids)), $this->by());
 
         return back()->with($result['success'] ? 'success' : 'error', $result['message']);
     }

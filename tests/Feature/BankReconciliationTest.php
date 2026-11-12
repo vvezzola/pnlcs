@@ -139,7 +139,7 @@ it('leaves a partial payment for staff to confirm', function () {
     $admin = Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
     bootReconciliationRoutes();
     $this->actingAs($admin)
-        ->post(route('admin.bank_reconciliation.confirm', ['bankTransaction' => BankTransaction::sole()->id]), ['invoice_ids' => [$invoice->id]])
+        ->post(route('admin.bank_reconciliation.record', ['bankTransaction' => BankTransaction::sole()->id]), ['invoice_ids' => [$invoice->id]])
         ->assertSessionHas('success');
 
     expect($invoice->fresh()->status)->toBe('partially_paid')
