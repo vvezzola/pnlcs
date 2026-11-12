@@ -16,7 +16,7 @@ class BankReconciliationServiceProvider extends ServiceProvider
             ->name('admin.bank_reconciliation.')
             ->group(function () {
                 Route::post('sync', [BankReconciliationController::class, 'sync'])->middleware('throttle:10,1')->name('sync');
-                Route::post('{bankTransaction}/confirm', [BankReconciliationController::class, 'confirm'])->whereNumber('bankTransaction')->name('confirm');
+                Route::post('{bankTransaction}/record', [BankReconciliationController::class, 'record'])->whereNumber('bankTransaction')->name('record');
                 Route::post('{bankTransaction}/ignore', [BankReconciliationController::class, 'ignore'])->whereNumber('bankTransaction')->name('ignore');
             });
 

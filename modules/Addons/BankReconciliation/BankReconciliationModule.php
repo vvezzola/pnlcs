@@ -111,7 +111,7 @@ class BankReconciliationModule implements AddonModuleInterface
                 .'<td>'.e((string) $row->counterparty).($row->counterparty_iban ? '<br><small>'.e($row->counterparty_iban).'</small>' : '').'</td>'
                 .'<td style="text-align:right;white-space:nowrap;">'.e(number_format((float) $row->amount, 2, ',', '.')).'</td>'
                 .'<td>'.e((string) $row->reference).'<br><small style="color:var(--pn-muted);">'.$t('reason_'.($row->reason ?: BankTransaction::REASON_NO_REFERENCE)).'</small></td>'
-                .'<td><form method="POST" action="'.route('admin.bank_reconciliation.confirm', ['bankTransaction' => $row->id]).'" style="margin:0;">'.$token.$choices
+                .'<td><form method="POST" action="'.route('admin.bank_reconciliation.record', ['bankTransaction' => $row->id]).'" style="margin:0;">'.$token.$choices
                 .'<input type="text" name="invoice_number" class="form-control" placeholder="'.$t('other_invoice').'" style="font-size:12px;margin:4px 0;max-width:180px;">'
                 .'<button type="submit" class="btn btn-primary btn-xs">'.$t('confirm').'</button></form>'
                 .'<form method="POST" action="'.route('admin.bank_reconciliation.ignore', ['bankTransaction' => $row->id]).'" style="margin:4px 0 0;">'.$token

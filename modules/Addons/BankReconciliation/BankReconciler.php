@@ -124,7 +124,7 @@ class BankReconciler
      * @param  list<int>  $invoiceIds
      * @return array{success: bool, message: string}
      */
-    public function confirm(BankTransaction $transaction, array $invoiceIds, string $by): array
+    public function payOnto(BankTransaction $transaction, array $invoiceIds, string $by): array
     {
         if ($transaction->status === BankTransaction::MATCHED) {
             return ['success' => false, 'message' => __('messages.bank_reconciliation.already_matched')];
