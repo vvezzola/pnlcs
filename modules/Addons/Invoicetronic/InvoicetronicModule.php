@@ -142,7 +142,7 @@ class InvoicetronicModule implements AddonModuleInterface
             $invoice = $row->invoice;
             $number = (string) ($invoice?->invoice_num ?? '#'.$row->invoice_id);
             $buyer = $invoice ? trim((string) ($invoice->buyer('company_name') ?: $invoice->buyer('first_name').' '.$invoice->buyer('last_name'))) : '';
-            $details = $row->message !== null ? e($row->message) : '';
+            $details = $row->message !== null ? nl2br(e($row->message)) : '';
             if ($row->sdi_identifier) {
                 $details .= ($details !== '' ? '<br>' : '').'<small style="color:var(--pn-muted);">SDI '.e($row->sdi_identifier).'</small>';
             }

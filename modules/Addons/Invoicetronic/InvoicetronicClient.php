@@ -94,8 +94,12 @@ class InvoicetronicClient
             return null;
         }
 
-        $parts = array_filter([trim((string) ($update['description'] ?? ''))]);
-        foreach ((array) ($update['errors'] ?? []) as $error) {
+        $description = trim((string) ($update['description'] ?? ''));
+        $errors = (array) ($update['errors'] ?? []);
+        // The SDI often repeats an error as the description; say it once, with its code.
+        $repeated = in_array($description, array_map(fn ($error) => trim((string) ($error['description'] ?? '')), $errors), true);
+        $parts = array_filter([$repeated ? '' : $description]);
+        foreach ($errors as $error) {
             $parts[] = trim(implode(' ', array_filter([
                 $error['code'] ?? null,
                 $error['description'] ?? null,

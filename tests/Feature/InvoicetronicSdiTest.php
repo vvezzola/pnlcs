@@ -180,7 +180,7 @@ it('reads the SDI outcome, with the reasons of a rejection', function () {
             ['identifier' => '9002'] + acceptedSend('2', 'Scartato'),
         ]),
         'https://api.invoicetronic.com/v1/update?*' => Http::response([
-            ['send_id' => 2, 'state' => 'Scartato', 'description' => 'File scartato', 'errors' => [['code' => '00305', 'description' => 'IdFiscaleIVA del cessionario non valido', 'hint' => null]]],
+            ['send_id' => 2, 'state' => 'Scartato', 'description' => 'Fattura duplicata', 'errors' => [['code' => '00404', 'description' => 'Fattura duplicata', 'hint' => 'Verificare il campo Numero']]],
         ]),
     ]);
 
@@ -188,6 +188,6 @@ it('reads the SDI outcome, with the reasons of a rejection', function () {
 
     expect($delivered->fresh())->state->toBe(SdiSubmission::DELIVERED)->sdi_identifier->toBe('9001')->message->toBeNull()
         ->and($rejected->fresh())->state->toBe(SdiSubmission::REJECTED)
-        ->and($rejected->fresh()->message)->toBe('File scartato | 00305 IdFiscaleIVA del cessionario non valido');
+        ->and($rejected->fresh()->message)->toBe('00404 Fattura duplicata (Verificare il campo Numero)');
     Http::assertSent(fn (Request $request) => str_contains($request->url(), 'ids=1%2C2') || str_contains($request->url(), 'ids=1,2'));
 });
