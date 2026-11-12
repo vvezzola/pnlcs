@@ -169,10 +169,12 @@ class BankReconciler
         // Longest numbers first, so INV-0001234 is not taken for INV-000123.
         foreach ($numbers->sortByDesc(fn ($number) => strlen(self::compact((string) $number))) as $id => $number) {
             $needle = self::compact((string) $number);
-            if (strlen($needle) < 4) {
+            if (strlen($needle) < 4 || ! preg_match('/[0-9]/', $needle)) {
                 continue;
             }
-            $pattern = '/'.preg_quote($needle, '/').'(?![0-9])/';
+            // No digit on either side: 1/ELH is not the end of 11/ELH, and
+            // ESA270001 is not the start of ESA2700012.
+            $pattern = '/(?<![0-9])'.preg_quote($needle, '/').'(?![0-9])/';
             if (preg_match($pattern, $compact) === 1) {
                 $found->push((int) $id);
                 $compact = (string) preg_replace($pattern, '#', $compact);
