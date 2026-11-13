@@ -5,7 +5,7 @@
     <h1>
         #{{ $ticket->tid }} &mdash; {{ $ticket->title }}
         <span class="badge-{{ strtolower($ticket->status) }}" style="font-size:12px;vertical-align:middle;margin-left:6px;">{{ status_label($ticket->status) }}</span>
-        <span style="font-size:12px;vertical-align:middle;margin-left:4px;padding:2px 8px;background:#e9e9e9;border-radius:3px;color:#555;">{{ ucfirst($ticket->priority) }}</span>
+        <span style="font-size:12px;vertical-align:middle;margin-left:4px;padding:2px 8px;background:#e9e9e9;border-radius:3px;color:#555;">{{ Lang::has('admin.tickets.priority_'.strtolower((string) $ticket->priority)) ? __('admin.tickets.priority_'.strtolower((string) $ticket->priority)) : ucfirst((string) $ticket->priority) }}</span>
     </h1>
     <div style="display:flex;gap:6px;align-items:center;">
         @if(auth('admin')->user()?->hasPermission('manage_tickets'))

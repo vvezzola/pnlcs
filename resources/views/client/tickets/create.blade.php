@@ -33,7 +33,7 @@
                     <select id="department_id" name="department_id" required class="form-control">
                         <option value="">-- {{ __('client.contact.select_department') }} --</option>
                         @foreach($departments as $d)
-                        <option value="{{ $d->id }}" {{ old("department_id") == $d->id ? "selected" : "" }}>{{ $d->name }}</option>
+                        <option value="{{ $d->id }}" {{ old("department_id") == $d->id ? "selected" : "" }}>{{ $d->localizedName() }}</option>
                         @endforeach
                     </select>
                 </div>
