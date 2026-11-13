@@ -11,11 +11,13 @@
     <div class="card-body" style="text-align:center;padding:40px;color:#999;">{{ __('admin.ticket_departments.no_departments') }}</div>
     @else
     <table class="data-table">
-        <thead><tr><th>{{ __('admin.ticket_departments.department_name') }}</th><th>{{ __('common.table.email') }}</th><th>{{ __('admin.ticket_departments.public') }}</th><th>{{ __('admin.ticket_departments.tickets') }}</th><th>{{ __('admin.ticket_departments.mail_import') }}</th><th style="text-align:right;">{{ __('common.table.actions') }}</th></tr></thead>
+        <thead><tr><th>{{ __('admin.ticket_departments.department_name') }}</th><th>{{ __('admin.content_translations.title') }}</th><th>{{ __('common.table.email') }}</th><th>{{ __('admin.ticket_departments.public') }}</th><th>{{ __('admin.ticket_departments.tickets') }}</th><th>{{ __('admin.ticket_departments.mail_import') }}</th><th style="text-align:right;">{{ __('common.table.actions') }}</th></tr></thead>
         <tbody>
         @foreach($departments as $dept)
         <tr>
-            <td style="font-weight:600;">{{ $dept->name }}@if($dept->translations->isNotEmpty()) <small style="color:#999;font-weight:400;">({{ $dept->translations->pluck('language')->implode(', ') }})</small>@endif</td>
+            <td style="font-weight:600;">{{ $dept->name }}</td>
+            {{-- The name above is the default language's; this column lists the languages it is also written in. --}}
+            <td style="font-size:12px;">{{ $dept->translations->map(fn ($t) => ($translationLanguages ?? collect())->firstWhere('code', $t->language)?->native_name ?: $t->language)->implode(', ') ?: '—' }}</td>
             <td style="font-size:12px;">{{ $dept->email ?? '-' }}</td>
             <td>{{ $dept->hidden ? __('common.no') : __('common.yes') }}</td>
             <td>{{ $dept->tickets_count ?? 0 }}</td>
