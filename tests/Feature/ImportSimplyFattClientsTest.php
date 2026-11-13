@@ -1,10 +1,17 @@
 <?php
 
 use App\Events\ClientCreated;
+use App\Models\Admin;
+use App\Models\AdminRole;
 use App\Models\Client;
 use App\Models\CustomField;
 use App\Models\CustomFieldValue;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
+use Modules\Addons\SimplyFatt\SimplyFattModule;
+use Modules\Addons\SimplyFatt\SimplyFattServiceProvider;
 
 /*
  * Esalogica only: the customers exported from SimplyFatt become PNLCS
@@ -90,4 +97,60 @@ it('updates the same customers when run again', function () {
 
     expect(Client::count())->toBe(5)
         ->and(Client::where('address1', 'Via Dante 6')->count())->toBe(1);
+});
+
+/** The addon's routes, as when the addon is active, and an admin allowed to add customers. */
+function sfPageAdmin(): Admin
+{
+    (new SimplyFattServiceProvider(app()))->boot();
+    app('router')->getRoutes()->refreshNameLookups();
+
+    return Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
+}
+
+function sfUpload(): UploadedFile
+{
+    return UploadedFile::fake()->createWithContent('Clienti.txt', file_get_contents(sfExport(sfRows())));
+}
+
+/** The addon page as the admin sees it in this session. */
+function sfPage(): string
+{
+    $request = Request::create('/admin/config/addons/modules/simplyfatt');
+    $request->setLaravelSession(app('session.store'));
+
+    return (new SimplyFattModule)->output($request);
+}
+
+it('previews an uploaded export on the addon page, then imports it and deletes the upload', function () {
+    Storage::fake('local');
+    $admin = sfPageAdmin();
+
+    $this->actingAs($admin, 'admin')->post(route('admin.simplyfatt.clients.preview'), ['clients' => sfUpload()])->assertRedirect();
+
+    expect(Client::count())->toBe(0)
+        ->and(sfPage())->toContain('ANTEPRIMA')->toContain('tenute: 5')->toContain('Importa questi clienti');
+
+    $this->actingAs($admin, 'admin')->post(route('admin.simplyfatt.clients.import'))->assertRedirect()->assertSessionHas('success');
+
+    expect(Client::count())->toBe(5)
+        ->and(Storage::disk('local')->allFiles())->toBe([])
+        ->and(sfPage())->toContain('IMPORTAZIONE ESEGUITA')->not->toContain('Importa questi clienti');
+});
+
+it('drops a previewed upload on cancel, and refuses a file that is not the customer export', function () {
+    Storage::fake('local');
+    $admin = sfPageAdmin();
+
+    $this->actingAs($admin, 'admin')->post(route('admin.simplyfatt.clients.preview'), ['clients' => sfUpload()]);
+    $this->actingAs($admin, 'admin')->post(route('admin.simplyfatt.clients.cancel'))->assertRedirect();
+
+    expect(Storage::disk('local')->allFiles())->toBe([]);
+    $this->actingAs($admin, 'admin')->post(route('admin.simplyfatt.clients.import'))->assertSessionHas('error');
+
+    $wrong = UploadedFile::fake()->createWithContent('fatture.txt', "Numero\tData\n1\t2026-01-01\n");
+    $this->actingAs($admin, 'admin')->post(route('admin.simplyfatt.clients.preview'), ['clients' => $wrong])->assertSessionHas('error');
+
+    expect(Client::count())->toBe(0)
+        ->and(Storage::disk('local')->allFiles())->toBe([]);
 });
