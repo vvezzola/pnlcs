@@ -27,7 +27,8 @@ return new class extends Migration
             $table->string('language', 10);
             $table->string('name');
             $table->timestamps();
-            $table->unique(['ticket_department_id', 'language']);
+            // Named by hand: the generated name runs past MySQL's 64 characters.
+            $table->unique(['ticket_department_id', 'language'], 'ticket_dept_translations_dept_language_unique');
         });
     }
 
