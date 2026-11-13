@@ -30,7 +30,7 @@
                 @forelse($tickets as $t)
                 <tr style="cursor:pointer" onclick="window.location={{ json_encode(route("client.tickets.show", $t)) }}">
                     <td><a href="{{ route("client.tickets.show", $t) }}" style="font-family:monospace;font-size:13px;font-weight:600">#{{ $t->tid }}</a></td>
-                    <td class="text-muted text-sm">{{ $t->department->name ?? "-" }}</td>
+                    <td class="text-muted text-sm">{{ $t->department?->localizedName() ?? "-" }}</td>
                     <td><a href="{{ route("client.tickets.show", $t) }}" style="font-weight:500">{{ Str::limit($t->title, 55) }}</a></td>
                     <td><span class="badge badge-{{ strtolower($t->priority ?? "medium") }}">{{ __('client.status.' . strtolower($t->priority ?? 'medium')) }}</span></td>
                     <td><span class="badge badge-{{ strtolower(str_replace(" ", "-", $t->status)) }}">{{ __('client.status.' . strtolower(str_replace(' ', '-', $t->status))) }}</span></td>

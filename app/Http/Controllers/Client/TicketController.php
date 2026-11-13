@@ -24,14 +24,14 @@ class TicketController extends Controller
 
     public function index()
     {
-        $tickets = Ticket::with('department')->where('client_id', $this->getClientId())->orderBy('last_reply', 'desc')->paginate(25);
+        $tickets = Ticket::with('department.translations')->where('client_id', $this->getClientId())->orderBy('last_reply', 'desc')->paginate(25);
 
         return view('client.tickets.index', compact('tickets'));
     }
 
     public function create()
     {
-        $departments = TicketDepartment::where('hidden', false)->orderBy('sort_order')->get();
+        $departments = TicketDepartment::with('translations')->where('hidden', false)->orderBy('sort_order')->get();
 
         // The form has always had a picker for the service the ticket is
         // about; nothing ever gave it anything to show.
@@ -121,7 +121,7 @@ class TicketController extends Controller
     public function show(Ticket $ticket)
     {
         abort_if($ticket->client_id !== $this->getClientId(), 403);
-        $ticket->load('department', 'replies', 'feedback');
+        $ticket->load('department.translations', 'replies', 'feedback');
 
         // A reply stores the staff member's sign-in username (ticket_replies.admin).
         // That is half of an admin login and is not for the customer: they see

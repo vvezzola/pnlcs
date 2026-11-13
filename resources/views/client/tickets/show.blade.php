@@ -11,7 +11,7 @@
     <div>
         <h1 class="pn-page-title">#{{ $ticket->tid }} &mdash; {{ $ticket->title }}</h1>
         <p class="pn-page-subtitle">
-            {{ $ticket->department->name ?? __('client.tickets.general_dept') }}
+            {{ $ticket->department?->localizedName() ?? __('client.tickets.general_dept') }}
             &nbsp;&middot;&nbsp; {{ __('client.tickets.opened') }} {{ $ticket->created_at->timezone(display_tz())->format(datetime_fmt()) }}
             @if($ticket->last_reply) &nbsp;&middot;&nbsp; {{ __('client.tickets.last_reply') }} {{ $ticket->last_reply->diffForHumans() }} @endif
         </p>

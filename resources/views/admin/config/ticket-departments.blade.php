@@ -15,7 +15,7 @@
         <tbody>
         @foreach($departments as $dept)
         <tr>
-            <td style="font-weight:600;">{{ $dept->name }}</td>
+            <td style="font-weight:600;">{{ $dept->name }}@if($dept->translations->isNotEmpty()) <small style="color:#999;font-weight:400;">({{ $dept->translations->pluck('language')->implode(', ') }})</small>@endif</td>
             <td style="font-size:12px;">{{ $dept->email ?? '-' }}</td>
             <td>{{ $dept->hidden ? __('common.no') : __('common.yes') }}</td>
             <td>{{ $dept->tickets_count ?? 0 }}</td>
@@ -29,7 +29,7 @@
             </td>
             <td style="text-align:right;">
                 <button type="button" class="btn btn-default btn-xs"
-                    onclick="openEditDept({{ json_encode(['id'=>$dept->id,'name'=>$dept->name,'email'=>$dept->email,'description'=>$dept->description,'hidden'=>$dept->hidden,'import_active'=>$dept->import_active,'import_protocol'=>$dept->import_protocol,'import_host'=>$dept->import_host,'import_port'=>$dept->import_port,'import_encryption'=>$dept->import_encryption,'import_username'=>$dept->import_username,'import_folder'=>$dept->import_folder,'import_delete'=>$dept->import_delete,'import_allow_unknown'=>$dept->import_allow_unknown]) }})">{{ __('common.actions.edit') }}</button>
+                    onclick="openEditDept({{ json_encode(['id'=>$dept->id,'name'=>$dept->name,'email'=>$dept->email,'description'=>$dept->description,'hidden'=>$dept->hidden,'import_active'=>$dept->import_active,'import_protocol'=>$dept->import_protocol,'import_host'=>$dept->import_host,'import_port'=>$dept->import_port,'import_encryption'=>$dept->import_encryption,'import_username'=>$dept->import_username,'import_folder'=>$dept->import_folder,'import_delete'=>$dept->import_delete,'import_allow_unknown'=>$dept->import_allow_unknown,'translations'=>$dept->translations->mapWithKeys(fn ($t) => [$t->language => ['name' => $t->name]])]) }})">{{ __('common.actions.edit') }}</button>
                 <form method="POST" action="{{ route('admin.config.ticket-departments.destroy', $dept) }}" style="display:inline;" onsubmit="return pnConfirm(event, @js(__('admin.ticket_departments.confirm_delete')))">
                     @csrf @method('DELETE')
                     <button type="submit" class="btn btn-danger btn-xs">{{ __('common.actions.delete') }}</button>
@@ -55,6 +55,8 @@
                 <div class="form-group"><label class="form-label">{{ __('admin.ticket_departments.department_name') }}</label><input type="text" name="name" required class="form-control"></div>
                 <div class="form-group"><label class="form-label">{{ __('common.form.email_address') }}<small style="color:#999;">{{ __('admin.ticket_departments.email_hint_text') }}</small></label><input type="email" name="email" class="form-control"></div>
                 <div class="form-group"><label class="form-label">{{ __('common.form.description') }}</label><textarea name="description" rows="2" class="form-control"></textarea></div>
+                @include('admin.partials.translation-fields', ['languages' => $translationLanguages ?? collect(), 'model' => null,
+                    'fields' => ['name' => [__('admin.ticket_departments.department_name'), 'input']]])
                 <div class="form-group"><label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" name="hidden" value="1"> {{ __('admin.ticket_departments.hidden_from_clients') }}</label></div>
             </div>
             <div style="padding:12px 20px;border-top:1px solid #e5e5e5;display:flex;gap:8px;justify-content:flex-end;">
@@ -78,6 +80,10 @@
                 <div class="form-group"><label class="form-label">{{ __('admin.ticket_departments.department_name') }}</label><input type="text" name="name" id="ed-name" required class="form-control"></div>
                 <div class="form-group"><label class="form-label">{{ __('common.form.email_address') }}</label><input type="email" name="email" id="ed-email" class="form-control"></div>
                 <div class="form-group"><label class="form-label">{{ __('common.form.description') }}</label><textarea name="description" id="ed-desc" rows="2" class="form-control"></textarea></div>
+                <div id="ed-translations">
+                @include('admin.partials.translation-fields', ['languages' => $translationLanguages ?? collect(), 'model' => null,
+                    'fields' => ['name' => [__('admin.ticket_departments.department_name'), 'input']]])
+                </div>
                 <div class="form-group"><label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" name="hidden" value="1" id="ed-hidden"> {{ __('admin.ticket_departments.hidden_short') }}</label></div>
 
                 <div style="border-top:1px solid #e5e5e5;margin:14px 0 12px;padding-top:12px;">
@@ -131,6 +137,18 @@ function openEditDept(d) {
     document.getElementById('ed-imp-folder').value = d.import_folder || 'INBOX';
     document.getElementById('ed-imp-delete').checked = !!d.import_delete;
     document.getElementById('ed-imp-unknown').checked = !!d.import_allow_unknown;
+    // One form serves every department: each language's fields are refilled, an
+    // untranslated language left empty, and a translated one shown open.
+    document.querySelectorAll('#ed-translations details').forEach(function (fold) {
+        var filled = false;
+        fold.querySelectorAll('[name^="translations["]').forEach(function (field) {
+            var m = field.name.match(/^translations\[([^\]]+)\]\[([^\]]+)\]$/);
+            var value = m && d.translations && d.translations[m[1]] ? (d.translations[m[1]][m[2]] || '') : '';
+            field.value = value;
+            filled = filled || value !== '';
+        });
+        fold.open = filled;
+    });
     document.getElementById('modal-edit-dept').style.display = 'flex';
 }
 </script>

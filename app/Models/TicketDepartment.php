@@ -16,4 +16,21 @@ class TicketDepartment extends Model {
     protected $hidden = ["import_password"];
     protected function casts(): array { return ["clients_only" => "boolean", "hidden" => "boolean", "feedback_request" => "boolean", "import_active" => "boolean", "import_delete" => "boolean", "import_allow_unknown" => "boolean", "import_password" => "encrypted", "last_import_at" => "datetime"]; }
     public function tickets() { return $this->hasMany(Ticket::class, "department_id"); }
+
+    public function translations() { return $this->hasMany(TicketDepartmentTranslation::class); }
+
+    /**
+     * The name a customer reads, in the current language: a translation where
+     * one is written, the department's own name (the default language's)
+     * otherwise.
+     */
+    public function localizedName(): string
+    {
+        $locale = app()->getLocale();
+        $translation = $this->relationLoaded('translations')
+            ? $this->translations->firstWhere('language', $locale)
+            : $this->translations()->where('language', $locale)->first();
+
+        return (string) ($translation?->name ?: $this->name);
+    }
 }

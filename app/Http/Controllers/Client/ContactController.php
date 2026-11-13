@@ -20,7 +20,7 @@ class ContactController extends Controller
 
     public function show()
     {
-        $departments = TicketDepartment::where('hidden', false)
+        $departments = TicketDepartment::with('translations')->where('hidden', false)
             ->orderBy('sort_order')
             ->get();
 

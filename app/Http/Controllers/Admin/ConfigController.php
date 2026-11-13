@@ -1219,18 +1219,29 @@ class ConfigController extends Controller
 
     // ===== TICKET DEPARTMENTS =====
 
+    /** A department's name in the other active languages (ContentTranslations). */
+    private const DEPARTMENT_TRANSLATION_RULES = [
+        'translations' => 'nullable|array',
+        'translations.*.name' => 'nullable|string|max:255',
+    ];
+
     public function ticketDepartments()
     {
         return view('admin.config.ticket-departments', [
-            'departments' => TicketDepartment::withCount('tickets')->orderBy('sort_order')->get(),
+            'departments' => TicketDepartment::with('translations')->withCount('tickets')->orderBy('sort_order')->get(),
+            'translationLanguages' => ContentTranslations::languages(),
         ]);
     }
 
     public function storeTicketDepartment(Request $request)
     {
-        $v = $request->validate(['name' => 'required', 'email' => 'nullable|email', 'description' => 'nullable|string', 'hidden' => 'boolean']);
+        $v = $request->validate(['name' => 'required', 'email' => 'nullable|email', 'description' => 'nullable|string', 'hidden' => 'boolean']
+            + self::DEPARTMENT_TRANSLATION_RULES);
+        $translations = (array) ($v['translations'] ?? []);
+        unset($v['translations']);
         $v['hidden'] = $request->boolean('hidden');
-        TicketDepartment::create($v);
+        $department = TicketDepartment::create($v);
+        ContentTranslations::save($department->translations(), $translations, ['name']);
 
         return back()->with('success', __('messages.success.department_created'));
     }
@@ -1456,7 +1467,9 @@ class ConfigController extends Controller
             'import_port' => 'nullable|integer|min:1|max:65535', 'import_encryption' => 'nullable|in:ssl,tls,none',
             'import_username' => 'nullable|string|max:255', 'import_password' => 'nullable|string|max:255',
             'import_folder' => 'nullable|string|max:255',
-        ]);
+        ] + self::DEPARTMENT_TRANSLATION_RULES);
+        $translations = (array) ($v['translations'] ?? []);
+        unset($v['translations']);
         $v['import_active'] = $request->boolean('import_active');
         $v['import_delete'] = $request->boolean('import_delete');
         $v['import_allow_unknown'] = $request->boolean('import_allow_unknown');
@@ -1465,6 +1478,7 @@ class ConfigController extends Controller
             unset($v['import_password']);
         }
         $department->update($v);
+        ContentTranslations::save($department->translations(), $translations, ['name']);
 
         return back()->with('success', __('messages.success.department_updated'));
     }

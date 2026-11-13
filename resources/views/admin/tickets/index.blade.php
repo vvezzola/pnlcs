@@ -75,7 +75,7 @@
                 <td style="color:#666;">{{ $ticket->department->name ?? "N/A" }}</td>
                 <td><a href="{{ route("admin.tickets.show", $ticket) }}" style="color:#337ab7;text-decoration:none;font-weight:500;">{{ Str::limit($ticket->title, 55) }}</a></td>
                 <td>{{ $ticket->client?->full_name ?? $ticket->name ?? $ticket->email }}@if(! $ticket->client_id) <span class="badge badge-cancelled" style="font-size:10px;">{{ __('admin.tickets.guest') }}</span>@endif</td>
-                <td><span class="badge {{ $priorityBadge }}">{{ ucfirst($ticket->priority ?? "") }}</span></td>
+                <td><span class="badge {{ $priorityBadge }}">{{ Lang::has('admin.tickets.priority_'.strtolower((string) $ticket->priority)) ? __('admin.tickets.priority_'.strtolower((string) $ticket->priority)) : ucfirst((string) $ticket->priority) }}</span></td>
                 <td><span class="badge {{ $statusBadge }}">{{ status_label($ticket->status ?? "") }}</span></td>
                 <td style="color:#666;font-size:12px;">{{ $ticket->last_reply?->diffForHumans() ?? "-" }}</td>
             </tr>
