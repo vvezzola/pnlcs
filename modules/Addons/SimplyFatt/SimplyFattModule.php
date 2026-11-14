@@ -29,7 +29,7 @@ class SimplyFattModule implements AddonModuleInterface
 
     public function getVersion(): string
     {
-        return '1.0.0';
+        return '1.1.0';
     }
 
     public function getAuthor(): string
@@ -40,7 +40,10 @@ class SimplyFattModule implements AddonModuleInterface
     /** @return array<int, array{version:string, date:string, changes:list<string>}> */
     public function changelog(): array
     {
-        return [['version' => '1.0.0', 'date' => '2026-11-10', 'changes' => ['SF-XML export of a period of VAT invoices.']]];
+        return [
+            ['version' => '1.1.0', 'date' => '2026-11-13', 'changes' => ['Customer import from the SimplyFatt "Clienti" export, with preview.']],
+            ['version' => '1.0.0', 'date' => '2026-11-10', 'changes' => ['SF-XML export of a period of VAT invoices.']],
+        ];
     }
 
     /** @return array{success: bool, message: string} */
