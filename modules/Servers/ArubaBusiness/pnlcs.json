@@ -1,0 +1,1 @@
+{"name":"arubabusiness","type":"server","version":"0.1.0","description":"PEC mailboxes held in an Aruba Business account: linked, read back and watched","author":{"name":"Esalogica"},"class":"Modules\\Servers\\ArubaBusiness\\ArubaBusinessModule"}
