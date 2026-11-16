@@ -23,9 +23,21 @@ final class LicenseServerClient
         return $this->send('GET', $path, $query);
     }
 
-    /** @param  array<string, mixed>  $body */
+    /**
+     * The key is given a digest of the body. The License Server keeps every
+     * answer below 500 for a day and repeats it to the same key and body, and
+     * refuses the same key with another body: without the digest, a request
+     * refused for a wrong value could not be sent again once the value was
+     * put right. The same request sent twice still carries the same key.
+     *
+     * @param  array<string, mixed>  $body
+     */
     public function post(string $path, array $body = [], ?string $idempotencyKey = null): LicenseServerResponse
     {
+        if ($idempotencyKey !== null) {
+            $idempotencyKey .= '-'.substr(hash('sha256', (string) json_encode($body)), 0, 16);
+        }
+
         return $this->send('POST', $path, $body, $idempotencyKey);
     }
 

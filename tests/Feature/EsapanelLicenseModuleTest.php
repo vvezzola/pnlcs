@@ -132,6 +132,19 @@ it('sends the same customer request again on a retry, so the Idempotency-Key sti
     expect($posts[1]['key'])->toBe($posts[0]['key']);
 });
 
+it('sends a corrected customer request under a new Idempotency-Key', function () {
+    $service = elService();
+    $calls = elServer(['GET lsp/licenses' => [], 'GET customers' => [], 'POST customers' => [422, ['errors' => ['name' => ['Too long.']]]]]);
+
+    (new EsapanelLicenseModule)->create($service);
+    $service->client->update(['company_name' => 'Rossi']);
+    (new EsapanelLicenseModule)->create($service->fresh());
+
+    $posts = array_values(array_filter($calls->getArrayCopy(), fn (array $call) => $call['method'] === 'POST'));
+    expect($posts)->toHaveCount(2);
+    expect($posts[1]['key'])->not->toBe($posts[0]['key']);
+});
+
 it('uses the customer the License Server already has', function () {
     $service = elService();
     $calls = elServer([
