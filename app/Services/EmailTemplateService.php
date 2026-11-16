@@ -44,6 +44,7 @@ class EmailTemplateService
         'OrderConfirmationMail' => 'Order Confirmation',
         'PasswordResetMail' => 'Password Reset Confirmation',
         'PaymentReminderMail' => 'Invoice Reminder',
+        'RenewalNoticeMail' => 'Renewal Notice',
         'ServiceSuspensionMail' => 'Service Suspension',
         'ServiceTerminationMail' => 'Service Termination',
         'ServiceUnsuspensionMail' => 'Service Unsuspension',
@@ -278,6 +279,11 @@ class EmailTemplateService
             // Staff asking the customer to add a card: the customer's own Add
             // card page, which is where they land after signing in.
             'addCardUrl' => 'add_card_url',
+            // The renewal notice: the billing day, the last day to cancel, and
+            // the list as plain text for a template the operator rewrote.
+            'billingDate' => 'billing_date',
+            'deadline' => 'cancel_by',
+            'renewalList' => 'renewal_list',
         ] as $property => $name) {
             $value = $data[$property] ?? null;
 

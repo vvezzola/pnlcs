@@ -402,6 +402,7 @@ class InvoiceController extends Controller
         $defaultPaymentMethod = $selectedClient?->default_payment_method;
 
         $dueDays = (int) Setting::get('InvoiceDueDays', 14);
+        $defaultDueDate = \App\Services\InvoiceService::defaultDueDate();
 
         // Cheapest sold cycle stands in for the product's money value, so the
         // builder can pre-fill the amount when a product is picked.
@@ -459,7 +460,8 @@ class InvoiceController extends Controller
             'products',
             'defaultCurrency',
             'defaultPaymentMethod',
-            'dueDays'
+            'dueDays',
+            'defaultDueDate'
         ));
     }
 

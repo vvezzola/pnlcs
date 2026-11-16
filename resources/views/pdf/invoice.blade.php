@@ -185,6 +185,35 @@
     </div>
     @endif
 
+    {{-- How to pay by bank transfer: holder, account, the reference to write
+         and the payment QR. A business customer pays from the invoice, and an
+         invoice that names no account sends them looking for one. --}}
+    @php($transfer = app(\App\Services\InvoicePdfService::class)->transferDetails($invoice))
+    @if($transfer)
+    <table style="width:100%; margin-top:20px; border:1px solid #ddd; border-collapse:collapse;">
+        <tr>
+            <td style="padding:10px 12px; vertical-align:top; font-size:11px;">
+                <div style="font-weight:bold; margin-bottom:6px;">{{ __('messages.banktransfer.details_title') }}</div>
+                <div>{{ __('messages.banktransfer.account_name') }}: <strong>{{ $transfer['holder'] }}</strong></div>
+                @foreach($transfer['accounts'] as $account)
+                <div style="margin-top:4px;">
+                    @if(($account['name'] ?? '') !== '')<div>{{ __('messages.banktransfer.bank_name') }}: {{ $account['name'] }}</div>@endif
+                    @if(($account['iban'] ?? '') !== '')<div>{{ __('messages.banktransfer.iban') }}: <strong>{{ $account['iban'] }}</strong></div>
+                    @elseif(($account['account_number'] ?? '') !== '')<div>{{ __('messages.banktransfer.account_number') }}: <strong>{{ $account['account_number'] }}</strong></div>@endif
+                    @if(($account['swift'] ?? '') !== '')<div>{{ __('messages.banktransfer.swift') }}: {{ $account['swift'] }}</div>@endif
+                </div>
+                @endforeach
+                <div style="margin-top:6px;">{{ __('messages.banktransfer.reference') }}: <strong>{{ $transfer['reference'] }}</strong></div>
+            </td>
+            @if($transfer['qr'] !== '')
+            <td style="width:96px; padding:8px; vertical-align:top; text-align:right;">
+                <div style="width:90px; height:90px;">{!! str_replace('<img ', '<img style="width:90px;height:90px;" ', $transfer['qr']) !!}</div>
+            </td>
+            @endif
+        </tr>
+    </table>
+    @endif
+
     @if(!empty($ksef) && $ksef['qr'] !== '')
     <div class="ksef-block">
         <div class="ksef-cell" style="width:80px;">

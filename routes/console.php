@@ -51,6 +51,8 @@ Schedule::command('pnlcs:auto-terminate')->daily()->at('08:00');
 Schedule::command('pnlcs:domain-sync')->daily()->at('03:00');
 Schedule::command('pnlcs:payment-reminders')->daily()->at('08:00');
 Schedule::command('pnlcs:domain-renewal-reminders')->daily()->at('09:15');
+// Acts only on RenewalNoticeDay: what the next billing day will invoice, sent ahead of it.
+Schedule::command('pnlcs:renewal-notice')->daily()->at('09:30');
 // The registrar float, twice a day. An account that runs dry refuses renewals
 // one customer at a time without ever raising an error.
 Schedule::command('pnlcs:registrar-balance')->twiceDaily(8, 20);

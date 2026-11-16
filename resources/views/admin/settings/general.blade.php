@@ -541,6 +541,10 @@
                 <label class="form-label">{{ __('admin.settings.invoice_due_days') }}</label>
                 <input type="number" name="InvoiceDueDays" value="{{ $settings['InvoiceDueDays'] ?? '14' }}" class="form-control" min="0">
             </div>
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;">
+                <input type="hidden" name="InvoiceDueEndOfMonth" value="0"><input type="checkbox" name="InvoiceDueEndOfMonth" value="1" {{ !empty($settings['InvoiceDueEndOfMonth']) ? 'checked' : '' }}>
+                {{ __('admin.settings.invoice_due_end_of_month') }}
+            </label>
             <div class="form-group" style="margin-top:10px;max-width:50%;">
                 <label class="form-label" for="invoice-days-before-due">{{ __('admin.settings.invoice_days_before_due') }}</label>
                 <input type="number" id="invoice-days-before-due" name="InvoiceDaysBeforeDue" value="{{ $settings['InvoiceDaysBeforeDue'] ?? '14' }}" class="form-control" min="0" max="365">
@@ -554,6 +558,26 @@
                     @endfor
                 </select>
                 <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.settings.consolidated_billing_hint') }}</div>
+            </div>
+            <div class="form-group" style="margin-top:10px;max-width:50%;">
+                <label class="form-label" for="consolidated-billing-months">{{ __('admin.settings.consolidated_billing_months') }}</label>
+                <select id="consolidated-billing-months" name="ConsolidatedBillingMonths" class="form-control">
+                    <option value="0">{{ __('admin.settings.consolidated_billing_months_off') }}</option>
+                    @for($m = 1; $m <= 3; $m++)
+                    <option value="{{ $m }}" @selected((int) ($settings['ConsolidatedBillingMonths'] ?? 0) === $m)>{{ $m }}</option>
+                    @endfor
+                </select>
+                <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.settings.consolidated_billing_months_hint') }}</div>
+            </div>
+            <div class="form-group" style="margin-top:10px;max-width:50%;">
+                <label class="form-label" for="renewal-notice-day">{{ __('admin.settings.renewal_notice_day') }}</label>
+                <select id="renewal-notice-day" name="RenewalNoticeDay" class="form-control">
+                    <option value="0">{{ __('admin.settings.renewal_notice_off') }}</option>
+                    @for($d = 1; $d <= 28; $d++)
+                    <option value="{{ $d }}" @selected((int) ($settings['RenewalNoticeDay'] ?? 0) === $d)>{{ $d }}</option>
+                    @endfor
+                </select>
+                <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.settings.renewal_notice_hint') }}</div>
             </div>
             <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;">
                 <input type="hidden" name="InvoiceRenewalsSeparately" value="0"><input type="checkbox" name="InvoiceRenewalsSeparately" value="1" {{ !empty($settings['InvoiceRenewalsSeparately']) ? 'checked' : '' }}>

@@ -36,6 +36,70 @@ class InvoiceGenerationService
         // invoiced, which the paid-domain guard below looks back over.
         [$cutoff, $daysAhead] = $this->billingWindow();
 
+        ['services' => $services, 'addons' => $addons, 'domains' => $domains, 'charges' => $charges] = $this->dueItems($cutoff, $daysAhead);
+
+        $grouped = $services->groupBy('client_id');
+        $groupedAddons = $addons->groupBy('client_id');
+        $groupedDomains = $domains->groupBy('client_id');
+        $groupedCharges = $charges->groupBy('client_id');
+        $summary = ['generated' => 0, 'skipped' => 0, 'errors' => 0, 'invoice_ids' => []];
+
+        $clientIds = $grouped->keys()
+            ->merge($groupedAddons->keys())
+            ->merge($groupedDomains->keys())
+            ->merge($groupedCharges->keys())
+            ->unique();
+
+        foreach ($clientIds as $clientId) {
+            $clientServices = $grouped->get($clientId, collect());
+            $clientAddons = $groupedAddons->get($clientId, collect());
+            $clientDomains = $groupedDomains->get($clientId, collect());
+            $clientCharges = $groupedCharges->get($clientId, collect());
+            $client = $clientServices->first()?->client
+                ?? $clientAddons->first()?->client
+                ?? $clientDomains->first()?->client
+                ?? $clientCharges->first()?->client;
+
+            if (! $client) {
+                $summary['skipped']++;
+
+                continue;
+            }
+
+            $batches = $this->separateRenewals()
+                ? $this->oneInvoicePerRenewal($clientServices, $clientAddons, $clientDomains, $clientCharges)
+                : [[$clientServices->all(), $clientAddons->all(), $clientDomains->all(), $clientCharges->all()]];
+
+            foreach ($batches as [$batchServices, $batchAddons, $batchDomains, $batchCharges]) {
+                try {
+                    $invoice = $this->generateForServices($client, $batchServices, $batchAddons, $batchDomains, $batchCharges);
+
+                    if ($invoice) {
+                        $summary['generated']++;
+                        $summary['invoice_ids'][] = $invoice->id;
+                    } else {
+                        $summary['skipped']++;
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('Invoice generation failed for client '.$clientId.': '.$e->getMessage());
+                    $summary['errors']++;
+                }
+            }
+        }
+
+        return $summary;
+    }
+
+    /**
+     * What a run would bill, up to $cutoff: services, addons, domains and
+     * one-off charges, each not invoiced yet. The renewal notice asks the same
+     * question for the next billing day, so the list a customer is sent is the
+     * list they are invoiced for.
+     *
+     * @return array{services: Collection<int, Service>, addons: Collection<int, ServiceAddon>, domains: Collection<int, Domain>, charges: Collection<int, BillableItem>}
+     */
+    public function dueItems(Carbon $cutoff, int $daysAhead): array
+    {
         // Only active services that are due for renewal and not already
         // invoiced. The dedup guard used to be missing entirely despite what
         // this comment claimed, so calling this twice billed the customer
@@ -115,56 +179,7 @@ class InvoiceGenerationService
             ]);
         }
 
-        $grouped = $services->groupBy('client_id');
-        $groupedAddons = $addons->groupBy('client_id');
-        $groupedDomains = $domains->groupBy('client_id');
-        $groupedCharges = $charges->groupBy('client_id');
-        $summary = ['generated' => 0, 'skipped' => 0, 'errors' => 0, 'invoice_ids' => []];
-
-        $clientIds = $grouped->keys()
-            ->merge($groupedAddons->keys())
-            ->merge($groupedDomains->keys())
-            ->merge($groupedCharges->keys())
-            ->unique();
-
-        foreach ($clientIds as $clientId) {
-            $clientServices = $grouped->get($clientId, collect());
-            $clientAddons = $groupedAddons->get($clientId, collect());
-            $clientDomains = $groupedDomains->get($clientId, collect());
-            $clientCharges = $groupedCharges->get($clientId, collect());
-            $client = $clientServices->first()?->client
-                ?? $clientAddons->first()?->client
-                ?? $clientDomains->first()?->client
-                ?? $clientCharges->first()?->client;
-
-            if (! $client) {
-                $summary['skipped']++;
-
-                continue;
-            }
-
-            $batches = $this->separateRenewals()
-                ? $this->oneInvoicePerRenewal($clientServices, $clientAddons, $clientDomains, $clientCharges)
-                : [[$clientServices->all(), $clientAddons->all(), $clientDomains->all(), $clientCharges->all()]];
-
-            foreach ($batches as [$batchServices, $batchAddons, $batchDomains, $batchCharges]) {
-                try {
-                    $invoice = $this->generateForServices($client, $batchServices, $batchAddons, $batchDomains, $batchCharges);
-
-                    if ($invoice) {
-                        $summary['generated']++;
-                        $summary['invoice_ids'][] = $invoice->id;
-                    } else {
-                        $summary['skipped']++;
-                    }
-                } catch (\Throwable $e) {
-                    Log::error('Invoice generation failed for client '.$clientId.': '.$e->getMessage());
-                    $summary['errors']++;
-                }
-            }
-        }
-
-        return $summary;
+        return ['services' => $services, 'addons' => $addons, 'domains' => $domains, 'charges' => $charges];
     }
 
     /**
@@ -248,12 +263,65 @@ class InvoiceGenerationService
             $next->addMonthNoOverflow();
         }
 
+        $months = self::billingMonthsAhead();
+
+        if ($today->day === $day && $months > 0) {
+            // Whole calendar months: on 1 February with one month ahead,
+            // everything due up to 31 March. A lead in days cannot say that,
+            // the months being of different lengths.
+            return [$today->copy()->addMonthsNoOverflow($months)->endOfMonth(), $lead + 31 * ($months + 1)];
+        }
+
         $cutoff = $today->day === $day
             ? $next->copy()->subDay()->addDays($lead)->endOfDay()
             : $today->copy()->addDays($lead)->min($next->copy()->subDay())->endOfDay();
 
-        return [$cutoff, $lead + 31];
+        return [$cutoff, $lead + 31 * ($months + 1)];
     }
+
+    /**
+     * ConsolidatedBillingMonths: how many calendar months past the current
+     * one the billing day reaches. 0 keeps the day count (the next billing
+     * day plus InvoiceDaysBeforeDue).
+     */
+    public static function billingMonthsAhead(): int
+    {
+        return max(0, min(12, (int) \App\Models\Setting::get('ConsolidatedBillingMonths', 0)));
+    }
+
+    /**
+     * The next consolidated billing day after $today, or null when there is
+     * no billing day.
+     */
+    public function nextBillingDay(?Carbon $today = null): ?Carbon
+    {
+        $today = ($today ?? now())->copy()->startOfDay();
+        $day = (int) \App\Models\Setting::get('ConsolidatedBillingDay', 0);
+
+        if ($day < 1 || $day > 28) {
+            return null;
+        }
+
+        $next = $today->copy()->day($day);
+
+        return $next->lte($today) ? $next->addMonthNoOverflow() : $next;
+    }
+
+    /**
+     * What the run on $billingDay will invoice, as things stand today: the
+     * list the renewal notice sends. One-off charges are left out; they are
+     * not renewals and an operator may still add some.
+     *
+     * @return array{services: Collection<int, Service>, addons: Collection<int, ServiceAddon>, domains: Collection<int, Domain>}
+     */
+    public function upcomingRenewals(Carbon $billingDay): array
+    {
+        [$cutoff, $daysAhead] = $this->billingWindow($billingDay);
+        $items = $this->dueItems($cutoff, $daysAhead);
+
+        return ['services' => $items['services'], 'addons' => $items['addons'], 'domains' => $items['domains']];
+    }
+
 
     /**
      * Generate an invoice for a specific service.
@@ -765,7 +833,7 @@ class InvoiceGenerationService
         }
 
         $options = [
-            'due_date' => now()->addDays((int) \App\Models\Setting::get('InvoiceDueDays', 14))->toDateString(),
+            'due_date' => InvoiceService::defaultDueDate(),
             'notes' => __('client.invoices.renewal_note', [], $client->language),
         ];
 

@@ -117,4 +117,8 @@ return [
         'subject' => 'Dane połączenia aplikacji {app_name}',
         'message' => "Szanowny {client_name},\n\nOto dane połączenia zainstalowanej przez Ciebie aplikacji. Zachowaj tę wiadomość - zawiera wygenerowane hasła.\n\n{app_details}\n\n{CompanyName}",
     ],
+    'Renewal Notice' => [
+        'subject' => "Odnowienia, które zafakturujemy {billing_date} - {CompanyName}",
+        'message' => "Szanowny {client_name},\n\nte usługi i domeny zbliżają się do odnowienia. Zafakturujemy je {billing_date}.\n\n{renewal_list}\n\nJeśli nie chcesz już którejś z nich, daj nam znać do {cancel_by}: w panelu klienta pod adresem {whmcs_url} użyj „Poproś o anulowanie” przy usłudze albo wyłącz automatyczne odnawianie domeny. Jeśli chcesz zachować wszystko, nie musisz nic robić.\n\n{CompanyName}",
+    ],
 ];

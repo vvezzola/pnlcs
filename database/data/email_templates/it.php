@@ -144,4 +144,8 @@ return [
         'subject' => 'I dati di connessione della tua app {app_name}',
         'message' => "Gentile {client_name},\n\necco i dati di connessione dell'app che hai installato. Conserva questo messaggio con cura: contiene password generate automaticamente.\n\n{app_details}\n\nCordiali saluti,\n{CompanyName}",
     ],
+    'Renewal Notice' => [
+        'subject' => "Rinnovi che fattureremo il {billing_date} - {CompanyName}",
+        'message' => "Gentile {client_name},\n\nquesti servizi e domini sono in scadenza. Li fattureremo il {billing_date}.\n\n{renewal_list}\n\nSe non vuoi più rinnovarne qualcuno, comunicacelo entro il {cancel_by}: nella tua area clienti su {whmcs_url} usa \"Richiedi cancellazione\" sul servizio, oppure disattiva il rinnovo automatico del dominio. Se vuoi mantenere tutto, non devi fare nulla.\n\nCordiali saluti,\n{CompanyName}",
+    ],
 ];

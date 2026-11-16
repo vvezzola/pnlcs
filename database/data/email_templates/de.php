@@ -145,4 +145,8 @@ return [
         'subject' => 'Zugangsdaten für {app_name} – {CompanyName}',
         'message' => "Guten Tag {client_name},\n\nHier finden Sie die Zugangsdaten für Ihre installierte Anwendung. Bewahren Sie diese Nachricht sicher auf, da sie automatisch erzeugte Passwörter enthält.\n\n{app_details}\n\nMit freundlichen Grüßen\nIhr {CompanyName}-Team",
     ],
+    'Renewal Notice' => [
+        'subject' => "Verlängerungen, die wir am {billing_date} in Rechnung stellen – {CompanyName}",
+        'message' => "Guten Tag {client_name},\n\ndiese Dienste und Domains stehen zur Verlängerung an. Wir stellen sie am {billing_date} in Rechnung.\n\n{renewal_list}\n\nWenn Sie etwas davon nicht mehr möchten, teilen Sie es uns bis zum {cancel_by} mit: Nutzen Sie im Kundenbereich unter {whmcs_url} bei einem Dienst „Kündigung beantragen“ oder schalten Sie bei einer Domain die automatische Verlängerung aus. Wenn Sie alles behalten möchten, müssen Sie nichts tun.\n\nMit freundlichen Grüßen\nIhr {CompanyName}-Team",
+    ],
 ];

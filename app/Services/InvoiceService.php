@@ -43,6 +43,27 @@ class InvoiceService
         return strlen($name) <= 64 ? $name : self::NUMBER_LOCK.':'.sha1($database);
     }
 
+    /**
+     * The day an invoice issued on $issued falls due: InvoiceDueDays after it,
+     * moved to the last day of that month when InvoiceDueEndOfMonth is on.
+     *
+     * "30 days end of month" is how most business customers in Italy pay: an
+     * invoice of 1 February is due on 31 March (1 February + 30 days is
+     * 3 March, and the month it lands in ends on the 31st). Without it a
+     * customer who pays on the usual terms was overdue, reminded and
+     * suspended in between.
+     */
+    public static function defaultDueDate(?\Carbon\CarbonInterface $issued = null): string
+    {
+        $due = \Carbon\Carbon::parse($issued ?? now())->startOfDay()->addDays(max(0, (int) Setting::get('InvoiceDueDays', 14)));
+
+        if ((bool) (int) Setting::get('InvoiceDueEndOfMonth', 0)) {
+            $due = $due->endOfMonth()->startOfDay();
+        }
+
+        return $due->toDateString();
+    }
+
     /** How long to wait for the numbering lock; tests shorten it. */
     public static int $numberLockSeconds = 15;
 
@@ -76,7 +97,7 @@ class InvoiceService
                 ...Invoice::buyerSnapshotFrom($client),
                 'invoice_num' => $options['invoice_num'] ?? $this->generateInvoiceNumber($options['type'] ?? $this->defaultType()),
                 'date' => $options['date'] ?? now()->toDateString(),
-                'due_date' => $options['due_date'] ?? now()->addDays((int) Setting::get('InvoiceDueDays', 14))->toDateString(),
+                'due_date' => $options['due_date'] ?? self::defaultDueDate(isset($options['date']) ? \Carbon\Carbon::parse($options['date']) : null),
                 'status' => $options['status'] ?? InvoiceStatus::Unpaid->value,
                 'type' => $options['type'] ?? $this->defaultType(),
                 'source_invoice_id' => $options['source_invoice_id'] ?? null,

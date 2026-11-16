@@ -357,6 +357,9 @@ class InvoicePdfService
             'items' => $this->itemsHtml($invoice),
             'vat_summary' => $this->vatSummaryHtml($invoice),
             'company_bank_accounts' => $this->bankAccountsHtml(),
+            // What the customer writes in the transfer: the same code the
+            // payment page and the bank reconciliation use.
+            'payment_reference' => payment_ref($invoice),
         ];
 
         // Everything above is text the customer or the operator typed, and it
@@ -625,7 +628,53 @@ class InvoicePdfService
             'client_tax_id', 'client_email',
             'invoice_number', 'invoice_type', 'is_proforma', 'invoice_date', 'due_date', 'date_paid', 'status',
             'payment_method', 'subtotal', 'tax', 'tax2', 'credit', 'total', 'notes',
-            'items', 'vat_summary', 'ksef_number', 'ksef_qr', 'payment_qr',
+            'items', 'vat_summary', 'ksef_number', 'ksef_qr', 'payment_qr', 'payment_reference',
+        ];
+    }
+
+    /**
+     * What a customer needs to pay this invoice by bank transfer, for the
+     * invoice PDF and email: the account holder, the account(s), the
+     * reference to write in the transfer and the payment QR. Null when there
+     * is nothing to pay, transfers are switched off or have no account, or the
+     * invoice is to be paid some other way.
+     *
+     * The account in the invoice's currency when there is one, every account
+     * otherwise.
+     *
+     * @return array{holder: string, accounts: list<array<string, string>>, reference: string, qr: string}|null
+     */
+    public function transferDetails(Invoice $invoice): ?array
+    {
+        if (in_array(strtolower((string) $invoice->status), InvoiceStatus::settled(), true)
+            || strtolower((string) $invoice->status) === InvoiceStatus::Draft->value
+            || (float) $invoice->amountDue() <= 0) {
+            return null;
+        }
+
+        $method = strtolower(trim((string) $invoice->payment_method));
+        if ($method !== '' && $method !== 'banktransfer') {
+            return null;
+        }
+
+        $module = new BankTransferModule;
+        if (! $module->isActive()) {
+            return null;
+        }
+
+        $currency = strtoupper(trim((string) ($invoice->source_currency ?: currency_code_default())));
+        $own = $module->bankByCurrency($currency);
+        $accounts = $own !== null ? [$own] : $module->accounts();
+
+        if ($accounts === []) {
+            return null;
+        }
+
+        return [
+            'holder' => trim((string) ($accounts[0]['holder'] ?? '')) ?: company_name(),
+            'accounts' => array_values($accounts),
+            'reference' => payment_ref($invoice),
+            'qr' => $this->paymentQr($invoice),
         ];
     }
 
