@@ -9,15 +9,17 @@ use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 /**
- * The Aruba Business API (api.arubabusiness.it), read only.
+ * The Aruba Business API (api.arubabusiness.it); its description is public at
+ * /docs on the same host.
  *
  * Signed in as a delegated user of the account: a password grant at
  * /auth/token with the account's Authorization-Key, then the bearer token and
  * the key on every call. The token lasts a day and is kept for most of it.
  *
- * Only GET is spoken here. Ordering, renewing and cancelling exist in the API
- * (carts) but are not documented outside the Aruba panel, and each of them
- * spends the account's money or ends a customer's mailbox.
+ * It reads the account's services, and changes two things that cost nothing:
+ * whether Aruba renews a service by itself, and a cancellation on a given day.
+ * Ordering, renewing and paying exist in the API too and are left out: each
+ * spends the account's money.
  *
  * The key, the password and the token never reach a log line or a message.
  */
@@ -44,6 +46,26 @@ final class ArubaBusinessClient
         return array_values(array_filter($response, 'is_array'));
     }
 
+    /**
+     * Turn a service's automatic renewal on or off.
+     *
+     * @throws RuntimeException with words fit for the operator
+     */
+    public function setAutomaticRenewal(int $serviceId, bool $on): void
+    {
+        $this->put('api/services/autorenew', ['ServiceId' => $serviceId, 'AutomaticRenewal' => $on]);
+    }
+
+    /**
+     * Cancel a service on a day (Y-m-d). It stays in use until then.
+     *
+     * @throws RuntimeException with words fit for the operator
+     */
+    public function unsubscribe(int $serviceId, string $day): void
+    {
+        $this->put('api/services/unsubscribe', ['IdService' => $serviceId, 'UnsubscribeDate' => $day.'T00:00:00']);
+    }
+
     /** Whether the account signs in. */
     public function signsIn(): bool
     {
@@ -59,14 +81,9 @@ final class ArubaBusinessClient
      */
     private function get(string $path): array
     {
-        $response = $this->send($path, $this->token());
+        $response = $this->answered('get', $path);
 
-        // A token Aruba ended early: sign in once more, then give up.
-        if ($response->status() === 401) {
-            $response = $this->send($path, $this->token(fresh: true));
-        }
-
-        if (! $response->successful() || ! is_array($response->json())) {
+        if (! is_array($response->json())) {
             Log::info('Aruba Business: refused', ['path' => $path, 'status' => $response->status()]);
 
             throw new RuntimeException(__('aruba-business::messages.error.refused', ['status' => $response->status()]));
@@ -75,15 +92,55 @@ final class ArubaBusinessClient
         return $response->json();
     }
 
-    private function send(string $path, string $token): Response
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function put(string $path, array $body): void
+    {
+        $this->answered('put', $path, $body);
+    }
+
+    /**
+     * A call Aruba accepted.
+     *
+     * @param  array<string, mixed>  $body
+     *
+     * @throws RuntimeException when Aruba is not reached or says no
+     */
+    private function answered(string $method, string $path, array $body = []): Response
+    {
+        $response = $this->send($method, $path, $this->token(), $body);
+
+        // A token Aruba ended early: sign in once more, then give up.
+        if ($response->status() === 401) {
+            $response = $this->send($method, $path, $this->token(fresh: true), $body);
+        }
+
+        if (! $response->successful()) {
+            Log::info('Aruba Business: refused', ['method' => $method, 'path' => $path, 'status' => $response->status()]);
+
+            throw new RuntimeException(__('aruba-business::messages.error.'.(in_array($response->status(), [401, 403], true) ? 'not_allowed' : 'refused'), [
+                'status' => $response->status(),
+            ]));
+        }
+
+        return $response;
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function send(string $method, string $path, string $token, array $body = []): Response
     {
         try {
-            return Http::withToken($token)
+            $request = Http::withToken($token)
                 ->withHeaders(['Authorization-Key' => $this->key])
                 ->acceptJson()
                 ->timeout(40)
-                ->connectTimeout(10)
-                ->get($this->baseUrl.'/'.ltrim($path, '/'));
+                ->connectTimeout(10);
+            $url = $this->baseUrl.'/'.ltrim($path, '/');
+
+            return $method === 'put' ? $request->put($url, $body) : $request->get($url);
         } catch (\Throwable $e) {
             Log::warning('Aruba Business: not reached', ['path' => $path, 'error' => $e->getMessage()]);
 

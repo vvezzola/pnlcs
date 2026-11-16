@@ -19,17 +19,20 @@ use RuntimeException;
  * api.arubabusiness.it, the delegated user's name and password, and the
  * account's Authorization-Key in the API key field.
  *
- * WHAT IT DOES. It reads. The mailboxes and the certified domains of the
- * account are listed for the server sync page, so each becomes a billing
- * service of its customer; once an hour they are read back, and the service
- * page shows what Aruba says: state, expiry, automatic renewal, renewal price.
+ * WHAT IT READS. The mailboxes and the certified domains of the account are
+ * listed for the server sync page, so each becomes a billing service of its
+ * customer; once an hour they are read back, and the service page shows what
+ * Aruba says: state, expiry, automatic renewal, renewal price.
  *
- * WHAT IT DOES NOT DO. It changes nothing at Aruba. Ordering, renewing and
- * cancelling go through carts that are documented only inside the Aruba
- * panel, and each spends the account's money or ends a customer's mailbox.
- * Aruba renews by itself while automatic renewal is on, so the one thing left
- * to a person is to turn it off when a service ends here: the module says so,
- * on the service page and to staff, and keeps saying it until Aruba agrees.
+ * WHAT IT CHANGES. Two things, neither of which costs money. Automatic
+ * renewal: turned off when a service is terminated here, so Aruba stops
+ * charging for a mailbox nobody is billed for, and switched either way by a
+ * staff button. Cancellation: only by a staff button pressed twice, and always
+ * on the day the service expires at Aruba, never at once.
+ *
+ * WHAT IT DOES NOT DO. Ordering, renewing and paying: each spends the
+ * account's money. Aruba renews by itself while automatic renewal is on. A
+ * mailbox's password and its suspension are not in Aruba's API at all.
  */
 class ArubaBusinessModule extends AbstractServerModule
 {
@@ -42,6 +45,9 @@ class ArubaBusinessModule extends AbstractServerModule
 
     /** A cancelled service is history, not something to link or to watch. */
     private const GONE = 'Canceled';
+
+    /** How long the first press of "cancel at Aruba" waits for the second. */
+    private const CONFIRM_MINUTES = 10;
 
     /**
      * The module's screens and words live beside its code; named here and not
@@ -64,7 +70,7 @@ class ArubaBusinessModule extends AbstractServerModule
     }
 
     // ------------------------------------------------------------------
-    // Lifecycle: billing only, nothing is changed at Aruba
+    // Lifecycle: billing, and the automatic renewal when a service ends
     // ------------------------------------------------------------------
 
     /** A mailbox is made in the Aruba panel and then linked; Create only confirms a link. */
@@ -88,8 +94,9 @@ class ArubaBusinessModule extends AbstractServerModule
     }
 
     /**
-     * The service ends here; the mailbox goes on at Aruba until someone turns
-     * its automatic renewal off. Staff are told, once.
+     * The service ends here, so Aruba is told to stop renewing it; the mailbox
+     * stays in use until it expires there. When Aruba cannot be told, the
+     * service still ends here and staff are asked to do it by hand.
      */
     public function terminate(Service $service): array
     {
@@ -97,13 +104,24 @@ class ArubaBusinessModule extends AbstractServerModule
             return $this->buildResult(true, __('aruba-business::messages.result.nothing_linked'));
         }
 
-        $this->refresh($service);
+        $read = $this->refresh($service);
         $data = $this->getModuleData($service);
 
-        if (($data['aruba_state'] ?? '') === self::GONE || empty($data['aruba_autorenew'])) {
+        if ($read['success'] && (($data['aruba_state'] ?? '') === self::GONE || empty($data['aruba_autorenew']))) {
             $this->setModuleData($service, ['ended' => true, 'todo' => null]);
 
             return $this->buildResult(true, __('aruba-business::messages.result.ended'));
+        }
+
+        if ($read['success'] && $this->setRenewal($service, false)['success']) {
+            $this->setModuleData($service, ['ended' => true, 'todo' => null]);
+            $result = $this->buildResult(true, __('aruba-business::messages.result.ended_renewal_off', [
+                'account' => (string) ($data['aruba_account'] ?? $service->domain),
+                'date' => self::shown($data['aruba_expires'] ?? null),
+            ]));
+            $this->logAction($service, 'terminate', $result);
+
+            return $result;
         }
 
         $message = __('aruba-business::messages.todo.autorenew_off', [
@@ -274,6 +292,71 @@ class ArubaBusinessModule extends AbstractServerModule
         return $this->refresh($service);
     }
 
+    // ------------------------------------------------------------------
+    // Staff buttons that change something at Aruba
+    // ------------------------------------------------------------------
+
+    public function autorenewOff(Service $service): array
+    {
+        return $this->setRenewal($service, false);
+    }
+
+    public function autorenewOn(Service $service): array
+    {
+        return $this->setRenewal($service, true);
+    }
+
+    /**
+     * Cancel the linked service at Aruba on the day it expires there.
+     *
+     * The staff buttons of a service page ask no confirmation, and this one
+     * ends a customer's mailbox: the first press only says what will happen,
+     * and a second press within a few minutes does it.
+     */
+    public function cancelAtAruba(Service $service): array
+    {
+        $read = $this->refresh($service);
+        if (! $read['success']) {
+            return $read;
+        }
+
+        $data = $this->getModuleData($service);
+        $day = $data['aruba_expires'] ?? null;
+        if (($data['aruba_state'] ?? '') === self::GONE || ! empty($data['cancel_on'])) {
+            return $this->buildResult(false, __('aruba-business::messages.error.already_cancelled'));
+        }
+        if (! is_string($day) || $day < now()->toDateString()) {
+            return $this->buildResult(false, __('aruba-business::messages.error.no_expiry'));
+        }
+
+        $with = ['account' => (string) ($data['aruba_account'] ?? $service->domain), 'date' => self::shown($day)];
+
+        if (! $this->cancelIsArmed($data)) {
+            $this->setModuleData($service, ['cancel_armed_at' => now()->toIso8601String()]);
+
+            return $this->buildResult(false, __('aruba-business::messages.confirm.cancel', $with + ['minutes' => self::CONFIRM_MINUTES]));
+        }
+
+        $this->setModuleData($service, ['cancel_armed_at' => null]);
+
+        try {
+            $this->clientFor($this->getServer($service))->unsubscribe((int) $data['aruba_service_id'], $day);
+        } catch (RuntimeException $e) {
+            $result = $this->buildResult(false, $e->getMessage());
+            $this->logAction($service, 'cancelAtAruba', $result);
+
+            return $result;
+        }
+
+        $this->setModuleData($service, ['cancel_on' => $day]);
+        $this->refresh($service);
+
+        $result = $this->buildResult(true, __('aruba-business::messages.result.cancelled', $with));
+        $this->logAction($service, 'cancelAtAruba', $result);
+
+        return $result;
+    }
+
     /**
      * The hourly usage run: one call to Aruba, and every linked service of
      * this account is brought up to date. A service that ended here while
@@ -326,10 +409,29 @@ class ArubaBusinessModule extends AbstractServerModule
         return $this->linkedPanelAccount($service) !== '';
     }
 
-    /** @return array<string, string> staff buttons, method => label */
+    /**
+     * Only what applies to the service is offered: the one renewal switch that
+     * would change something, and the cancellation while there is one to ask.
+     *
+     * @return array<string, string> staff buttons, method => label
+     */
     public function customFunctions(?Service $service = null): array
     {
-        return ['checkNow' => __('aruba-business::messages.action.check_now')];
+        $buttons = ['checkNow' => __('aruba-business::messages.action.check_now')];
+        $data = $service ? $this->getModuleData($service) : [];
+
+        if (empty($data['aruba_service_id']) || ($data['aruba_state'] ?? '') === self::GONE) {
+            return $buttons;
+        }
+
+        $buttons[empty($data['aruba_autorenew']) ? 'autorenewOn' : 'autorenewOff'] =
+            __('aruba-business::messages.action.autorenew_'.(empty($data['aruba_autorenew']) ? 'on' : 'off'));
+
+        if (empty($data['cancel_on'])) {
+            $buttons['cancelAtAruba'] = __('aruba-business::messages.action.'.($this->cancelIsArmed($data) ? 'cancel_confirm' : 'cancel'));
+        }
+
+        return $buttons;
     }
 
     public function clientAreaPanel(Service $service): ?Htmlable
@@ -365,6 +467,9 @@ class ArubaBusinessModule extends AbstractServerModule
         if ($linked && $open && $expires && $service->next_due_date && $expires < $service->next_due_date->toDateString()
             && empty($data['aruba_autorenew'])) {
             $warnings[] = __('aruba-business::messages.warning.expires_first', ['date' => self::shown($expires)]);
+        }
+        if ($linked && ! empty($data['cancel_on']) && $state !== self::GONE) {
+            $warnings[] = __('aruba-business::messages.warning.cancel_on', ['date' => self::shown($data['cancel_on'])]);
         }
         if (($data['todo'] ?? null) === 'autorenew_off') {
             $warnings[] = __('aruba-business::messages.todo.autorenew_off', [
@@ -405,6 +510,56 @@ class ArubaBusinessModule extends AbstractServerModule
     }
 
     // ------------------------------------------------------------------
+
+    /**
+     * Turn the linked service's automatic renewal on or off, and believe it
+     * only once Aruba's own list says so.
+     */
+    private function setRenewal(Service $service, bool $on): array
+    {
+        $id = $this->linkedPanelAccount($service);
+        $server = $this->getServer($service);
+        if ($id === '' || ! $server) {
+            return $this->buildResult(false, __('aruba-business::messages.error.not_linked'));
+        }
+
+        try {
+            $this->clientFor($server)->setAutomaticRenewal((int) $id, $on);
+        } catch (RuntimeException $e) {
+            $result = $this->buildResult(false, $e->getMessage());
+            $this->logAction($service, $on ? 'autorenewOn' : 'autorenewOff', $result);
+
+            return $result;
+        }
+
+        $read = $this->refresh($service);
+        $data = $this->getModuleData($service);
+        if (! $read['success'] || ! empty($data['aruba_autorenew']) !== $on) {
+            $result = $this->buildResult(false, __('aruba-business::messages.error.not_applied'));
+            $this->logAction($service, $on ? 'autorenewOn' : 'autorenewOff', $result);
+
+            return $result;
+        }
+
+        if (! $on) {
+            $this->setModuleData($service, ['todo' => null]);
+        }
+
+        $result = $this->buildResult(true, __('aruba-business::messages.result.autorenew_'.($on ? 'on' : 'off'), [
+            'date' => self::shown($data['aruba_expires'] ?? null),
+        ]));
+        $this->logAction($service, $on ? 'autorenewOn' : 'autorenewOff', $result);
+
+        return $result;
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function cancelIsArmed(array $data): bool
+    {
+        $at = $data['cancel_armed_at'] ?? null;
+
+        return is_string($at) && $at !== '' && Carbon::parse($at)->gt(now()->subMinutes(self::CONFIRM_MINUTES));
+    }
 
     private function clientFor(Server $server): ArubaBusinessClient
     {

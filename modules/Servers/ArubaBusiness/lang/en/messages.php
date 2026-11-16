@@ -22,6 +22,10 @@ return [
     ],
     'action' => [
         'check_now' => 'Read back from Aruba',
+        'autorenew_off' => 'Turn off automatic renewal at Aruba',
+        'autorenew_on' => 'Turn on automatic renewal at Aruba',
+        'cancel' => 'Cancel at Aruba',
+        'cancel_confirm' => 'Confirm the cancellation at Aruba',
     ],
     'client' => [
         'webmail_link' => 'Open the PEC webmail',
@@ -35,9 +39,13 @@ return [
         'state' => 'Aruba reports this service as ":state".',
         'autorenew_off' => 'Automatic renewal is off at Aruba: the service ends on :date unless it is renewed in the Aruba panel.',
         'expires_first' => 'Aruba ends this service on :date, before its next due date here.',
+        'cancel_on' => 'Cancellation asked of Aruba for :date.',
     ],
     'todo' => [
-        'autorenew_off' => 'Turn off automatic renewal for :account in the Aruba Business panel: the service has ended here, and Aruba renews it on :date.',
+        'autorenew_off' => 'Automatic renewal for :account could not be turned off at Aruba: the service has ended here, and Aruba renews it on :date. Turn it off with the button above or in the Aruba Business panel.',
+    ],
+    'confirm' => [
+        'cancel' => 'Not cancelled yet. Press "Confirm the cancellation at Aruba" within :minutes minutes: :account will be cancelled at Aruba on :date and cannot be used from that day.',
     ],
     'result' => [
         'linked' => 'Linked to the Aruba Business service.',
@@ -46,6 +54,10 @@ return [
         'ended' => 'Service ended; Aruba no longer renews it.',
         'refreshed' => 'Read back from Aruba.',
         'renews_itself' => 'Aruba renews by itself. It expires on :date; automatic renewal is :autorenew.',
+        'ended_renewal_off' => 'Service ended. Automatic renewal for :account was turned off at Aruba: it stays in use until :date.',
+        'autorenew_off' => 'Automatic renewal turned off at Aruba: the service ends on :date.',
+        'autorenew_on' => 'Automatic renewal turned on at Aruba: the next renewal is on :date.',
+        'cancelled' => 'Cancellation of :account asked of Aruba for :date.',
     ],
     'error' => [
         'no_server' => 'No Aruba Business account is set up (Setup, Servers).',
@@ -58,5 +70,9 @@ return [
         'unreachable' => 'Aruba Business could not be reached.',
         'refused' => 'Aruba Business refused the request (:status).',
         'sign_in' => 'Aruba Business refused the sign-in (:status): check the username, the password and the Authorization-Key.',
+        'not_allowed' => 'Aruba Business does not allow this to the configured user (:status).',
+        'not_applied' => 'Aruba accepted the request, but automatic renewal reads unchanged. Check in the Aruba Business panel.',
+        'already_cancelled' => 'This service is already cancelled at Aruba.',
+        'no_expiry' => 'Aruba gives no future expiry for this service: cancel it in the Aruba Business panel.',
     ],
 ];

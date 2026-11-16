@@ -22,6 +22,10 @@ return [
     ],
     'action' => [
         'check_now' => 'Rileggi da Aruba',
+        'autorenew_off' => 'Spegni il rinnovo automatico su Aruba',
+        'autorenew_on' => 'Accendi il rinnovo automatico su Aruba',
+        'cancel' => 'Disdici su Aruba',
+        'cancel_confirm' => 'Conferma la disdetta su Aruba',
     ],
     'client' => [
         'webmail_link' => 'Apri la webmail PEC',
@@ -35,9 +39,13 @@ return [
         'state' => 'Aruba indica questo servizio come ":state".',
         'autorenew_off' => 'Il rinnovo automatico è spento su Aruba: il servizio finisce il :date se non viene rinnovato dal pannello Aruba.',
         'expires_first' => 'Aruba chiude questo servizio il :date, prima della prossima scadenza qui.',
+        'cancel_on' => 'Disdetta chiesta ad Aruba per il :date.',
     ],
     'todo' => [
-        'autorenew_off' => 'Spegni il rinnovo automatico di :account nel pannello Aruba Business: qui il servizio è cessato, e Aruba lo rinnova il :date.',
+        'autorenew_off' => 'Non è stato possibile spegnere il rinnovo automatico di :account su Aruba: qui il servizio è cessato, e Aruba lo rinnova il :date. Spegnilo con il pulsante qui sopra o dal pannello Aruba Business.',
+    ],
+    'confirm' => [
+        'cancel' => 'Non ancora disdetto. Premi "Conferma la disdetta su Aruba" entro :minutes minuti: :account verrà disdetto su Aruba il :date e da quel giorno non sarà più utilizzabile.',
     ],
     'result' => [
         'linked' => 'Collegato al servizio Aruba Business.',
@@ -46,6 +54,10 @@ return [
         'ended' => 'Servizio cessato; Aruba non lo rinnova più.',
         'refreshed' => 'Riletto da Aruba.',
         'renews_itself' => 'Aruba rinnova da sola. Scade il :date; il rinnovo automatico è :autorenew.',
+        'ended_renewal_off' => 'Servizio cessato. Il rinnovo automatico di :account è stato spento su Aruba: resta in uso fino al :date.',
+        'autorenew_off' => 'Rinnovo automatico spento su Aruba: il servizio finisce il :date.',
+        'autorenew_on' => 'Rinnovo automatico acceso su Aruba: il prossimo rinnovo è il :date.',
+        'cancelled' => 'Disdetta di :account chiesta ad Aruba per il :date.',
     ],
     'error' => [
         'no_server' => 'Nessun account Aruba Business configurato (Configurazione, Server).',
@@ -58,5 +70,9 @@ return [
         'unreachable' => 'Aruba Business non è raggiungibile.',
         'refused' => 'Aruba Business ha rifiutato la richiesta (:status).',
         'sign_in' => 'Aruba Business ha rifiutato l\'accesso (:status): controlla nome utente, password e Authorization-Key.',
+        'not_allowed' => 'Aruba Business non permette questa operazione all\'utente configurato (:status).',
+        'not_applied' => 'Aruba ha accettato la richiesta, ma il rinnovo automatico risulta invariato. Controlla dal pannello Aruba Business.',
+        'already_cancelled' => 'Questo servizio è già disdetto su Aruba.',
+        'no_expiry' => 'Aruba non indica una scadenza futura per questo servizio: la disdetta va fatta dal pannello Aruba Business.',
     ],
 ];

@@ -12,8 +12,9 @@ use Modules\Servers\ArubaBusiness\ArubaBusinessModule;
 /*
  * PEC mailboxes held in an Aruba Business account
  * (modules/Servers/ArubaBusiness, Esalogica only). Aruba is faked at the HTTP
- * level with the shapes its API answers with. The module reads and changes
- * nothing there: the only request that is not a GET is the sign-in.
+ * level with the shapes its API answers with. The module reads; it writes
+ * only a service's automatic renewal and, on a staff button pressed twice, a
+ * cancellation on the day the service expires.
  */
 
 const AB_API = 'https://api.arubabusiness.it/';
@@ -46,6 +47,38 @@ function abAccount(array $rows, array $statuses = []): void
             return Http::response($status === 200 ? $rows : ['Message' => 'no'], $status);
         },
     ]);
+}
+
+/**
+ * A fake account with one service, whose automatic renewal Aruba changes when
+ * asked (unless $applies is false) and whose writes answer $writeStatus.
+ *
+ * @param  array<string, mixed>  $row
+ */
+function abAccountThatChanges(array $row, int $writeStatus = 200, bool $applies = true): void
+{
+    Cache::flush();
+    Http::preventStrayRequests();
+    Http::fake([
+        AB_API.'auth/token' => Http::response(['access_token' => 'token-of-the-day', 'expires_in' => 86400], 200),
+        AB_API.'api/services/autorenew' => function (Request $request) use (&$row, $writeStatus, $applies) {
+            if ($writeStatus === 200 && $applies) {
+                $row['AutomaticRenewal'] = $request['AutomaticRenewal'];
+            }
+
+            return Http::response($writeStatus === 200 ? ['Id' => $row['Id']] : ['Message' => 'no'], $writeStatus);
+        },
+        AB_API.'api/services/unsubscribe' => Http::response($writeStatus === 200 ? [['Id' => $row['Id']]] : ['Message' => 'no'], $writeStatus),
+        AB_API.'api/services' => function () use (&$row) {
+            return Http::response([$row], 200);
+        },
+    ]);
+}
+
+/** Whether a request changes something at Aruba: anything but a read and the sign-in. */
+function abWrites(Request $request): bool
+{
+    return $request->method() !== 'GET' && $request->url() !== AB_API.'auth/token';
 }
 
 function abServer(array $over = []): Server
@@ -128,15 +161,107 @@ it('does not link a service the account does not have among its PEC services', f
     expect($service->fresh()->module_data)->toBeNull();
 });
 
-it('asks for the automatic renewal to be turned off when a service ends here', function () {
-    abAccount([abRow()]);
+it('turns the automatic renewal off at Aruba when a service ends here', function () {
+    abAccountThatChanges(abRow());
     $service = abService(abServer(), ['aruba_service_id' => '569906']);
 
     $result = abModule()->terminate($service);
 
     expect($result['success'])->toBeTrue();
     expect($result['message'])->toContain('info@pec.rossi.it');
+    expect($service->fresh()->module_data)->toMatchArray(['ended' => true, 'todo' => null, 'aruba_autorenew' => false]);
+    Http::assertSent(fn (Request $request) => $request->method() === 'PUT'
+        && $request->url() === AB_API.'api/services/autorenew'
+        && $request['ServiceId'] === 569906 && $request['AutomaticRenewal'] === false);
+    Http::assertNotSent(fn (Request $request) => $request->url() === AB_API.'api/services/unsubscribe');
+});
+
+it('ends the service here and asks staff when Aruba will not turn the renewal off', function (int $status, bool $applies) {
+    abAccountThatChanges(abRow(), $status, $applies);
+    $service = abService(abServer(), ['aruba_service_id' => '569906']);
+
+    $result = abModule()->terminate($service);
+
+    expect($result['success'])->toBeTrue();
     expect($service->fresh()->module_data)->toMatchArray(['ended' => true, 'todo' => 'autorenew_off']);
+})->with([
+    'the user is not allowed' => [403, true],
+    'Aruba says yes and changes nothing' => [200, false],
+]);
+
+it('writes nothing at Aruba when the ended service is not renewed anyway', function () {
+    abAccountThatChanges(abRow(['AutomaticRenewal' => false]));
+    $service = abService(abServer(), ['aruba_service_id' => '569906']);
+
+    abModule()->terminate($service);
+
+    expect($service->fresh()->module_data)->toMatchArray(['ended' => true, 'todo' => null]);
+    Http::assertNotSent(fn (Request $request) => abWrites($request));
+});
+
+it('offers staff the one renewal switch that would change something', function () {
+    $server = abServer();
+    $module = abModule();
+
+    expect(array_keys($module->customFunctions(abService($server, ['aruba_service_id' => '1', 'aruba_autorenew' => true]))))
+        ->toBe(['checkNow', 'autorenewOff', 'cancelAtAruba']);
+    expect(array_keys($module->customFunctions(abService($server, ['aruba_service_id' => '1', 'aruba_autorenew' => false]))))
+        ->toBe(['checkNow', 'autorenewOn', 'cancelAtAruba']);
+    expect(array_keys($module->customFunctions(abService($server, ['aruba_service_id' => '1', 'aruba_state' => 'Canceled']))))
+        ->toBe(['checkNow']);
+    expect(array_keys($module->customFunctions(abService($server))))->toBe(['checkNow']);
+});
+
+it('turns the automatic renewal back on from the staff button', function () {
+    abAccountThatChanges(abRow(['AutomaticRenewal' => false]));
+    $service = abService(abServer(), ['aruba_service_id' => '569906']);
+
+    expect(abModule()->autorenewOn($service)['success'])->toBeTrue();
+    expect($service->fresh()->module_data['aruba_autorenew'])->toBeTrue();
+});
+
+it('cancels at Aruba only on the second press, and on the day the service expires', function () {
+    abAccountThatChanges(abRow());
+    $service = abService(abServer(), ['aruba_service_id' => '569906']);
+
+    $first = abModule()->cancelAtAruba($service);
+
+    expect($first['success'])->toBeFalse();
+    expect($first['message'])->toContain('info@pec.rossi.it');
+    Http::assertNotSent(fn (Request $request) => abWrites($request));
+    expect(abModule()->customFunctions($service->fresh()))->toHaveKey('cancelAtAruba');
+
+    $second = abModule()->cancelAtAruba($service->fresh());
+
+    expect($second['success'])->toBeTrue();
+    expect($service->fresh()->module_data)->toMatchArray(['cancel_on' => '2027-11-15', 'cancel_armed_at' => null]);
+    Http::assertSent(fn (Request $request) => $request->method() === 'PUT'
+        && $request->url() === AB_API.'api/services/unsubscribe'
+        && $request['IdService'] === 569906 && $request['UnsubscribeDate'] === '2027-11-15T00:00:00');
+    expect(abModule()->customFunctions($service->fresh()))->not->toHaveKey('cancelAtAruba');
+    expect(abModule()->cancelAtAruba($service->fresh())['success'])->toBeFalse();
+    expect(Http::recorded(fn (Request $request) => abWrites($request)))->toHaveCount(1);
+});
+
+it('asks again when the second press comes too late', function () {
+    abAccountThatChanges(abRow());
+    $service = abService(abServer(), ['aruba_service_id' => '569906']);
+
+    abModule()->cancelAtAruba($service);
+    $this->travel(11)->minutes();
+
+    expect(abModule()->cancelAtAruba($service->fresh())['success'])->toBeFalse();
+    Http::assertNotSent(fn (Request $request) => abWrites($request));
+});
+
+it('does not cancel a service whose expiry Aruba does not give', function () {
+    abAccountThatChanges(abRow(['ExpirationDate' => null]));
+    $service = abService(abServer(), ['aruba_service_id' => '569906']);
+
+    abModule()->cancelAtAruba($service);
+
+    expect(abModule()->cancelAtAruba($service->fresh())['success'])->toBeFalse();
+    Http::assertNotSent(fn (Request $request) => abWrites($request));
 });
 
 it('has nothing left to ask once Aruba no longer renews the ended service', function (array $row) {
@@ -181,7 +306,7 @@ it('counts a linked service Aruba no longer lists as an error and leaves it as i
     expect($service->fresh()->module_data['aruba_state'])->toBe('Active');
 });
 
-it('changes nothing at Aruba: every request but the sign-in is a GET', function () {
+it('only reads Aruba for everything but ending a service and the staff buttons', function () {
     abAccount([abRow()]);
     $server = abServer();
     $service = abService($server, ['aruba_service_id' => '569906']);
@@ -193,10 +318,11 @@ it('changes nothing at Aruba: every request but the sign-in is a GET', function 
     $module->renew($service);
     $module->changePassword($service, 'x');
     $module->changePackage($service, []);
-    $module->terminate($service);
+    $module->checkNow($service);
+    $module->linkAccount($service, '569906');
     $module->usageUpdate($server);
 
-    Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET' && $request->url() !== AB_API.'auth/token');
+    Http::assertNotSent(fn (Request $request) => abWrites($request));
 });
 
 it('does not call Aruba without the three credentials, and says the connection fails', function (array $missing) {
