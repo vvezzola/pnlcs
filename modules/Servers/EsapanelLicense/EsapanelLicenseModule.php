@@ -38,6 +38,17 @@ class EsapanelLicenseModule extends AbstractServerModule
 
     private const REFRESH_PER_RUN = 50;
 
+    /**
+     * The module's screens and words live beside its code. They are named here
+     * and not by a service provider, so the module adds nothing to what the
+     * site boots.
+     */
+    public function __construct()
+    {
+        view()->addNamespace('esapanel-license', __DIR__.'/views');
+        app('translator')->addNamespace('esapanel-license', __DIR__.'/lang');
+    }
+
     public function getModuleName(): string
     {
         return self::NAME;
