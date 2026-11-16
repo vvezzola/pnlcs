@@ -404,6 +404,7 @@ class ConfigController extends Controller
         return view('admin.config.currencies', [
             'currencies' => Currency::all(),
             'customerChoice' => (string) Setting::get(CustomerCurrency::SETTING, '0') === '1',
+            'currencyByRegion' => (string) Setting::get(CustomerCurrency::REGION_SETTING, '0') === '1',
             'autoUpdateRates' => (string) Setting::get('currency_auto_update', '1') === '1',
             'clientsPerCurrency' => $this->clientsPerCurrency(),
         ]);
@@ -434,18 +435,21 @@ class ConfigController extends Controller
     }
 
     /**
-     * Whether customers choose their own currency, and whether the rates are
-     * fetched every day. Both are read where they act: CustomerCurrency and
+     * Whether customers choose their own currency, whether a visitor starts
+     * in the currency of their country, and whether the rates are fetched
+     * every day. Each is read where it acts: CustomerCurrency and
      * pnlcs:currency-update.
      */
     public function updateCurrencySettings(Request $request)
     {
         $request->validate([
             'customer_choice' => 'nullable|boolean',
+            'by_region' => 'nullable|boolean',
             'auto_update_rates' => 'nullable|boolean',
         ]);
 
         Setting::set(CustomerCurrency::SETTING, $request->boolean('customer_choice') ? '1' : '0', 'billing');
+        Setting::set(CustomerCurrency::REGION_SETTING, $request->boolean('by_region') ? '1' : '0', 'billing');
         Setting::set('currency_auto_update', $request->boolean('auto_update_rates') ? '1' : '0', 'billing');
 
         return back()->with('success', __('admin.currencies.settings_saved'));
@@ -749,6 +753,13 @@ class ConfigController extends Controller
             'cycles' => 'nullable|integer|min:0|max:1000',
             'billing_cycles' => 'nullable|array',
             'billing_cycles.*' => 'in:'.implode(',', array_keys(Service::CYCLE_MONTHS)),
+            // Which products were discounted is not kept from one invoice to
+            // the next, so a limit cannot be carried into renewals.
+            'max_products' => ['nullable', 'integer', 'min:0', 'max:1000', function ($attribute, $value, $fail) use ($request) {
+                if ((int) $value > 0 && $request->boolean('recurring')) {
+                    $fail(__('admin.promotions.max_products_recurring'));
+                }
+            }],
             'notes' => 'nullable|string',
             'applies_to' => 'nullable|array',
             'applies_to.*' => 'integer|exists:products,id',
@@ -760,6 +771,7 @@ class ConfigController extends Controller
         ]);
         $v['recurring'] = $request->boolean('recurring');
         $v['cycles'] = (int) ($v['cycles'] ?? 0);
+        $v['max_products'] = (int) ($v['max_products'] ?? 0);
         // None ticked: every billing period, as before.
         $v['billing_cycles'] = implode(',', array_unique($request->input('billing_cycles', []))) ?: null;
         $v['apply_once'] = $request->boolean('apply_once');
@@ -789,10 +801,18 @@ class ConfigController extends Controller
             'cycles' => 'nullable|integer|min:0|max:1000',
             'billing_cycles' => 'nullable|array',
             'billing_cycles.*' => 'in:'.implode(',', array_keys(Service::CYCLE_MONTHS)),
+            // Which products were discounted is not kept from one invoice to
+            // the next, so a limit cannot be carried into renewals.
+            'max_products' => ['nullable', 'integer', 'min:0', 'max:1000', function ($attribute, $value, $fail) use ($request) {
+                if ((int) $value > 0 && $request->boolean('recurring')) {
+                    $fail(__('admin.promotions.max_products_recurring'));
+                }
+            }],
             'notes' => 'nullable|string',
         ]);
         $v['recurring'] = $request->boolean('recurring');
         $v['cycles'] = (int) ($v['cycles'] ?? 0);
+        $v['max_products'] = (int) ($v['max_products'] ?? 0);
         // None ticked: every billing period, as before.
         $v['billing_cycles'] = implode(',', array_unique($request->input('billing_cycles', []))) ?: null;
         $promotion->update($v);
@@ -1530,7 +1550,7 @@ class ConfigController extends Controller
     // Email Templates
     public function updateEmailTemplate(Request $request, EmailTemplate $template)
     {
-        $validated = $request->validate(['type' => 'nullable|string', 'name' => 'nullable|string', 'subject' => 'nullable|string', 'message' => 'nullable|string', 'from_name' => 'nullable|string', 'from_email' => 'nullable|email', 'disabled' => 'boolean']);
+        $validated = $request->validate(['type' => 'nullable|string', 'name' => 'nullable|string', 'subject' => 'nullable|string', 'message' => 'nullable|string', 'from_name' => 'nullable|string', 'from_email' => 'nullable|email', 'copy_to' => ['nullable', 'string', 'max:255', new \App\Rules\EmailList], 'disabled' => 'boolean']);
 
         // Only a changed body makes the template the operator's own, which is
         // what lets their wording replace the built-in email. The form always

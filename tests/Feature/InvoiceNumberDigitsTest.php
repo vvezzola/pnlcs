@@ -1,91 +1,59 @@
 <?php
 
-use App\Models\Admin;
-use App\Models\AdminRole;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Setting;
 use App\Services\InvoiceService;
 
 /*
- * Invoice and proforma numbers built from a format. {num:N} sets how many
- * digits the sequence is written with, and a date placeholder written right
- * before it no longer runs into the number when the next one is worked out.
+ * {num} in a numbering scheme was always written with six digits. A shop that
+ * issues a few hundred invoices a year wanted INV-0042, not INV-000042
+ * (community.pnlcs.com/t/33). {num:4} names the width; {num} is six as before.
  */
 
-function proformaNumbered(string $number, string $date): Invoice
+function indInvoice(string $number, string $type = 'vat'): Invoice
 {
-    return Invoice::factory()->create([
-        'client_id' => Client::factory()->create()->id,
-        'type' => 'proforma',
-        'invoice_num' => $number,
-        'date' => $date,
-    ]);
+    return Invoice::factory()->create(['client_id' => Client::factory()->create()->id, 'invoice_num' => $number, 'type' => $type]);
 }
 
-it('writes the sequence with the digits {num:N} asks for', function () {
-    $this->travelTo('2027-01-10');
-    Setting::set('ProformaNumberFormat', 'ESA{yy}{num:4}', 'general');
-
-    expect(app(InvoiceService::class)->generateInvoiceNumber('proforma'))->toBe('ESA270001')
-        ->and(app(InvoiceService::class)->renderInvoiceNumber('INV-{num}', 42))->toBe('INV-000042');
+test('{num} is still six digits', function () {
+    expect(app(InvoiceService::class)->renderInvoiceNumber('INV-{num}', 42))->toBe('INV-000042');
 });
 
-it('counts on from the last number without reading the year into it', function () {
-    $this->travelTo('2027-03-02');
-    Setting::set('ProformaNumberFormat', 'ESA{yy}{num:4}', 'general');
-    proformaNumbered('ESA270001', '2027-01-10');
-    proformaNumbered('ESA270002', '2027-02-11');
+test('{num:4} pads to four digits, and any width from 1 to 9 is taken', function () {
+    $numbers = app(InvoiceService::class);
 
-    expect(app(InvoiceService::class)->generateInvoiceNumber('proforma'))->toBe('ESA270003');
+    expect($numbers->renderInvoiceNumber('INV-{num:4}', 42))->toBe('INV-0042')
+        ->and($numbers->renderInvoiceNumber('{num:1}', 7))->toBe('7')
+        ->and($numbers->renderInvoiceNumber('F{num:9}', 7))->toBe('F000000007');
 });
 
-it('starts again from one when the year in the prefix changes', function () {
-    $this->travelTo('2028-01-03');
-    Setting::set('ProformaNumberFormat', 'ESA{yy}{num:4}', 'general');
-    proformaNumbered('ESA270815', '2027-12-30');
-
-    expect(app(InvoiceService::class)->generateInvoiceNumber('proforma'))->toBe('ESA280001');
+test('a series that has outgrown its width is written in full, never cut short', function () {
+    expect(app(InvoiceService::class)->renderInvoiceNumber('INV-{num:4}', 12345))->toBe('INV-12345');
 });
 
-it('previews the next proforma number under any prefix', function () {
-    $this->travelTo('2027-03-02');
-    Setting::set('ProformaEnabled', '1', 'general');
-    Setting::set('ProformaNumberFormat', 'ESA{yy}{num:4}', 'general');
-    proformaNumbered('ESA270007', '2027-02-11');
-    $admin = Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
+test('something that is not a width is left as it was typed', function () {
+    $numbers = app(InvoiceService::class);
 
-    $this->actingAs($admin)->get(route('admin.settings.general'))
-        ->assertOk()
-        ->assertSee('ESA270007')
-        ->assertSee('ESA270008');
+    expect($numbers->renderInvoiceNumber('INV-{num:0}', 42))->toBe('INV-{num:0}')
+        ->and($numbers->renderInvoiceNumber('INV-{num:12}', 42))->toBe('INV-{num:12}');
 });
 
-function vatNumbered(string $number, string $date): Invoice
-{
-    return Invoice::factory()->create([
-        'client_id' => Client::factory()->create()->id,
-        'type' => 'vat',
-        'invoice_num' => $number,
-        'date' => $date,
-    ]);
-}
+test('changing the width continues the same series', function () {
+    Setting::set('ProformaEnabled', '0');
+    Setting::set('InvoiceNumberFormat', 'INV-{num:4}');
+    indInvoice('INV-000041');
 
-it('counts on a register numbered number first', function () {
-    $this->travelTo('2027-02-01');
-    Setting::set('InvoiceNumberFormat', '{num:1}/ELH', 'general');
-    vatNumbered('1/ELH', '2027-01-01');
-    vatNumbered('2/ELH', '2027-01-01');
-    vatNumbered('7/ELS', '2027-01-15');
+    $numbers = app(InvoiceService::class);
 
-    expect(app(InvoiceService::class)->generateInvoiceNumber('vat'))->toBe('3/ELH');
+    expect($numbers->nextInvoiceSequence())->toBe(42)
+        ->and($numbers->generateInvoiceNumber())->toBe('INV-0042');
 });
 
-it('starts a number-first register again in a new year with the yearly reset', function () {
-    $this->travelTo('2028-01-01');
-    Setting::set('InvoiceNumberFormat', '{num:1}/ELH', 'general');
-    Setting::set('InvoiceNumberYearlyReset', '1', 'general');
-    vatNumbered('214/ELH', '2027-12-01');
+test('a width works with the number in the middle of the scheme', function () {
+    Setting::set('ProformaEnabled', '0');
+    Setting::set('InvoiceNumberFormat', 'F-{num:3}/{year}');
+    indInvoice('F-041/'.now()->format('Y'));
 
-    expect(app(InvoiceService::class)->generateInvoiceNumber('vat'))->toBe('1/ELH');
+    expect(app(InvoiceService::class)->generateInvoiceNumber())->toBe('F-042/'.now()->format('Y'));
 });

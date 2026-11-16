@@ -427,6 +427,12 @@ class InvoiceService
         return $invoice;
     }
 
+    /** How many digits {num} is padded to when the format names no width. */
+    public const NUM_DIGITS = 6;
+
+    /** {num}, or {num:4} with the number of digits to pad it to (1 to 9). */
+    public const NUM_PLACEHOLDER = '/\{num(?::([1-9]))?\}/';
+
     /**
      * Generate a unique sequential invoice number from the configurable
      * format setting. The format accepts {year}, {yy}, {month}, {day} and
@@ -573,8 +579,8 @@ class InvoiceService
     public function renderInvoiceNumber(string $format, int $sequence): string
     {
         $numbered = (string) preg_replace_callback(
-            '/\{num(?::([1-9][0-9]?))?\}/',
-            fn (array $m): string => str_pad((string) $sequence, isset($m[1]) ? (int) $m[1] : 6, '0', STR_PAD_LEFT),
+            self::NUM_PLACEHOLDER,
+            fn (array $m): string => str_pad((string) $sequence, isset($m[1]) ? (int) $m[1] : self::NUM_DIGITS, '0', STR_PAD_LEFT),
             $format
         );
 
@@ -600,7 +606,7 @@ class InvoiceService
      */
     private function numToken(string $format): ?array
     {
-        if (preg_match('/\{num(?::[1-9][0-9]?)?\}/', $format, $m, PREG_OFFSET_CAPTURE) !== 1) {
+        if (preg_match(self::NUM_PLACEHOLDER, $format, $m, PREG_OFFSET_CAPTURE) !== 1) {
             return null;
         }
 

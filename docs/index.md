@@ -24,8 +24,8 @@ language, with no prior WHMCS experience assumed. It also holds the complete
 - **Sell hosting, VPS, domains and SSL** through a customer-facing shop and portal
 - **Bill customers automatically** — recurring invoices, reminders, suspensions, renewals
 - **Provision accounts automatically** on Panelica, cPanel, Plesk, DirectAdmin,
-  HestiaCP, Proxmox and Vultr when an order is paid
-- **Take payments** via Stripe, PayPal, Authorize.Net and bank transfer
+  HestiaCP, aaPanel, Proxmox and Vultr when an order is paid
+- **Take payments** via Stripe, PayPal, Authorize.Net, iyzico, Mollie, Razorpay, Tpay and bank transfer
 - **Support your customers** with tickets, a knowledge base and announcements
 - **Run in 30 languages**, with themes, staff roles, reports and an API
 
@@ -51,12 +51,13 @@ You should already have PNLCS **installed** and be able to reach
 
 ## Need help?
 
-- **Community forum** — [forum.panelica.com](https://forum.panelica.com)
+- **Community** — [community.pnlcs.com](https://community.pnlcs.com/)
 - **Bug reports & feature requests** — [GitHub Issues](https://github.com/Panelica/pnlcs/issues)
-- **Email** — [info@panelica.com](mailto:info@panelica.com)
+- **Email** — [info@pnlcs.com](mailto:info@pnlcs.com)
 
 ---
 
-PNLCS is built and maintained by the team behind
+PNLCS is built and maintained by the PNLCS team. It began at
 **[Panelica](https://panelica.com)**, a modern hosting control panel and a
-cPanel / Plesk alternative that needs no CloudLinux.
+cPanel / Plesk alternative that needs no CloudLinux, and integrates natively
+with it.

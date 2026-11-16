@@ -26,13 +26,13 @@ PNLCS is an open community. Hosting providers, agencies, freelancers and contrib
 This Code of Conduct applies to:
 
 - This repository (issues, discussions, pull requests, code review, wiki)
-- Any associated spaces operated by Panelica, LLC where this CoC is referenced
+- Any associated spaces operated by Panelica Teknoloji ve Yazılım Tic. Ltd. Şti. where this CoC is referenced
 
 ## Enforcement
 
 If you see a problem, or experience one, contact us:
 
-**Email:** [conduct@panelica.com](mailto:conduct@panelica.com)
+**Email:** [conduct@pnlcs.com](mailto:conduct@pnlcs.com)
 
 Reports are read by the maintainer team and treated confidentially. We won't share your identity with the person reported without your consent unless required by law.
 

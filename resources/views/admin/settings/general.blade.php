@@ -676,6 +676,12 @@
                 </div>
             </div>
 
+            <div class="form-group" style="margin-bottom:10px;">
+                <label class="form-label" for="mail-copy-to">{{ __('admin.settings.mail_copy_to') }}</label>
+                <input type="text" id="mail-copy-to" name="MailCopyTo" value="{{ $settings['MailCopyTo'] ?? '' }}" class="form-control">
+                <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.settings.mail_copy_to_hint') }}</div>
+            </div>
+
             <div id="smtp-fields" style="display:{{ ($settings['MailType'] ?? '') === 'smtp' ? 'block' : 'none' }};">
                 <hr style="margin:10px 0;">
                 <div style="font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">{{ __('admin.settings.smtp_configuration') }}</div>
@@ -823,7 +829,7 @@ function renderInvoicePreview() {
     var d = ('0' + now.getDate()).slice(-2);
     var seq = String({{ $invoiceNextSeq }});
     var out = fmt
-        .replace(/\{num(?::([1-9][0-9]?))?\}/g, function (all, width) { return seq.padStart(width ? Number(width) : 6, '0'); })
+        .replace(/\{num(?::([1-9]))?\}/g, function (all, width) { return seq.padStart(width ? Number(width) : {{ \App\Services\InvoiceService::NUM_DIGITS }}, '0'); })
         .replace(/\{year\}/g, y)
         .replace(/\{yy\}/g, yy)
         .replace(/\{month\}/g, m)
