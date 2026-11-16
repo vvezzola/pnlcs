@@ -42,7 +42,7 @@ return [
         'cancel_on' => 'Cancellation asked of Aruba for :date.',
     ],
     'todo' => [
-        'autorenew_off' => 'Automatic renewal for :account could not be turned off at Aruba: the service has ended here, and Aruba renews it on :date. Turn it off with the button above or in the Aruba Business panel.',
+        'autorenew_off' => 'Automatic renewal for :account could not be turned off at Aruba: the service has ended here, and Aruba renews it on :date. Cancel it in the Aruba Business panel before that day.',
     ],
     'confirm' => [
         'cancel' => 'Not cancelled yet. Press "Confirm the cancellation at Aruba" within :minutes minutes: :account will be cancelled at Aruba on :date and cannot be used from that day.',

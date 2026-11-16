@@ -42,7 +42,7 @@ return [
         'cancel_on' => 'Disdetta chiesta ad Aruba per il :date.',
     ],
     'todo' => [
-        'autorenew_off' => 'Non è stato possibile spegnere il rinnovo automatico di :account su Aruba: qui il servizio è cessato, e Aruba lo rinnova il :date. Spegnilo con il pulsante qui sopra o dal pannello Aruba Business.',
+        'autorenew_off' => 'Non è stato possibile spegnere il rinnovo automatico di :account su Aruba: qui il servizio è cessato, e Aruba lo rinnova il :date. Disdicilo dal pannello Aruba Business prima di quella data.',
     ],
     'confirm' => [
         'cancel' => 'Non ancora disdetto. Premi "Conferma la disdetta su Aruba" entro :minutes minuti: :account verrà disdetto su Aruba il :date e da quel giorno non sarà più utilizzabile.',
