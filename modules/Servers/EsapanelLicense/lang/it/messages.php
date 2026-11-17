@@ -74,5 +74,7 @@ return [
         'not_allowed' => 'Il License Server non permette questa operazione all\'account API (403).',
         'too_many' => 'Troppe richieste al License Server; verrà riprovato.',
         'plan_change' => 'Il piano non è stato cambiato: :error',
+        'addon_unknown' => 'Il License Server non ha un componente di modulo chiamato :addon.',
+        'addons' => 'I moduli non sono stati aggiornati: :error',
     ],
 ];

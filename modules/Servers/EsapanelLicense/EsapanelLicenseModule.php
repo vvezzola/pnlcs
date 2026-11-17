@@ -18,6 +18,14 @@ use Modules\Servers\AbstractServerModule;
  * in the API key field. A product's package is the License Server plan it
  * sells, so one product is one plan: a level with its modules.
  *
+ * Since the 2027 price list a plan is a level (LSP Company, Integrator 30,
+ * 60, 100, Provider) and each module is an add-on of the licence. The product
+ * sells the level; its configurable options named "addon|..." sell the
+ * modules, each choice naming the add-on by its License Server name ("LSP CSP
+ * Company 25") or id. The licence is created with them (addon_ids) and kept
+ * in step when the options or the level change. A product with no such
+ * option leaves a licence's add-ons alone, as the plans sold before need.
+ *
  * A licence is a subscription of the customer on that plan. The customer and
  * the licence carry this site's ids (pnlcs:client:<id>, pnlcs:service:<id>),
  * so what was created is found again instead of created twice. The License
@@ -37,6 +45,12 @@ class EsapanelLicenseModule extends AbstractServerModule
     private const REFRESH_AFTER_HOURS = 20;
 
     private const REFRESH_PER_RUN = 50;
+
+    /** The key of the configurable options that sell a module ("addon|Central Syslog"). */
+    private const ADDON_OPTION = 'addon';
+
+    /** A choice that sells no add-on: "none|No" in a module's drop-down. */
+    private const NO_ADDON = ['', 'none', '0', '-'];
 
     /**
      * The module's screens and words live beside its code. They are named here
@@ -95,6 +109,11 @@ class EsapanelLicenseModule extends AbstractServerModule
             return $this->reactivate($api, $service, $existing->data, $planId);
         }
 
+        $addonIds = $this->wantedAddonIds($api, $service);
+        if (is_string($addonIds)) {
+            return $this->failed($service, $addonIds);
+        }
+
         $customer = $this->customerId($api, $service);
         if (! is_int($customer)) {
             return $this->failed($service, $customer);
@@ -106,6 +125,7 @@ class EsapanelLicenseModule extends AbstractServerModule
             'valid_until' => $this->validUntil($service),
             'label' => 'PNLCS service #'.$service->id,
             'external_ref' => self::serviceRef($service),
+            'addon_ids' => $addonIds ?: null,
         ], fn ($value) => $value !== null), $this->idempotencyKey($service, 'create'));
 
         if (! $created->ok || $created->data === null) {
@@ -185,6 +205,11 @@ class EsapanelLicenseModule extends AbstractServerModule
         $changed = $api->put('subscriptions/'.$data['subscription_id'].'/plan', ['service_plan_id' => $planId]);
         if (! $changed->ok) {
             return $this->failed($service, __('esapanel-license::messages.error.plan_change', ['error' => $changed->error]));
+        }
+
+        $synced = $this->syncAddons($api, $service, (int) $data['subscription_id']);
+        if ($synced !== null) {
+            return $this->failed($service, __('esapanel-license::messages.error.addons', ['error' => $synced]));
         }
 
         $until = $this->validUntil($service);
@@ -543,6 +568,11 @@ class EsapanelLicenseModule extends AbstractServerModule
             return $this->failed($service, __('esapanel-license::messages.error.plan_change', ['error' => $plan->error]));
         }
 
+        $synced = $this->syncAddons($api, $service, $subscription);
+        if ($synced !== null) {
+            return $this->failed($service, __('esapanel-license::messages.error.addons', ['error' => $synced]));
+        }
+
         $until = $this->validUntil($service);
         if ($until !== null) {
             $moved = $api->put('subscriptions/'.$subscription.'/license', ['valid_until' => $until]);
@@ -558,6 +588,137 @@ class EsapanelLicenseModule extends AbstractServerModule
         $this->logAction($service, 'create', $result);
 
         return $result;
+    }
+
+    /**
+     * The add-ons the service's options sell, by their License Server id; an
+     * empty list for a product that sells none. A string says why they could
+     * not be told: an add-on name the License Server does not know.
+     *
+     * @return list<int>|string
+     */
+    private function wantedAddonIds(LicenseServerClient $api, Service $service): array|string
+    {
+        $refs = $this->chosenAddons($service);
+        if ($refs === null || $refs === []) {
+            return [];
+        }
+
+        $byName = null;
+        $ids = [];
+        foreach ($refs as $ref) {
+            if (ctype_digit($ref) && (int) $ref > 0) {
+                $ids[] = (int) $ref;
+
+                continue;
+            }
+
+            if ($byName === null) {
+                $plans = $api->get('plans', ['type' => 'client_addon', 'per_page' => 100]);
+                if (! $plans->ok) {
+                    return $plans->error;
+                }
+                $byName = [];
+                foreach ((array) $plans->data as $plan) {
+                    if (is_array($plan) && ! empty($plan['id'])) {
+                        $byName[self::addonKey((string) ($plan['label'] ?? ''))] = (int) $plan['id'];
+                    }
+                }
+            }
+
+            $id = $byName[self::addonKey($ref)] ?? null;
+            if ($id === null) {
+                return __('esapanel-license::messages.error.addon_unknown', ['addon' => $ref]);
+            }
+            $ids[] = $id;
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * What the service's "addon|..." options chose: the value before the bar
+     * of each chosen sub-option. Null when the product has no such option,
+     * so a licence sold on a plan with its modules keeps its add-ons.
+     *
+     * @return list<string>|null
+     */
+    private function chosenAddons(Service $service): ?array
+    {
+        $hasOption = $service->product?->configOptionGroups()
+            ->whereHas('options', fn ($q) => $q->where('option_name', 'like', self::ADDON_OPTION.'|%'))
+            ->exists();
+        if (! $hasOption) {
+            return null;
+        }
+
+        $chosen = [];
+        foreach ($service->configOptions()->with('option', 'sub')->get() as $row) {
+            $key = strtolower(trim(explode('|', (string) $row->option?->option_name, 2)[0]));
+            if ($key !== self::ADDON_OPTION || ! $row->sub || (int) $row->qty < 1) {
+                continue;
+            }
+
+            $value = trim(explode('|', (string) $row->sub->option_name, 2)[0]);
+            if (! in_array(strtolower($value), self::NO_ADDON, true)) {
+                $chosen[] = $value;
+            }
+        }
+
+        return $chosen;
+    }
+
+    /**
+     * Bring the licence's add-ons to what the service's options sell: the
+     * missing ones first, so a module never goes without a size while one is
+     * swapped for another, then the ones no longer sold. A product with no
+     * add-on option changes nothing. Null when done, else why not.
+     */
+    private function syncAddons(LicenseServerClient $api, Service $service, int $subscription): ?string
+    {
+        if ($this->chosenAddons($service) === null) {
+            return null;
+        }
+
+        $wanted = $this->wantedAddonIds($api, $service);
+        if (is_string($wanted)) {
+            return $wanted;
+        }
+
+        $current = $api->get('subscriptions/'.$subscription);
+        if (! $current->ok) {
+            return $current->error;
+        }
+
+        $have = [];
+        foreach ((array) ($current->data['addons'] ?? []) as $addon) {
+            if (is_array($addon) && ! empty($addon['id'])) {
+                $have[(int) $addon['id']] = (int) ($addon['service_plan_id'] ?? 0);
+            }
+        }
+
+        foreach (array_diff($wanted, $have) as $planId) {
+            $added = $api->post('subscriptions/'.$subscription.'/addons', ['service_plan_id' => $planId]);
+            if (! $added->ok) {
+                return $added->error;
+            }
+        }
+
+        foreach ($have as $addonId => $planId) {
+            if (! in_array($planId, $wanted, true)) {
+                $removed = $api->delete('subscriptions/'.$subscription.'/addons/'.$addonId);
+                if (! $removed->ok) {
+                    return $removed->error;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function addonKey(string $name): string
+    {
+        return strtolower((string) preg_replace('/\s+/', ' ', trim($name)));
     }
 
     private function findLicense(LicenseServerClient $api, Service $service): LicenseServerResponse

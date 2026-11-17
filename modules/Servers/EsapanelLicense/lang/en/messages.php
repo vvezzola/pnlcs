@@ -74,5 +74,7 @@ return [
         'not_allowed' => 'The License Server does not allow this to the API account (403).',
         'too_many' => 'Too many requests to the License Server; it will be tried again.',
         'plan_change' => 'The plan was not changed: :error',
+        'addon_unknown' => 'The License Server has no module add-on named :addon.',
+        'addons' => 'The modules were not updated: :error',
     ],
 ];

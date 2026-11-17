@@ -47,6 +47,11 @@ final class LicenseServerClient
         return $this->send('PUT', $path, $body);
     }
 
+    public function delete(string $path): LicenseServerResponse
+    {
+        return $this->send('DELETE', $path);
+    }
+
     private function request(): PendingRequest
     {
         $request = Http::withToken($this->apiKey)
@@ -79,6 +84,7 @@ final class LicenseServerClient
             $response = match ($method) {
                 'POST' => $request->post($url, $payload),
                 'PUT' => $request->put($url, $payload),
+                'DELETE' => $request->delete($url),
                 default => $request->get($url, $payload),
             };
         } catch (\Throwable $e) {

@@ -1,9 +1,13 @@
 <?php
 
 use App\Models\Client;
+use App\Models\ConfigOption;
+use App\Models\ConfigOptionGroup;
+use App\Models\ConfigOptionSub;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
+use App\Models\ServiceConfigOption;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\Servers\EsapanelLicense\EsapanelLicenseModule;
@@ -300,4 +304,116 @@ it('never puts the API key in an error message', function () {
     expect($result['success'])->toBeFalse();
     expect($result['message'])->not->toContain('key|with|pipes');
     expect((string) json_encode($service->fresh()->module_data))->not->toContain('key|with|pipes');
+});
+
+/*
+ * The 2027 price list: the product sells a level, its "addon|..." options
+ * sell the modules, each naming a License Server add-on.
+ */
+
+/**
+ * Give the service's product module options, and choose some of them.
+ *
+ * @param  array<string, list<string>>  $options  option name => sub-option names
+ * @param  list<string>  $chosen  the sub-option names the customer took
+ */
+function elAddonOptions(Service $service, array $options, array $chosen): void
+{
+    $group = ConfigOptionGroup::create(['name' => 'Esapanel modules']);
+    $service->product->configOptionGroups()->attach($group->id);
+
+    foreach ($options as $name => $subs) {
+        $option = ConfigOption::create(['group_id' => $group->id, 'option_name' => $name, 'option_type' => count($subs) > 1 ? 'dropdown' : 'checkbox']);
+        foreach ($subs as $i => $subName) {
+            $sub = ConfigOptionSub::create(['config_id' => $option->id, 'option_name' => $subName, 'sort_order' => $i]);
+            if (in_array($subName, $chosen, true)) {
+                ServiceConfigOption::create(['service_id' => $service->id, 'config_id' => $option->id, 'option_id' => $sub->id, 'qty' => 1, 'unit_price' => 0]);
+            }
+        }
+    }
+}
+
+/** The client add-ons the License Server lists. */
+function elAddonPlans(): array
+{
+    return [
+        ['id' => 31, 'label' => 'LSP CSP'],
+        ['id' => 34, 'label' => 'LSP UCP'],
+        ['id' => 40, 'label' => 'LSP CSP Company 25'],
+        ['id' => 41, 'label' => 'LSP CSP Company 100'],
+    ];
+}
+
+it('creates the licence with the add-ons of the modules chosen, found by name', function () {
+    $service = elService();
+    elAddonOptions($service, [
+        'addon|Central Syslog' => ['LSP CSP|CSP'],
+        'addon|Uptime Check' => ['none|No', '34|UCP'],
+        'addon|DMARC Report' => ['none|No', 'LSP DRP|DRP'],
+    ], ['LSP CSP|CSP', '34|UCP', 'none|No']);
+    $calls = elServer([
+        'GET lsp/licenses' => [],
+        'GET plans' => elAddonPlans(),
+        'GET customers' => [['id' => 57]],
+        'POST lsp/licenses' => elLicense(['modules' => ['csp', 'ucp']]),
+    ]);
+
+    expect((new EsapanelLicenseModule)->create($service)['success'])->toBeTrue();
+
+    $post = collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'lsp/licenses');
+    expect($post['body']['addon_ids'])->toBe([31, 34])
+        ->and(collect($calls)->firstWhere('path', 'plans')['query'])->toMatchArray(['type' => 'client_addon']);
+});
+
+it('creates nothing when a chosen add-on is unknown to the License Server', function () {
+    $service = elService();
+    elAddonOptions($service, ['addon|Web File' => ['LSP WFP|WFP']], ['LSP WFP|WFP']);
+    $calls = elServer(['GET lsp/licenses' => [], 'GET plans' => elAddonPlans()]);
+
+    $result = (new EsapanelLicenseModule)->create($service);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('LSP WFP')
+        ->and(collect($calls)->where('method', 'POST')->count())->toBe(0);
+});
+
+it('brings the licence\'s add-ons to the options: the new size first, then the old one away', function () {
+    $service = elService(['subscription_id' => 118]);
+    elAddonOptions($service, [
+        'addon|Central Syslog' => ['LSP CSP Company 25|25 device', 'LSP CSP Company 100|100 device'],
+    ], ['LSP CSP Company 100|100 device']);
+    $calls = elServer([
+        'PUT subscriptions/118/plan' => elLicense(),
+        'GET plans' => elAddonPlans(),
+        'GET subscriptions/118' => ['id' => 118, 'addons' => [['id' => 900, 'service_plan_id' => 40, 'label' => 'LSP CSP Company 25']]],
+        'POST subscriptions/118/addons' => ['id' => 118],
+        'DELETE subscriptions/118/addons/900' => ['id' => 118],
+        'PUT subscriptions/118/license' => elLicense(),
+        'GET subscriptions/118/license' => elLicense(),
+    ]);
+
+    expect((new EsapanelLicenseModule)->changePackage($service, ['config_options' => ['package_name' => '5']])['success'])->toBeTrue();
+
+    expect(elPaths($calls))->toBe([
+        'PUT subscriptions/118/plan', 'GET plans', 'GET subscriptions/118',
+        'POST subscriptions/118/addons', 'DELETE subscriptions/118/addons/900',
+        'PUT subscriptions/118/license', 'GET subscriptions/118/license',
+    ]);
+    expect($calls[3]['body'])->toBe(['service_plan_id' => 41]);
+});
+
+it('reports a refused add-on change and keeps the licence\'s last day untouched', function () {
+    $service = elService(['subscription_id' => 118]);
+    elAddonOptions($service, ['addon|Central Syslog' => ['LSP CSP|CSP']], []);
+    $calls = elServer([
+        'PUT subscriptions/118/plan' => elLicense(),
+        'GET subscriptions/118' => ['id' => 118, 'addons' => [['id' => 900, 'service_plan_id' => 31, 'label' => 'LSP CSP']]],
+        'DELETE subscriptions/118/addons/900' => [422, ['message' => 'The usage is above what is left.']],
+    ]);
+
+    $result = (new EsapanelLicenseModule)->changePackage($service, ['config_options' => ['package_name' => '5']]);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('usage is above')
+        ->and(collect($calls)->where('path', 'subscriptions/118/license')->count())->toBe(0);
 });
