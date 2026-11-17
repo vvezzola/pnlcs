@@ -4,8 +4,10 @@ use App\Models\Currency;
 use App\Models\DomainPricing;
 use App\Models\Pricing;
 use App\Models\Product;
+use App\Models\ProductGroup;
 use App\Models\RegistrarSettings;
 use App\Models\Setting;
+use App\Models\SslModuleSettings;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Support\Facades\Http;
 
@@ -124,4 +126,35 @@ test('nothing goes on sale when Openprovider cannot be reached', function () {
         ->assertSuccessful();
 
     expect(DomainPricing::whereIn('extension', ['.it', '.com'])->where('enabled', true)->exists())->toBeFalse();
+});
+
+test('the SSL products are created once, sold yearly and mapped to their SSL2BUY certificate', function () {
+    launchCatalog();
+    SslModuleSettings::setSetting('ssl2buy', 'product_map', '99=202');
+
+    $this->artisan('esalogica:apply-launch-setup')
+        ->expectsOutputToContain('+ Certificato SSL Wildcard AlphaSSL: 120.00 €/anno, SSL2BUY 102')
+        ->expectsOutputToContain('SSL2BUY senza credenziali')
+        ->assertSuccessful();
+    expect(Product::where('type', 'ssl')->exists())->toBeFalse();
+
+    $this->artisan('esalogica:apply-launch-setup --write')->assertSuccessful();
+
+    $wildcard = Product::where('slug', 'ssl-alphassl-wildcard')->first();
+    $pricing = Pricing::where('rel_id', $wildcard->id)->where('type', 'product')->first();
+    $positive = Product::where('slug', 'ssl-positivessl')->first();
+    expect($wildcard->type)->toBe('ssl')
+        ->and($wildcard->ssl_module)->toBe('ssl2buy')
+        ->and($wildcard->group->slug)->toBe('certificati-ssl')
+        ->and((float) $pricing->annually)->toBe(120.0)
+        ->and((float) $pricing->monthly)->toBe(-1.0)
+        ->and(SslModuleSettings::getSetting('ssl2buy', 'product_map'))->toBe(collect([
+            $positive->id => 351, Product::where('slug', 'ssl-alphassl')->value('id') => 101, $wildcard->id => 102, 99 => 202,
+        ])->sortKeys()->map(fn ($code, $id) => "{$id}={$code}")->implode(', '));
+
+    $this->artisan('esalogica:apply-launch-setup')
+        ->doesntExpectOutputToContain('Certificato SSL')
+        ->assertSuccessful();
+    expect(Product::where('type', 'ssl')->count())->toBe(3)
+        ->and(ProductGroup::where('slug', 'certificati-ssl')->count())->toBe(1);
 });

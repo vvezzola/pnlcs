@@ -6,8 +6,10 @@ use App\Models\Currency;
 use App\Models\DomainPricing;
 use App\Models\Pricing;
 use App\Models\Product;
+use App\Models\ProductGroup;
 use App\Models\RegistrarSettings;
 use App\Models\Setting;
+use App\Models\SslModuleSettings;
 use App\Services\Module\ModuleRegistry;
 use App\Support\MapsTldCategories;
 use App\Support\MapsTldGracePeriods;
@@ -75,6 +77,33 @@ class ApplyLaunchSetupCommand extends Command
 
     /** @var array<string, string> */
     private const OPENPROVIDER = ['margin_percent' => '50', 'round_up' => '1', 'daily_price_sync' => '1'];
+
+    /**
+     * The SSL certificates on sale, bought through SSL2BUY (code), one year at
+     * a time, at Esalogica's own prices (EUR, VAT excluded).
+     *
+     * @var array<string, array{name: string, code: int, annually: string, description: string}>
+     */
+    private const SSL_PRODUCTS = [
+        'ssl-positivessl' => [
+            'name' => 'Certificato SSL PositiveSSL',
+            'code' => 351,
+            'annually' => '40.00',
+            'description' => 'Certificato SSL di Sectigo (PositiveSSL) per un dominio, con e senza www. Convalida del dominio via email, DNS o file; emesso di solito in pochi minuti.',
+        ],
+        'ssl-alphassl' => [
+            'name' => 'Certificato SSL AlphaSSL',
+            'code' => 101,
+            'annually' => '50.00',
+            'description' => 'Certificato SSL di GlobalSign (AlphaSSL) per un dominio, con e senza www. Convalida del dominio via email, DNS o file; emesso di solito in pochi minuti.',
+        ],
+        'ssl-alphassl-wildcard' => [
+            'name' => 'Certificato SSL Wildcard AlphaSSL',
+            'code' => 102,
+            'annually' => '120.00',
+            'description' => 'Certificato SSL wildcard di GlobalSign (AlphaSSL) per un dominio e tutti i suoi sottodomini (*.tuodominio.it). Convalida del dominio via email o DNS.',
+        ],
+    ];
 
     /** @var list<string> */
     private const UNSOLD_CYCLES = ['quarterly', 'semiannually', 'biennially', 'triennially'];
@@ -165,6 +194,7 @@ class ApplyLaunchSetupCommand extends Command
 
             $changes += $this->openproviderSettings($write);
             $changes += $this->domainList($write);
+            $changes += $this->sslProducts($currency, $write);
         });
 
         // Every --write, so a run after fixing the credentials still prices
@@ -272,6 +302,99 @@ class ApplyLaunchSetupCommand extends Command
             $this->line('  - non più in vendita: '.$offSale->implode(' '));
             if ($write) {
                 DomainPricing::whereIn('extension', $offSale)->update(['enabled' => false]);
+            }
+        }
+
+        return $changes;
+    }
+
+    /**
+     * The SSL group, its three products (annual, sold on payment through
+     * SSL2BUY) and the SSL2BUY product map that tells the module which
+     * certificate each product buys. An existing product keeps everything but
+     * its price; the map keeps any other product's entry.
+     */
+    private function sslProducts(Currency $currency, bool $write): int
+    {
+        $this->line('Certificati SSL');
+        $changes = 0;
+
+        if (blank(SslModuleSettings::getSetting('ssl2buy', 'partner_email')) || blank(SslModuleSettings::getSetting('ssl2buy', 'api_key'))) {
+            $this->warn('  ! SSL2BUY senza credenziali: i certificati ordinati non potranno essere acquistati');
+        } elseif (SslModuleSettings::getSetting('ssl2buy', 'test_mode', '0') === '1') {
+            $this->warn('  ! SSL2BUY in modalità di prova');
+        }
+
+        $group = ProductGroup::where('slug', 'certificati-ssl')->first();
+        if (! $group) {
+            $changes++;
+            $this->line('  + gruppo: Certificati SSL');
+            if ($write) {
+                $group = ProductGroup::create([
+                    'name' => 'Certificati SSL',
+                    'slug' => 'certificati-ssl',
+                    'headline' => 'Certificati SSL',
+                    'tagline' => 'Certificati a pagamento di GlobalSign e Sectigo, per chi ne ha bisogno oltre al Let\'s Encrypt incluso nell\'hosting.',
+                    'hidden' => false,
+                    'sort_order' => (int) ProductGroup::max('sort_order') + 1,
+                ]);
+            }
+        }
+
+        $map = [];
+        foreach (preg_split('/[,;\n]+/', (string) SslModuleSettings::getSetting('ssl2buy', 'product_map', '')) as $pair) {
+            if (preg_match('/^\s*(\d+)\s*[=:]\s*(\d+)\s*$/', $pair, $m)) {
+                $map[(int) $m[1]] = (int) $m[2];
+            }
+        }
+        $mapBefore = $map;
+
+        foreach (self::SSL_PRODUCTS as $slug => $wanted) {
+            $product = Product::where('slug', $slug)->first();
+            $prices = ['annually' => $wanted['annually'], 'monthly' => '-1.00'] + array_fill_keys(self::UNSOLD_CYCLES, '-1.00');
+
+            if (! $product) {
+                $changes++;
+                $this->line("  + {$wanted['name']}: {$wanted['annually']} €/anno, SSL2BUY {$wanted['code']}");
+                if (! $write) {
+                    continue;
+                }
+                $product = Product::create([
+                    'type' => 'ssl',
+                    'group_id' => $group->id,
+                    'name' => $wanted['name'],
+                    'slug' => $slug,
+                    'description' => $wanted['description'],
+                    'hidden' => false,
+                    'show_domain_options' => false,
+                    'pay_type' => 'recurring',
+                    'auto_setup' => 'payment',
+                    'ssl_module' => 'ssl2buy',
+                    'tax' => true,
+                    'sort_order' => array_search($slug, array_keys(self::SSL_PRODUCTS), true) + 1,
+                ]);
+                Pricing::create(['type' => 'product', 'rel_id' => $product->id, 'currency_id' => $currency->id] + $prices);
+            } else {
+                $pricing = Pricing::where('type', 'product')->where('rel_id', $product->id)->where('currency_id', $currency->id)->first();
+                if (! $pricing || number_format((float) $pricing->annually, 2, '.', '') !== $wanted['annually']) {
+                    $changes++;
+                    $this->line("  * {$wanted['name']}: annually ".($pricing ? number_format((float) $pricing->annually, 2, '.', '') : '(nessuno)')." -> {$wanted['annually']}");
+                    if ($write) {
+                        Pricing::updateOrCreate(['type' => 'product', 'rel_id' => $product->id, 'currency_id' => $currency->id], $prices);
+                    }
+                }
+            }
+
+            $map[$product->id] = $wanted['code'];
+        }
+
+        if ($map != $mapBefore) {
+            $changes++;
+            ksort($map);
+            $value = implode(', ', array_map(fn ($id, $code) => "{$id}={$code}", array_keys($map), $map));
+            $this->line("  * SSL2BUY product_map: {$value}");
+            if ($write) {
+                SslModuleSettings::setSetting('ssl2buy', 'product_map', $value);
             }
         }
 
