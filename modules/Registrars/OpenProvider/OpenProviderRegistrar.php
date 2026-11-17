@@ -4,7 +4,10 @@ namespace Modules\Registrars\OpenProvider;
 
 use App\Contracts\RegistrarModuleInterface;
 use App\Contracts\SyncsDomainData;
+use App\Models\Currency;
 use App\Models\Domain;
+use App\Models\DomainPricing;
+use App\Models\ModuleLog;
 use App\Models\RegistrarSettings;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -59,7 +62,151 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
             ['name' => 'username', 'label' => 'Openprovider Username', 'type' => 'text', 'required' => true],
             ['name' => 'password', 'label' => 'Password', 'type' => 'password', 'required' => true],
             ['name' => 'test_mode', 'label' => 'Sandbox Mode', 'type' => 'yesno', 'default' => '1'],
+            ['name' => 'margin_percent', 'label' => 'Margin (%)', 'type' => 'text', 'required' => false, 'default' => '0'],
+            ['name' => 'round_up', 'label' => 'Round prices up to a whole unit', 'type' => 'yesno', 'default' => '0'],
+            ['name' => 'daily_price_sync', 'label' => 'Sync prices every day', 'type' => 'yesno', 'default' => '0'],
         ];
+    }
+
+    /**
+     * Pull the account's purchase prices from Openprovider and write them,
+     * with the configured margin, onto the TLDs whose auto registrar is
+     * Openprovider. The "reseller" figure is the price in the account's own
+     * currency, converted into the shop's before the margin is applied.
+     * Run from the registrars screen, or daily by pnlcs:sync-domain-prices.
+     *
+     * @return array{success: bool, updated?: int, unchanged?: int, skipped?: int, message?: string}
+     */
+    public function syncPrices(): array
+    {
+        try {
+            $settings = $this->loadSettings();
+            $margin = (float) str_replace(',', '.', (string) ($settings['margin_percent'] ?? '0'));
+            $roundUp = ($settings['round_up'] ?? '0') === '1';
+
+            $tlds = DomainPricing::whereNotNull('auto_registrar')->get()
+                ->filter(fn (DomainPricing $tld) => strtolower(trim((string) $tld->auto_registrar)) === 'openprovider');
+            if ($tlds->isEmpty()) {
+                return ['success' => true, 'updated' => 0, 'unchanged' => 0, 'skipped' => 0];
+            }
+
+            $catalog = $this->catalogPrices($tlds->map(fn (DomainPricing $tld) => ltrim((string) $tld->extension, '.'))->values()->all());
+
+            $updated = 0;
+            $unchanged = 0;
+            $skipped = 0;
+            $changes = [];
+            $skippedExtensions = [];
+            $factors = [];
+
+            foreach ($tlds as $tld) {
+                $prices = $catalog[ltrim(strtolower((string) $tld->extension), '.')] ?? null;
+
+                // Only a price Openprovider quotes, above zero, in a currency
+                // the shop can convert. Anything else is not a price of zero:
+                // it is one the panel does not know, so the operator's stays.
+                $next = [];
+                foreach (['create_price' => 'register_price', 'renew_price' => 'renew_price', 'transfer_price' => 'transfer_price', 'restore_price' => 'restore_price'] as $from => $column) {
+                    $quote = $prices[$from]['reseller'] ?? null;
+                    $amount = (float) ($quote['price'] ?? 0);
+                    $currency = strtoupper((string) ($quote['currency'] ?? ''));
+                    if ($amount <= 0 || $currency === '') {
+                        continue;
+                    }
+                    $factors[$currency] ??= Currency::rateToShop($currency);
+                    if ($factors[$currency] === null) {
+                        continue;
+                    }
+                    $next[$column] = $this->withMargin($amount * $factors[$currency], $margin, $roundUp);
+                }
+
+                if ($next === []) {
+                    $skipped++;
+                    $skippedExtensions[] = $tld->extension;
+
+                    continue;
+                }
+
+                $current = [];
+                foreach (array_keys($next) as $column) {
+                    $current[$column] = (float) $tld->{$column};
+                }
+
+                if ($next == $current) {
+                    $unchanged++;
+
+                    continue;
+                }
+
+                $tld->update($next);
+                $changes[] = ['extension' => $tld->extension, 'before' => $current, 'after' => $next];
+                $updated++;
+            }
+
+            Log::info("Openprovider price sync: {$updated} changed, {$unchanged} unchanged, {$skipped} skipped");
+
+            try {
+                ModuleLog::create([
+                    'module' => $this->getModuleName(),
+                    'action' => 'sync_prices',
+                    'request' => json_encode(['margin_percent' => $margin, 'round_up' => $roundUp, 'rates' => $factors], JSON_UNESCAPED_SLASHES),
+                    'response' => json_encode([
+                        'updated' => $updated,
+                        'unchanged' => $unchanged,
+                        'skipped' => $skipped,
+                        'skipped_extensions' => $skippedExtensions,
+                        'changes' => $changes,
+                    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Openprovider module log failed: '.$e->getMessage());
+            }
+
+            RegistrarSettings::updateOrCreate(
+                ['registrar' => 'openprovider', 'setting' => 'last_price_sync'],
+                ['value' => now()->toDateTimeString()],
+            );
+
+            return ['success' => true, 'updated' => $updated, 'unchanged' => $unchanged, 'skipped' => $skipped];
+        } catch (\Throwable $e) {
+            Log::error("Openprovider syncPrices failed: {$e->getMessage()}");
+
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * The prices of these extensions, keyed by extension without the dot.
+     *
+     * @param  list<string>  $extensions
+     * @return array<string, array<string, mixed>>
+     */
+    protected function catalogPrices(array $extensions): array
+    {
+        $catalog = [];
+        foreach (array_chunk($extensions, 100) as $chunk) {
+            // A repeated parameter (extensions=it&extensions=com), the form the
+            // API reads; PHP's own encoding would send extensions[0]=it.
+            $query = 'with_price=true&limit='.count($chunk)
+                .implode('', array_map(fn (string $ext) => '&extensions='.rawurlencode($ext), $chunk));
+            $data = $this->call('get', '/tlds?'.$query);
+            foreach ($data['results'] ?? [] as $row) {
+                $name = strtolower((string) ($row['name'] ?? ''));
+                if ($name !== '') {
+                    $catalog[$name] = $row['prices'] ?? [];
+                }
+            }
+        }
+
+        return $catalog;
+    }
+
+    /** A purchase price in the shop currency, with the margin, optionally rounded up to a whole unit. */
+    protected function withMargin(float $price, float $margin, bool $roundUp): float
+    {
+        $value = round($price * (1 + $margin / 100), 2);
+
+        return $roundUp ? (float) ceil($value) : $value;
     }
 
     /**
@@ -284,9 +431,13 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
     {
         $request = Http::timeout(30)->withToken($this->authToken());
 
-        $response = $method === 'get'
-            ? $request->get($this->apiUrl.$path, $payload)
-            : $request->{$method}($this->apiUrl.$path, $payload);
+        // A GET with no payload keeps any query already in the path: an empty
+        // query option would replace it.
+        $response = match (true) {
+            $method === 'get' && $payload === [] => $request->get($this->apiUrl.$path),
+            $method === 'get' => $request->get($this->apiUrl.$path, $payload),
+            default => $request->{$method}($this->apiUrl.$path, $payload),
+        };
 
         $json = $response->json() ?? [];
 

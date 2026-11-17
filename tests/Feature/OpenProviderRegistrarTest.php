@@ -3,6 +3,7 @@
 use App\Models\Client;
 use App\Models\Domain;
 use App\Models\RegistrarSettings;
+use App\Services\Module\ModuleRegistry;
 use Illuminate\Support\Facades\Http;
 use Modules\Registrars\OpenProvider\OpenProviderRegistrar;
 
@@ -178,9 +179,9 @@ test('sync reads the expiry and maps ACT to active', function () {
 });
 
 test('the module is registered and appears with its config fields', function () {
-    $module = app(App\Services\Module\ModuleRegistry::class)->getRegistrarModule('openprovider');
+    $module = app(ModuleRegistry::class)->getRegistrarModule('openprovider');
 
     expect($module)->toBeInstanceOf(OpenProviderRegistrar::class)
         ->and(collect($module->getConfigFields())->pluck('name')->all())
-        ->toBe(['username', 'password', 'test_mode']);
+        ->toBe(['username', 'password', 'test_mode', 'margin_percent', 'round_up', 'daily_price_sync']);
 });
