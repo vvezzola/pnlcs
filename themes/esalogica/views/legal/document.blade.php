@@ -3,11 +3,13 @@
 
 @php
     $esaLegal = require base_path('themes/esalogica/legal.php');
+    $lang = app()->getLocale() === 'it' ? 'it' : 'en';
+    $ui = $esaLegal['ui'][$lang];
     $own = $esaLegal['documents'][$document] ?? null;
     $covered = $esaLegal['covered'][$document] ?? null;
-    $title = $own[0] ?? ($covered[0] ?? $meta['en'][0]);
-    $summary = $own[1] ?? '';
-    $effective = $own[3] ?? null;
+    $title = $own[$lang][0] ?? ($covered[$lang] ?? $meta['en'][0]);
+    $summary = $own[$lang][1] ?? '';
+    $effective = $own[1] ?? null;
 @endphp
 
 @section('legal-title', $title)
@@ -15,7 +17,7 @@
 
 @section('legal-content')
     <div class="legal-crumb">
-        <a href="{{ route('legal.index') }}">Documenti legali</a>
+        <a href="{{ route('legal.index') }}">{{ $ui['hub'] }}</a>
         &rsaquo; {{ $title }}
     </div>
 
@@ -28,9 +30,9 @@
 
     <div class="legal-grid">
         <nav class="legal-side">
-            <p class="legal-side-title">DOCUMENTI</p>
-            @foreach($esaLegal['documents'] as $slug => [$docTitle])
-                <a href="{{ route('legal.show', $slug) }}" class="{{ $slug === $document ? 'is-active' : '' }}">{{ $docTitle }}</a>
+            <p class="legal-side-title">{{ $ui['side'] }}</p>
+            @foreach($esaLegal['documents'] as $slug => $doc)
+                <a href="{{ route('legal.show', $slug) }}" class="{{ $slug === $document ? 'is-active' : '' }}">{{ $doc[$lang][0] }}</a>
             @endforeach
         </nav>
 
@@ -39,7 +41,7 @@
 
             <p class="legal-meta">
                 @if($effective)
-                In vigore dal {{ \Carbon\Carbon::parse($effective)->locale('it')->translatedFormat('j F Y') }} &middot;
+                {{ $ui['effective'] }} {{ \Carbon\Carbon::parse($effective)->locale($lang)->translatedFormat('j F Y') }} &middot;
                 @endif
                 {{ $esaLegal['company']['legal_name'] }} &middot;
                 <a href="mailto:{{ $esaLegal['company']['email'] }}">{{ $esaLegal['company']['email'] }}</a>

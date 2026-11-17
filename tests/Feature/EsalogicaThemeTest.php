@@ -55,13 +55,13 @@ test('the mail guide names the customer\'s own domain as the mail server', funct
 });
 
 test('the legal pages carry Esalogica\'s Italian documents, not the Panelica set', function () {
-    $this->get(route('legal.index'))->assertOk()
+    $this->get(route('legal.index').'?lang=it')->assertOk()
         ->assertSee('Condizioni generali di servizio')
         ->assertSee('Informativa privacy')
         ->assertDontSee('Turkish')
         ->assertDontSee('Acceptable Use Policy');
 
-    $terms = $this->get(route('legal.show', 'terms'))->assertOk()
+    $terms = $this->get(route('legal.show', 'terms').'?lang=it')->assertOk()
         ->assertSee('Esalogica di Vittorio Vezzola')
         ->assertSee('REA BS-525783')
         ->assertSee('Tribunale di Brescia')
@@ -78,8 +78,22 @@ test('the legal pages carry Esalogica\'s Italian documents, not the Panelica set
 });
 
 test('a document of the original set points to the article of the terms that covers it', function () {
-    $this->get(route('legal.show', 'refund'))->assertOk()
+    $this->get(route('legal.show', 'refund').'?lang=it')->assertOk()
         ->assertSee('Recesso e rimborsi')
         ->assertSee('art. 7')
         ->assertDontSee('Refund conditions');
+});
+
+test('an English visitor reads the courtesy translation, which defers to the Italian text', function () {
+    app()->setLocale('en');
+
+    $this->get(route('legal.show', 'terms').'?lang=en')->assertOk()
+        ->assertSee('Terms of Service')
+        ->assertSee('courtesy translation')
+        ->assertSee('Court of Brescia')
+        ->assertSee('In force from 17 November 2026')
+        ->assertDontSee('Condizioni generali di servizio');
+
+    $this->get(route('legal.show', 'privacy').'?lang=en')->assertOk()->assertSee('Privacy notice')->assertSee('Your rights');
+    $this->get(route('legal.show', 'abuse').'?lang=en')->assertOk()->assertSee('arts. 8 and 14');
 });
