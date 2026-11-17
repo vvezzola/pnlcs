@@ -7,11 +7,12 @@ class Order extends Model {
     use HasFactory;
 
     protected $fillable = ["order_num", "client_id", "contact_id", "date", "promo_code", "amount", "payment_method", "invoice_id", "status", "ip_address", "fraud_module", "fraud_output", "notes",
-        'terms_accepted_at', 'terms_version', 'terms_ip', 'terms_documents',
+        'terms_accepted_at', 'terms_version', 'terms_ip', 'terms_documents', 'terms_declarations',
     ];
     protected function casts(): array { return [
             'terms_accepted_at' => 'datetime',
-            'terms_documents' => 'array',"date" => "date", "amount" => "decimal:2"]; }
+            'terms_documents' => 'array',
+            'terms_declarations' => 'array',"date" => "date", "amount" => "decimal:2"]; }
 
     public function client() { return $this->belongsTo(Client::class); }
     public function invoice() { return $this->belongsTo(Invoice::class); }

@@ -98,6 +98,17 @@
                 </div>
             </div>
             <div style="font-size:12px;color:#777;">{{ __('admin.settings.legal_hint') }}</div>
+            <div class="form-group" style="margin-top:15px;max-width:260px;">
+                <label class="form-label">{{ __('admin.settings.legal_revised') }}</label>
+                <input type="date" name="LegalDocumentsRevised" value="{{ $settings['LegalDocumentsRevised'] ?? '' }}" class="form-control">
+                <small style="color:#777;">{{ __('admin.settings.legal_revised_hint') }}</small>
+            </div>
+            <div class="form-group"><label style="font-size:13px;display:flex;gap:6px;align-items:flex-start;">
+                <input type="hidden" name="CheckoutClauseApproval" value="0"><input type="checkbox" name="CheckoutClauseApproval" value="1" {{ ($settings['CheckoutClauseApproval'] ?? '0') === '1' ? 'checked' : '' }} style="margin-top:3px;">
+                <span>{{ __('admin.settings.checkout_clause_approval') }}<br><small style="color:#777;">{{ __('admin.settings.checkout_clause_approval_hint') }}</small></span></label></div>
+            <div class="form-group"><label style="font-size:13px;display:flex;gap:6px;align-items:flex-start;">
+                <input type="hidden" name="CheckoutImmediateStart" value="0"><input type="checkbox" name="CheckoutImmediateStart" value="1" {{ ($settings['CheckoutImmediateStart'] ?? '0') === '1' ? 'checked' : '' }} style="margin-top:3px;">
+                <span>{{ __('admin.settings.checkout_immediate_start') }}<br><small style="color:#777;">{{ __('admin.settings.checkout_immediate_start_hint') }}</small></span></label></div>
         </div>
     </div>
 

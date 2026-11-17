@@ -278,6 +278,8 @@ return [
     'cart.use_own_domain' => 'Usa il mio dominio',
     'change_password' => 'Cambia password',
     'checkout' => [
+        'clause_approval' => 'Ai sensi degli artt. 1341 e 1342 del codice civile approvo specificamente le clausole elencate in fondo alle Condizioni generali di servizio.',
+        'immediate_start' => 'Chiedo che i servizi siano attivati subito, prima che scada il termine di 14 giorni per il recesso. Se sono un consumatore, so che in caso di recesso pagherò il servizio già fornito e che perdo il diritto di recesso una volta registrato o trasferito un dominio o emesso un certificato SSL.',
         'agree_tos' => 'Accetto i Termini di servizio',
         'contact_details' => 'Dati di contatto',
         'payment_method' => 'Metodo di pagamento',

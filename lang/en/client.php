@@ -280,6 +280,8 @@ return [
     'cart.use_own_domain' => 'Use My Own Domain',
     'change_password' => 'Change Password',
     'checkout' => [
+        'clause_approval' => 'I specifically approve the clauses listed at the end of the Terms of Service, under articles 1341 and 1342 of the Italian Civil Code.',
+        'immediate_start' => 'I ask for the services to start at once, before the 14-day withdrawal period ends. If I am a consumer, I understand that if I withdraw I will pay for the service already provided, and that I lose the right of withdrawal once a domain has been registered or transferred or an SSL certificate issued.',
         'agree_tos' => 'I agree to the Terms of Service',
         'contact_details' => 'Contact Details',
         'payment_method' => 'Payment Method',

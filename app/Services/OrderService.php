@@ -70,11 +70,17 @@ class OrderService
 
         return [
             'terms_accepted_at' => now(),
-            'terms_version' => LegalController::REVISED,
+            'terms_version' => LegalController::revised(),
             'terms_ip' => $request->ip(),
             // Named rather than linked: the customer is entitled to the text
             // they agreed to, and these documents get revised.
             'terms_documents' => array_keys(LegalController::DOCUMENTS),
+            // The further boxes the checkout asked for (Setup > General >
+            // Legal), as ticked: the specific approval of the listed
+            // clauses and the request to start before withdrawal ends.
+            'terms_declarations' => collect(['clause_approval', 'immediate_start'])
+                ->filter(fn (string $box) => $request->boolean($box))
+                ->values()->all() ?: null,
         ];
     }
 

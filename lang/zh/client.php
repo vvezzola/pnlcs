@@ -279,6 +279,8 @@ return [
     'cart.use_own_domain' => '使用已有域名',
     'change_password' => '修改密码',
     'checkout' => [
+        'clause_approval' => '根据《意大利民法典》第 1341 和 1342 条，我特别批准服务条款末尾列出的条款。',
+        'immediate_start' => '我要求在 14 天撤销期结束前立即开通服务。如果我是消费者，我知道撤销时需支付已提供的服务费用，并且在域名注册或转移、或 SSL 证书签发后将失去撤销权。',
         'agree_tos' => '我同意《服务条款》',
         'contact_details' => '联系人详情',
         'payment_method' => '付款方式',

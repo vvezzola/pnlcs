@@ -113,6 +113,9 @@ class SettingController extends Controller
         // The Turkish statutory forms (distance sales, preliminary information,
         // KVKK) for a seller outside Turkey selling to Turkish consumers.
         'TurkishLegalForms',
+        // Further checkout boxes, and the date of the operator's own legal
+        // documents recorded on each order (LegalController::revised).
+        'CheckoutClauseApproval', 'CheckoutImmediateStart', 'LegalDocumentsRevised',
         // Record storefront domain searches (admin.domains.searches); on by default.
         'DomainSearchLog',
         'RecaptchaEnabled', 'RecaptchaTicketsEnabled', 'RecaptchaSignupEnabled', 'RecaptchaLoginEnabled', 'RecaptchaPasswordEnabled', 'RecaptchaSiteKey', 'RecaptchaSecretKey',
@@ -174,6 +177,7 @@ class SettingController extends Controller
             'InvoiceDueEndOfMonth' => 'sometimes|nullable|in:0,1',
             'RenewalNoticeDay' => 'sometimes|nullable|integer|between:0,28',
             'DiskUsageWarningPercent' => 'sometimes|nullable|integer|between:0,99',
+            'LegalDocumentsRevised' => 'sometimes|nullable|date_format:Y-m-d',
             'DomainRenewOnInvoice' => 'sometimes|nullable|in:0,1',
             'AutoSuspensionDays' => 'sometimes|nullable|integer|min:0',
             'AutoTerminationDays' => 'sometimes|nullable|integer|min:1',

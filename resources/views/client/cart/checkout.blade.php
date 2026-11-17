@@ -142,6 +142,17 @@
                     {{ __('client.auth.i_agree_to') }} <a href="{{ trim((string) \App\Models\Setting::get('TOSUrl', '')) ?: route('legal.show', 'terms') }}" target="_blank" rel="noopener" class="link">{{ __('client.auth.terms_of_service') }}</a> {{ __('client.auth.and') }} <a href="{{ trim((string) \App\Models\Setting::get('PrivacyUrl', '')) ?: route('legal.show', 'privacy') }}" target="_blank" rel="noopener" class="link">{{ __('client.auth.privacy_policy') }}</a>.
                 </span>
             </label>
+            {{-- Further boxes the operator asks for under Setup > General >
+                 Legal, each required and recorded on the order. --}}
+            @foreach(['clause_approval' => 'CheckoutClauseApproval', 'immediate_start' => 'CheckoutImmediateStart'] as $box => $settingKey)
+            @if(\App\Models\Setting::get($settingKey, '0') === '1')
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-top:8px;padding:14px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm)">
+                <input type="checkbox" name="{{ $box }}" value="1" required @checked(old($box)) style="margin-top:2px;flex-shrink:0;accent-color:var(--primary)">
+                <span style="font-size:13px;color:var(--muted)">{{ __('client.checkout.'.$box) }}</span>
+            </label>
+            @error($box) <span style="color:#c43c35;font-size:12px;">{{ $message }}</span> @enderror
+            @endif
+            @endforeach
             @guest
             <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin-top:8px;font-size:13px;">
                     <input type="checkbox" name="marketing_emails" value="1" @checked(old('marketing_emails')) style="margin-top:2px;flex-shrink:0;">

@@ -279,6 +279,8 @@ return [
     'cart.use_own_domain' => 'Kendi Alan Adımı Kullan',
     'change_password' => 'Parola Değiştir',
     'checkout' => [
+        'clause_approval' => 'İtalyan Medeni Kanunu\'nun 1341 ve 1342. maddeleri uyarınca Kullanım Koşulları\'nın sonunda listelenen maddeleri ayrıca onaylıyorum.',
+        'immediate_start' => 'Hizmetlerin 14 günlük cayma süresi dolmadan hemen başlamasını istiyorum. Tüketiciysem, cayarsam o ana kadar verilen hizmeti ödeyeceğimi ve bir alan adı kaydedildiğinde ya da aktarıldığında veya SSL sertifikası verildiğinde cayma hakkımı kaybedeceğimi biliyorum.',
         'agree_tos' => 'Hizmet Şartları\'nı okudum ve kabul ediyorum',
         'contact_details' => 'İletişim Bilgileri',
         'payment_method' => 'Ödeme Yöntemi',

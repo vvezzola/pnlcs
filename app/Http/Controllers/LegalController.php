@@ -110,6 +110,23 @@ class LegalController extends Controller
     public const REVISED = '2026-08-30';
 
     /**
+     * The date of the documents in force: the operator's own when they publish
+     * their own texts (LegalDocumentsRevised, Setup > General > Legal), the
+     * shipped documents' otherwise. Every order records it as the version of
+     * the terms the customer accepted.
+     */
+    public static function revised(): string
+    {
+        try {
+            $own = trim((string) Setting::get('LegalDocumentsRevised', ''));
+        } catch (\Throwable) {
+            $own = '';
+        }
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $own) ? $own : self::REVISED;
+    }
+
+    /**
      * The documents this installation publishes.
      *
      * The Turkish statutory forms make no sense on an installation whose
@@ -187,7 +204,7 @@ class LegalController extends Controller
         return [
             'legalLocale' => $this->locale(),
             'documents' => self::published(),
-            'revised' => self::REVISED,
+            'revised' => self::revised(),
             'company' => $this->company(),
             'vatRate' => self::vatRate(),
             'money' => self::money($this->locale()),

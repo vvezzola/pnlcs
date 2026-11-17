@@ -280,6 +280,8 @@ return [
     'cart.use_own_domain' => 'Użyj mojej własnej domeny',
     'change_password' => 'Zmień hasło',
     'checkout' => [
+        'clause_approval' => 'Zgodnie z art. 1341 i 1342 włoskiego kodeksu cywilnego wyraźnie akceptuję klauzule wymienione na końcu Regulaminu.',
+        'immediate_start' => 'Żądam rozpoczęcia usług od razu, przed upływem 14-dniowego terminu odstąpienia. Jako konsument wiem, że w razie odstąpienia zapłacę za już wykonaną usługę i tracę prawo odstąpienia po zarejestrowaniu lub przeniesieniu domeny albo wydaniu certyfikatu SSL.',
         'agree_tos' => 'Zgadzam się z Regulaminem',
         'contact_details' => 'Dane kontaktowe',
         'payment_method' => 'Metoda płatności',

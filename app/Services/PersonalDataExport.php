@@ -81,7 +81,7 @@ class PersonalDataExport
             ]))->all(),
             'orders' => Order::where('client_id', $id)->get()->map(fn ($o) => $this->pick($o, [
                 'order_num', 'date', 'amount', 'status', 'payment_method', 'promo_code', 'ip_address',
-                'terms_accepted_at', 'terms_version', 'terms_ip',
+                'terms_accepted_at', 'terms_version', 'terms_ip', 'terms_declarations',
             ]))->all(),
             'invoices' => Invoice::where('client_id', $id)->with('items')->get()->map(fn ($i) => $this->pick($i, [
                 'invoice_num', 'date', 'due_date', 'date_paid', 'status', 'subtotal', 'credit', 'tax', 'total',

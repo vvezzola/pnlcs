@@ -12,6 +12,7 @@ use App\Models\Domain;
 use App\Models\GatewaySettings;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Models\Setting;
 use App\Services\AddonService;
 use App\Services\CartService;
 use App\Services\ConfigOptionService;
@@ -403,6 +404,12 @@ class CartController extends Controller
             // when it covers the whole order (checked once the total is known).
             'payment_method' => ['required', 'string', Rule::in([...array_keys($this->getAvailablePaymentMethods()), 'credit'])],
             'terms' => 'accepted',
+            // Further boxes the operator can ask for under Setup > General >
+            // Legal: the specific approval of the clauses listed in the terms
+            // (arts. 1341-1342 Italian Civil Code) and the request to start
+            // before the 14-day withdrawal period ends (Directive 2011/83/EU).
+            'clause_approval' => Setting::get('CheckoutClauseApproval', '0') === '1' ? 'accepted' : 'nullable',
+            'immediate_start' => Setting::get('CheckoutImmediateStart', '0') === '1' ? 'accepted' : 'nullable',
         ]);
 
         $clientId = $this->optionalClientId();

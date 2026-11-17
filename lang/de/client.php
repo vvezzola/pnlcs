@@ -279,6 +279,8 @@ return [
     'cart.use_own_domain' => 'Eigene Domain verwenden',
     'change_password' => 'Passwort ändern',
     'checkout' => [
+        'clause_approval' => 'Ich genehmige ausdrücklich die am Ende der Nutzungsbedingungen aufgeführten Klauseln gemäß Art. 1341 und 1342 des italienischen Zivilgesetzbuchs.',
+        'immediate_start' => 'Ich verlange, dass die Dienste sofort beginnen, vor Ablauf der 14-tägigen Widerrufsfrist. Als Verbraucher weiß ich, dass ich bei einem Widerruf die bereits erbrachte Leistung bezahle und mein Widerrufsrecht verliere, sobald eine Domain registriert oder übertragen oder ein SSL-Zertifikat ausgestellt ist.',
         'agree_tos' => 'Ich stimme den Allgemeinen Geschäftsbedingungen zu',
         'contact_details' => 'Kontaktdaten',
         'payment_method' => 'Zahlungsmethode',
