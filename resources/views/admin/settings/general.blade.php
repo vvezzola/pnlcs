@@ -580,6 +580,11 @@
                 <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.settings.renewal_notice_hint') }}</div>
             </div>
             <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;">
+                <input type="hidden" name="DomainRenewOnInvoice" value="0"><input type="checkbox" name="DomainRenewOnInvoice" value="1" {{ !empty($settings['DomainRenewOnInvoice']) ? 'checked' : '' }}>
+                {{ __('admin.settings.domain_renew_on_invoice') }}
+            </label>
+            <div style="font-size:12px;color:#777;margin:2px 0 0 20px;">{{ __('admin.settings.domain_renew_on_invoice_hint') }}</div>
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;">
                 <input type="hidden" name="InvoiceRenewalsSeparately" value="0"><input type="checkbox" name="InvoiceRenewalsSeparately" value="1" {{ !empty($settings['InvoiceRenewalsSeparately']) ? 'checked' : '' }}>
                 {{ __('admin.settings.invoice_renewals_separately') }}
             </label>

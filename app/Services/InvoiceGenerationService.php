@@ -857,7 +857,35 @@ class InvoiceGenerationService
                 ->update(['invoice_id' => $invoice->id]);
         }
 
+        if ($domains !== [] && (bool) (int) \App\Models\Setting::get('DomainRenewOnInvoice', 0)) {
+            $this->renewDomainsNow($domains);
+        }
+
         return $invoice;
+    }
+
+    /**
+     * DomainRenewOnInvoice: renew at the registrar the day the renewal is
+     * invoiced, not when it is paid. A customer on 30 days end of month pays
+     * after the domain's expiry; renewed on payment, the domain lapsed in
+     * between. The renewal moves the domain's next due date past the one on
+     * the invoice line, which is how RenewOnPaymentListener knows not to
+     * renew it again. A registrar refusal leaves the dates alone, so payment
+     * still tries again.
+     *
+     * @param  list<Domain>  $domains
+     */
+    private function renewDomainsNow(array $domains): void
+    {
+        $service = app(\App\Services\DomainService::class);
+
+        foreach ($domains as $domain) {
+            try {
+                $service->renewDomain($domain, max(1, (int) $domain->registration_period));
+            } catch (\Throwable $e) {
+                Log::error("Renewal on invoice failed for domain #{$domain->id}: {$e->getMessage()}");
+            }
+        }
     }
 
     /**

@@ -2838,6 +2838,8 @@ return [
     'settings.renewal_notice_day' => 'Yenileme bildirimi günü',
     'settings.renewal_notice_off' => 'Kapalı: yenileme bildirimi yok',
     'settings.renewal_notice_hint' => 'Ayın bu gününde her müşteriye bir sonraki fatura gününde faturalanacakların listesi e-postayla gönderilir; istemediklerini iptal edebilirler. Toplu fatura günü gerektirir.',
+    'settings.domain_renew_on_invoice' => 'Yenileme faturası kesildiğinde alan adlarını kayıt kuruluşunda yenile',
+    'settings.domain_renew_on_invoice_hint' => 'Kapalı: alan adı faturası ödendiğinde yenilenir. Açık: fatura kesildiği gün yenilenir, böylece ay sonu 30 gün vadeli ödeyen bir müşteride süresi dolmaz; ödeme onu ikinci kez yenilemez.',
     'settings.invoice_renewals_separately' => 'Her yenilemeyi ayrı faturala; müşteri bir hizmeti yenileyip diğerini bırakabilsin',
     'settings.default_nameservers' => 'Varsayılan Ad Sunucuları',
     'settings.default_nameservers_hint' => 'Başka ad sunucusu sağlanmadığında alan adları kaydedilirken veya aktarılırken kullanılır.',

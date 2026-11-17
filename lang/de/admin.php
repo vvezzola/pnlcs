@@ -2864,6 +2864,8 @@ return [
     'settings.renewal_notice_day' => 'Tag der Verlängerungsankündigung',
     'settings.renewal_notice_off' => 'Aus: keine Verlängerungsankündigung',
     'settings.renewal_notice_hint' => 'An diesem Tag des Monats erhält jeder Kunde per E-Mail die Liste dessen, was am nächsten Abrechnungstag in Rechnung gestellt wird, und kann kündigen, was er nicht mehr möchte. Erfordert einen Sammelabrechnungstag.',
+    'settings.domain_renew_on_invoice' => 'Domains beim Registrar verlängern, sobald die Verlängerungsrechnung erstellt wird',
+    'settings.domain_renew_on_invoice_hint' => 'Aus: eine Domain wird verlängert, wenn ihre Rechnung bezahlt ist. An: sie wird am Tag der Rechnungserstellung verlängert, damit sie bei einem Kunden mit 30 Tagen Zahlungsziel zum Monatsende nicht abläuft; die Zahlung verlängert sie nicht ein zweites Mal.',
     'settings.invoice_renewals_separately' => 'Jede Verlängerung separat abrechnen, damit ein Kunde einen Dienst verlängern und einen anderen auslaufen lassen kann',
     'settings.default_nameservers' => 'Standard-Nameserver',
     'settings.default_nameservers_hint' => 'Wird bei der Registrierung oder Übertragung von Domains verwendet, wenn keine anderen Nameserver bereitgestellt werden.',

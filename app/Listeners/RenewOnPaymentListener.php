@@ -38,7 +38,7 @@ class RenewOnPaymentListener
                 if ($item->type === 'Hosting') {
                     $this->renewService((int) $item->rel_id);
                 } elseif ($item->type === 'Domain') {
-                    $this->renewDomain((int) $item->rel_id);
+                    $this->renewDomain((int) $item->rel_id, $item->due_date);
                 } elseif ($item->type === 'Addon') {
                     $this->renewAddon((int) $item->rel_id);
                 }
@@ -131,10 +131,21 @@ class RenewOnPaymentListener
         Log::info("RenewOnPayment: addon #{$addon->id} advanced to {$addon->next_due_date}");
     }
 
-    private function renewDomain(int $domainId): void
+    /**
+     * @param  Carbon|null  $invoicedDue  the domain's due date when the line was invoiced
+     */
+    private function renewDomain(int $domainId, ?Carbon $invoicedDue = null): void
     {
         $domain = Domain::find($domainId);
         if (! $domain) {
+            return;
+        }
+
+        // Already renewed for this line, the day it was invoiced
+        // (DomainRenewOnInvoice): renewing again would buy a second year.
+        if ($invoicedDue && $domain->next_due_date && $domain->next_due_date->copy()->startOfDay()->gt($invoicedDue->copy()->startOfDay())) {
+            Log::info("RenewOnPayment: domain #{$domain->id} ({$domain->domain}) already renewed on invoice");
+
             return;
         }
 

@@ -2864,6 +2864,8 @@ return [
     'settings.renewal_notice_day' => '续费通知日',
     'settings.renewal_notice_off' => '关闭：不发送续费通知',
     'settings.renewal_notice_hint' => '在每月的这一天，向每位客户发送下一个账单日将开票项目的清单，以便取消不再需要的项目。需要设置合并账单日。',
+    'settings.domain_renew_on_invoice' => '开具续费发票时即在注册商处续费域名',
+    'settings.domain_renew_on_invoice_hint' => '关闭：域名在其发票付款后续费。开启：在开具发票当天续费，这样按月末30天付款的客户不会让域名过期；付款时不会再次续费。',
     'settings.invoice_renewals_separately' => '每项续费单独开具账单，客户可以续费一项服务而让另一项到期',
     'settings.default_nameservers' => '默认域名服务器',
     'settings.default_nameservers_hint' => '在注册或转入域名时，未提供其他域名服务器则使用这些。',

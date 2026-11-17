@@ -2825,6 +2825,8 @@ return [
     'settings.renewal_notice_day' => 'Giorno dell\'avviso di rinnovo',
     'settings.renewal_notice_off' => 'Disattivato: nessun avviso di rinnovo',
     'settings.renewal_notice_hint' => 'In questo giorno del mese ogni cliente riceve per email l\'elenco di ciò che verrà fatturato al prossimo giorno di fatturazione, così può disdire quello che non vuole più. Richiede il giorno di fatturazione consolidata.',
+    'settings.domain_renew_on_invoice' => 'Rinnova i domini presso il registrar quando viene emessa la fattura di rinnovo',
+    'settings.domain_renew_on_invoice_hint' => 'Spento: il dominio si rinnova quando la sua fattura viene pagata. Acceso: si rinnova il giorno in cui la fattura viene emessa, così un cliente che paga a 30 giorni fine mese non lo lascia scadere; il pagamento non lo rinnova una seconda volta.',
     'settings.invoice_renewals_separately' => 'Fattura ogni rinnovo separatamente, così un cliente può rinnovare un servizio e lasciarne scadere un altro',
     'settings.default_nameservers' => 'Nameserver predefiniti',
     'settings.default_nameservers_hint' => 'Usati nella registrazione o nel trasferimento di domini quando non vengono forniti altri nameserver.',

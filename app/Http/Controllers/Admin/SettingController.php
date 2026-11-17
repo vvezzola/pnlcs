@@ -84,7 +84,7 @@ class SettingController extends Controller
         'Email', 'EmailFromName', 'MailCopyTo',
         'InvoiceNumberFormat', 'InvoiceNumberYearlyReset', 'InvoiceDueDays', 'InvoiceDaysBeforeDue', 'ConsolidatedBillingDay', 'InvoiceRenewalsSeparately',
         // Whole months on the billing day, due dates at month end, the renewal notice.
-        'ConsolidatedBillingMonths', 'InvoiceDueEndOfMonth', 'RenewalNoticeDay',
+        'ConsolidatedBillingMonths', 'InvoiceDueEndOfMonth', 'RenewalNoticeDay', 'DomainRenewOnInvoice',
         // The invoice document template: the built-in view or an uploaded one.
         // The tax page's two switches (#305).
         'TaxEnabled', 'TaxInclusivePrices',
@@ -171,6 +171,7 @@ class SettingController extends Controller
             'ConsolidatedBillingMonths' => 'sometimes|nullable|integer|between:0,12',
             'InvoiceDueEndOfMonth' => 'sometimes|nullable|in:0,1',
             'RenewalNoticeDay' => 'sometimes|nullable|integer|between:0,28',
+            'DomainRenewOnInvoice' => 'sometimes|nullable|in:0,1',
             'AutoSuspensionDays' => 'sometimes|nullable|integer|min:0',
             'AutoTerminationDays' => 'sometimes|nullable|integer|min:1',
             'LateFeeType' => 'sometimes|nullable|in:none,flat,percent',

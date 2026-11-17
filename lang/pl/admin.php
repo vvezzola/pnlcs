@@ -2864,6 +2864,8 @@ return [
     'settings.renewal_notice_day' => 'Dzień powiadomienia o odnowieniu',
     'settings.renewal_notice_off' => 'Wyłączone: bez powiadomienia o odnowieniu',
     'settings.renewal_notice_hint' => 'W tym dniu miesiąca każdy klient otrzymuje e-mailem listę tego, co zostanie zafakturowane w następnym dniu rozliczeniowym, aby mógł zrezygnować z tego, czego już nie chce. Wymaga dnia zbiorczego rozliczenia.',
+    'settings.domain_renew_on_invoice' => 'Odnawiaj domeny u rejestratora w chwili wystawienia faktury za odnowienie',
+    'settings.domain_renew_on_invoice_hint' => 'Wyłączone: domena jest odnawiana po opłaceniu faktury. Włączone: jest odnawiana w dniu wystawienia faktury, więc nie wygaśnie u klienta płacącego 30 dni od końca miesiąca; płatność nie odnawia jej drugi raz.',
     'settings.invoice_renewals_separately' => 'Wystawiaj osobną fakturę za każde odnowienie, aby klient mógł odnowić jedną usługę, a inną pozostawić',
     'settings.default_nameservers' => 'Domyślne serwery DNS',
     'settings.default_nameservers_hint' => 'Używane przy rejestracji i transferze domen, gdy nie podano innych serwerów DNS.',

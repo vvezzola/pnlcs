@@ -2864,6 +2864,8 @@ return [
     'settings.renewal_notice_day' => 'Renewal notice day',
     'settings.renewal_notice_off' => 'Off: no renewal notice',
     'settings.renewal_notice_hint' => 'On this day of the month each customer is emailed the list of what the next billing day will invoice, so they can cancel what they no longer want. Needs a consolidated billing day.',
+    'settings.domain_renew_on_invoice' => 'Renew domains at the registrar when the renewal invoice is raised',
+    'settings.domain_renew_on_invoice_hint' => 'Off: a domain is renewed when its invoice is paid. On: it is renewed the day the invoice is raised, so a customer who pays 30 days end of month does not let it lapse; payment no longer renews it a second time.',
     'settings.invoice_renewals_separately' => 'Invoice each renewal separately, so a customer can renew one service and let another lapse',
     'settings.default_nameservers' => 'Default Nameservers',
     'settings.default_nameservers_hint' => 'Used when registering or transferring domains when no other nameservers are supplied.',
