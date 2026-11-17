@@ -52,3 +52,33 @@ test('the mail guide names the customer\'s own domain as the mail server', funct
         ->assertSee('webmail.tuodominio.it')
         ->assertDontSee('mail.my.esalogica.com');
 });
+
+test('the legal pages carry Esalogica\'s Italian documents, not the Panelica set', function () {
+    $this->get(route('legal.index'))->assertOk()
+        ->assertSee('Condizioni generali di servizio')
+        ->assertSee('Informativa privacy')
+        ->assertDontSee('Turkish')
+        ->assertDontSee('Acceptable Use Policy');
+
+    $terms = $this->get(route('legal.show', 'terms'))->assertOk()
+        ->assertSee('Esalogica di Vittorio Vezzola')
+        ->assertSee('REA BS-525783')
+        ->assertSee('Tribunale di Brescia')
+        ->assertSee('In vigore dal 17 novembre 2026')
+        ->getContent();
+
+    // No "[to be completed]" left over from the draft in the contract text.
+    preg_match('#<article class="legal-body">(.*?)</article>#s', $terms, $body);
+    expect($body[1])->not->toContain('[');
+
+    $this->get(route('legal.show', 'privacy'))->assertOk()->assertSee('Garante per la protezione dei dati personali');
+    $this->get(route('legal.show', 'cookies'))->assertOk()->assertSee('pnlcs-session');
+    $this->get(route('legal.show', 'dpa'))->assertOk()->assertSee('WorldStream B.V.');
+});
+
+test('a document of the original set points to the article of the terms that covers it', function () {
+    $this->get(route('legal.show', 'refund'))->assertOk()
+        ->assertSee('Recesso e rimborsi')
+        ->assertSee('art. 7')
+        ->assertDontSee('Refund conditions');
+});
