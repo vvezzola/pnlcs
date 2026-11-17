@@ -7,7 +7,11 @@
     $esa = (require base_path('themes/esalogica/strings.php'))[app()->getLocale() === 'it' ? 'it' : 'en'];
     $setting = fn (string $key) => trim((string) \App\Models\Setting::get($key, ''));
     $companyName = $setting('CompanyLegalName') ?: ($setting('CompanyName') ?: ($brandName ?? 'Esalogica'));
-    $address = collect([$setting('Address'), trim($setting('Postcode').' '.($setting('CompanyCity') ?: $setting('City')).($setting('State') ? ' ('.$setting('State').')' : ''))])->filter()->implode(', ');
+    // The address setting may already hold the postcode and town on its own
+    // lines; they are added only when it does not.
+    $street = collect(preg_split('/\R/', $setting('Address')))->map(fn ($line) => trim($line))->filter()->implode(', ');
+    $town = trim($setting('Postcode').' '.($setting('CompanyCity') ?: $setting('City')).($setting('State') ? ' ('.$setting('State').')' : ''));
+    $address = collect([$street, $setting('Postcode') !== '' && str_contains($street, $setting('Postcode')) ? '' : $town])->filter()->implode(', ');
     $vatNumber = $setting('TaxID');
     $phone = $setting('PhoneNumber');
     $email = $brandEmail ?? $setting('Email');

@@ -38,6 +38,7 @@ test('the home page shows the hosting plans with monthly and yearly prices and n
         ->assertSee('/mese')
         ->assertSee('€120.00 all\'anno, dominio incluso')
         ->assertSee('Pannello di controllo Plesk')
+        ->assertSee('Registra il tuo dominio')
         ->assertDontSee('Panelica')
         ->assertDontSee('James Mitchell')
         ->assertDontSee('BTC')

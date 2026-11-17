@@ -44,6 +44,10 @@ return [
             'callout_1' => 'Dominio incluso con il piano annuale',
             'callout_2' => 'Antispam e antivirus sulla posta',
         ],
+        'domain' => [
+            'title' => 'Registra il tuo dominio',
+            'subtitle' => 'Cerca il nome che vuoi: con il piano hosting annuale un dominio è compreso',
+        ],
         'hosting' => [
             'title' => 'Piani hosting',
             'subtitle' => 'Prezzi IVA esclusa. Paghi ogni mese oppure una volta all\'anno.',
@@ -153,6 +157,10 @@ return [
             'cta' => 'Choose a plan',
             'callout_1' => 'Domain included with yearly billing',
             'callout_2' => 'Anti-spam and anti-virus on email',
+        ],
+        'domain' => [
+            'title' => 'Register your domain',
+            'subtitle' => 'Search for the name you want: one domain is included with a yearly hosting plan',
         ],
         'hosting' => [
             'title' => 'Hosting plans',

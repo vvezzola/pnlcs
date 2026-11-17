@@ -2,7 +2,7 @@
 <p>Questo accordo fa parte del contratto tra Esalogica e il Cliente (<a href="{{ route('legal.show', 'terms') }}">Condizioni generali di servizio</a>, art. 15.2) e regola il trattamento dei dati personali che il Cliente conserva nei servizi, ai sensi dell'art. 28 del Regolamento (UE) 2016/679 («GDPR»).</p>
 
 <h2>1. Ruoli</h2>
-<p>Per i dati contenuti nei siti, nelle caselle email, nei database e nei server virtuali del Cliente, il Cliente è titolare del trattamento (o responsabile, se tratta i dati per conto dei propri clienti) e {{ $esaCompany['legal_name'] }} ne è responsabile (o sub-responsabile).</p>
+<p>Per i dati contenuti nei siti, nelle caselle email, nei database e nei server virtuali del Cliente, il Cliente è titolare del trattamento (o responsabile, se tratta i dati per conto dei propri clienti) ed {{ $esaCompany['legal_name'] }} ne è responsabile (o sub-responsabile).</p>
 
 <h2>2. Oggetto, durata, natura e finalità</h2>
 <ul>
