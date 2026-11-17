@@ -833,7 +833,7 @@ class InvoiceGenerationService
         }
 
         $options = [
-            'due_date' => InvoiceService::defaultDueDate(),
+            'due_date' => InvoiceService::defaultDueDate(null, $client),
             'notes' => __('client.invoices.renewal_note', [], $client->language),
         ];
 

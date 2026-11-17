@@ -77,6 +77,10 @@ class Client extends Model
         'tax_exempt',
         // Read by auto-suspend; set on the admin's client form.
         'override_auto_suspend',
+        // The customer's own payment terms; null = the general setting
+        // (InvoiceService::defaultDueDate).
+        'payment_terms_days',
+        'payment_terms_end_of_month',
         'language',
         'notes',
         'affiliate_id',
@@ -92,6 +96,8 @@ class Client extends Model
             'auto_charge' => 'boolean',
             'late_fee_overide' => 'boolean',
             'override_auto_suspend' => 'boolean',
+            'payment_terms_days' => 'integer',
+            'payment_terms_end_of_month' => 'boolean',
         ];
     }
 

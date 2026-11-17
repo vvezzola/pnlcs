@@ -286,7 +286,20 @@
                     <tr><td style="padding:4px 0;color:#777;">{{ __('admin.invoices.source_proforma') }}</td><td style="padding:4px 0;"><a href="{{ route('admin.invoices.show', $invoice->sourceInvoice) }}" style="color:#337ab7;font-family:monospace;">{{ $invoice->sourceInvoice->invoice_num }}</a></td></tr>
                     @endif
                     <tr><td style="padding:4px 0;color:#777;">{{ __('admin.invoices.date') }}</td><td style="padding:4px 0;">{{ $invoice->date?->format(date_fmt()) }}</td></tr>
-                    <tr><td style="padding:4px 0;color:#777;">{{ __('admin.invoices.due_date') }}</td><td style="padding:4px 0;{{ ($invoice->due_date?->isPast() && $st !== 'paid') ? 'color:#d9534f;font-weight:600;' : '' }}">{{ $invoice->due_date?->format(date_fmt()) }}</td></tr>
+                    <tr><td style="padding:4px 0;color:#777;">{{ __('admin.invoices.due_date') }}</td><td style="padding:4px 0;{{ ($invoice->due_date?->isPast() && $st !== 'paid') ? 'color:#d9534f;font-weight:600;' : '' }}">{{ $invoice->due_date?->format(date_fmt()) }}
+                        {{-- An extension agreed with the customer: reminders, suspension and card charges follow it. --}}
+                        @if(in_array($st, ['draft', 'unpaid', 'overdue', 'partially_paid', 'payment_pending']) && auth('admin')->user()?->hasPermission('manage_invoices'))
+                        <details style="margin-top:4px;font-weight:400;color:#333;">
+                            <summary style="cursor:pointer;color:#337ab7;font-size:12px;">{{ __('admin.invoices.change_due_date') }}</summary>
+                            <form method="POST" action="{{ route('admin.invoices.due-date', $invoice) }}" style="display:flex;gap:6px;margin-top:6px;">
+                                @csrf @method('PUT')
+                                <input type="date" name="due_date" required min="{{ $invoice->date?->toDateString() }}" value="{{ $invoice->due_date?->toDateString() }}" class="form-control" style="max-width:170px;">
+                                <button type="submit" class="btn btn-default btn-sm">{{ __('common.actions.save') }}</button>
+                            </form>
+                            <div style="font-size:11px;color:#777;margin-top:4px;">{{ __('admin.invoices.due_date_sent_note') }}</div>
+                        </details>
+                        @endif
+                    </td></tr>
                     @if($invoice->payment_method)
                     <tr><td style="padding:4px 0;color:#777;">{{ __('admin.invoices.payment') }}</td><td style="padding:4px 0;">{{ payment_method_label((string) $invoice->payment_method) }}</td></tr>
                     @endif

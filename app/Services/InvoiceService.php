@@ -52,12 +52,18 @@ class InvoiceService
      * 3 March, and the month it lands in ends on the 31st). Without it a
      * customer who pays on the usual terms was overdue, reminded and
      * suspended in between.
+     *
+     * A customer with terms of their own (payment_terms_days,
+     * payment_terms_end_of_month on the client) has them used instead; each
+     * left empty falls back to the general setting.
      */
-    public static function defaultDueDate(?\Carbon\CarbonInterface $issued = null): string
+    public static function defaultDueDate(?\Carbon\CarbonInterface $issued = null, ?Client $client = null): string
     {
-        $due = \Carbon\Carbon::parse($issued ?? now())->startOfDay()->addDays(max(0, (int) Setting::get('InvoiceDueDays', 14)));
+        $days = $client?->payment_terms_days ?? (int) Setting::get('InvoiceDueDays', 14);
+        $endOfMonth = $client?->payment_terms_end_of_month ?? (bool) (int) Setting::get('InvoiceDueEndOfMonth', 0);
+        $due = \Carbon\Carbon::parse($issued ?? now())->startOfDay()->addDays(max(0, (int) $days));
 
-        if ((bool) (int) Setting::get('InvoiceDueEndOfMonth', 0)) {
+        if ($endOfMonth) {
             $due = $due->endOfMonth()->startOfDay();
         }
 
@@ -97,7 +103,7 @@ class InvoiceService
                 ...Invoice::buyerSnapshotFrom($client),
                 'invoice_num' => $options['invoice_num'] ?? $this->generateInvoiceNumber($options['type'] ?? $this->defaultType()),
                 'date' => $options['date'] ?? now()->toDateString(),
-                'due_date' => $options['due_date'] ?? self::defaultDueDate(isset($options['date']) ? \Carbon\Carbon::parse($options['date']) : null),
+                'due_date' => $options['due_date'] ?? self::defaultDueDate(isset($options['date']) ? \Carbon\Carbon::parse($options['date']) : null, $client),
                 'status' => $options['status'] ?? InvoiceStatus::Unpaid->value,
                 'type' => $options['type'] ?? $this->defaultType(),
                 'source_invoice_id' => $options['source_invoice_id'] ?? null,

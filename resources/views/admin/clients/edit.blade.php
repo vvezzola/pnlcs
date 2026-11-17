@@ -109,6 +109,19 @@
                         @endforeach
                     </select>
                 </div>
+                {{-- The customer's own payment terms; empty = Setup → General Settings. --}}
+                @php $termsEom = old('payment_terms_end_of_month', $client->payment_terms_end_of_month === null ? '' : (int) $client->payment_terms_end_of_month); @endphp
+                <div class="form-group"><label class="form-label">{{ __('admin.clients.payment_terms_days') }}</label>
+                    <input type="number" name="payment_terms_days" min="0" max="365" class="form-control" value="{{ old('payment_terms_days', $client->payment_terms_days) }}" placeholder="{{ (int) \App\Models\Setting::get('InvoiceDueDays', 14) }}">
+                    <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.clients.payment_terms_hint') }}</div>
+                </div>
+                <div class="form-group"><label class="form-label">{{ __('admin.clients.payment_terms_end_of_month') }}</label>
+                    <select name="payment_terms_end_of_month" class="form-control">
+                        <option value="" @selected((string) $termsEom === '')>{{ __('admin.clients.payment_terms_general', ['value' => (int) \App\Models\Setting::get('InvoiceDueEndOfMonth', 0) ? __('common.yes') : __('common.no')]) }}</option>
+                        <option value="1" @selected((string) $termsEom === '1')>{{ __('common.yes') }}</option>
+                        <option value="0" @selected((string) $termsEom === '0')>{{ __('common.no') }}</option>
+                    </select>
+                </div>
             </div>
             {{-- Billing reads both (no tax on the invoice; auto-suspend leaves the
                  account alone); the client page showed the first, nothing set either. --}}

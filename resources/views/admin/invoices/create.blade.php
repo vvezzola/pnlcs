@@ -29,7 +29,7 @@
                         <select name="client_id" required class="form-control" @change="setClient($event.target.value)">
                             <option value="">{{ __('admin.invoices.choose_client') }}</option>
                             @foreach($clients as $client)
-                            <option value="{{ $client->id }}" data-rate="{{ $client->billing_tax_rate }}" data-label="{{ $client->billing_tax_label }}" data-rates="{{ $client->billing_tax_rates->toJson() }}" {{ old('client_id', $selectedClient?->id) == $client->id ? 'selected' : '' }}>
+                            <option value="{{ $client->id }}" data-rate="{{ $client->billing_tax_rate }}" data-label="{{ $client->billing_tax_label }}" data-rates="{{ $client->billing_tax_rates->toJson() }}" data-due-days="{{ $client->billing_due_days }}" data-due-eom="{{ $client->billing_due_eom ? 1 : 0 }}" {{ old('client_id', $selectedClient?->id) == $client->id ? 'selected' : '' }}>
                                 {{ $client->display_name }} ({{ $client->email }})
                             </option>
                             @endforeach
@@ -144,7 +144,7 @@
                 <div class="card-body">
                     <div class="form-group">
                         <label class="form-label">{{ __('admin.invoices.invoice_date') }} <span style="color:#d9534f;">*</span></label>
-                        <input type="date" name="date" required value="{{ old('date', now()->toDateString()) }}" class="form-control">
+                        <input type="date" name="date" required value="{{ old('date', now()->toDateString()) }}" class="form-control" @change="setDueDate()">
                     </div>
                     <div class="form-group">
                         <label class="form-label">{{ __('admin.invoices.due_date') }} <span style="color:#d9534f;">*</span></label>
@@ -240,6 +240,20 @@ function invoiceBuilder() {
             this.taxRate = this.defaultRate();
             this.items.forEach(i => { i.tax_rate = this.taxRate; i.tax_label = this.taxLabel; i.tax_rule_id = this.defaultRuleId(); });
             this.recalculate();
+            this.setDueDate();
+        },
+        // The due date from the client's payment terms (InvoiceService::defaultDueDate):
+        // the invoice date plus the days, moved to the end of that month when asked.
+        setDueDate() {
+            const sel = this.$el.querySelector('select[name="client_id"]');
+            const opt = sel ? sel.options[sel.selectedIndex] : null;
+            const date = this.$el.querySelector('input[name="date"]');
+            const due = this.$el.querySelector('input[name="due_date"]');
+            if (!opt || !opt.value || !date || !date.value || !due) { return; }
+            const [y, m, d] = date.value.split('-').map(Number);
+            const at = new Date(Date.UTC(y, m - 1, d + parseInt(opt.dataset.dueDays || '0', 10)));
+            const end = opt.dataset.dueEom === '1' ? new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 0)) : at;
+            due.value = end.toISOString().slice(0, 10);
         },
         defaultRate() {
             const d = this.clientRates.find(r => r.is_default);

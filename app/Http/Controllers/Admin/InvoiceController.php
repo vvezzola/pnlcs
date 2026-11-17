@@ -402,7 +402,7 @@ class InvoiceController extends Controller
         $defaultPaymentMethod = $selectedClient?->default_payment_method;
 
         $dueDays = (int) Setting::get('InvoiceDueDays', 14);
-        $defaultDueDate = \App\Services\InvoiceService::defaultDueDate();
+        $defaultDueDate = \App\Services\InvoiceService::defaultDueDate(null, $selectedClient);
 
         // Cheapest sold cycle stands in for the product's money value, so the
         // builder can pre-fill the amount when a product is picked.
@@ -447,7 +447,11 @@ class InvoiceController extends Controller
                 ])
                 ->values();
 
+            // The client's payment terms, so the form moves the due date
+            // when the client or the invoice date changes.
             return clone $client
+                ->setAttribute('billing_due_days', $client->payment_terms_days ?? (int) Setting::get('InvoiceDueDays', 14))
+                ->setAttribute('billing_due_eom', (bool) ($client->payment_terms_end_of_month ?? (bool) (int) Setting::get('InvoiceDueEndOfMonth', 0)))
                 ->setAttribute('billing_tax_rate', (float) ($rule?->tax_rate ?? 0))
                 ->setAttribute('billing_tax_label', $rule?->name ?? '')
                 ->setAttribute('billing_tax_rates', $rates);
@@ -515,6 +519,45 @@ class InvoiceController extends Controller
     /**
      * Mark an invoice as paid.
      */
+    /**
+     * Move the due date of an invoice still to be paid: an extension agreed
+     * with the customer, or terms set after the invoice was raised. Reminders,
+     * automatic suspension and card charges all read the due date, so they
+     * follow the new one. An overdue invoice given a date ahead is no longer
+     * overdue.
+     */
+    public function updateDueDate(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $open = [InvoiceStatus::Draft->value, InvoiceStatus::Unpaid->value, InvoiceStatus::Overdue->value, InvoiceStatus::PartiallyPaid->value, InvoiceStatus::PaymentPending->value];
+
+        if (! in_array(strtolower((string) $invoice->status), $open, true)) {
+            return back()->with('error', __('admin.invoices.due_date_locked'));
+        }
+
+        $validated = $request->validate([
+            'due_date' => ['required', 'date', 'after_or_equal:'.($invoice->date?->toDateString() ?? '1970-01-01')],
+        ]);
+
+        $from = $invoice->due_date?->format(date_fmt()) ?? '-';
+        $due = \Carbon\Carbon::parse($validated['due_date'])->startOfDay();
+        $changes = ['due_date' => $due->toDateString()];
+
+        if (strtolower((string) $invoice->status) === InvoiceStatus::Overdue->value && ! $due->isPast()) {
+            $changes['status'] = InvoiceStatus::Unpaid->value;
+        }
+
+        $invoice->update($changes);
+
+        ActivityLog::log(
+            __('admin.invoices.due_date_log', ['from' => $from, 'to' => $due->format(date_fmt())]),
+            auth('admin')->user()?->email,
+            $invoice->client_id,
+            $invoice->id,
+        );
+
+        return back()->with('success', __('admin.invoices.due_date_updated'));
+    }
+
     public function markPaid(Request $request, Invoice $invoice): RedirectResponse
     {
         if (strtolower((string) $invoice->status) === InvoiceStatus::Paid->value) {

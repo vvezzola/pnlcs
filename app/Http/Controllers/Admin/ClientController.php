@@ -661,6 +661,9 @@ class ClientController extends Controller
             'password' => 'nullable|string|min:8|confirmed',
             'tax_exempt' => 'sometimes|boolean',
             'override_auto_suspend' => 'sometimes|boolean',
+            // Empty = the general setting (InvoiceService::defaultDueDate).
+            'payment_terms_days' => 'nullable|integer|between:0,365',
+            'payment_terms_end_of_month' => 'nullable|in:0,1',
         ]);
 
         // The customer who signs in with the account's address moves with it
