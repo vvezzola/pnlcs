@@ -325,8 +325,12 @@ class ApplyLaunchSetupCommand extends Command
             $this->warn('  ! SSL2BUY in modalità di prova');
         }
 
-        $group = ProductGroup::where('slug', 'certificati-ssl')->first();
-        if (! $group) {
+        // The group the operator made in the panel ("ssl"), or the one this
+        // command made before; created only when there is neither.
+        $group = ProductGroup::whereIn('slug', ['ssl', 'certificati-ssl'])->orderByRaw("slug = 'ssl' desc")->first();
+        if ($group) {
+            $this->line("  = gruppo: {$group->name}");
+        } else {
             $changes++;
             $this->line('  + gruppo: Certificati SSL');
             if ($write) {

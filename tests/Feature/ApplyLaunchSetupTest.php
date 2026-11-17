@@ -158,3 +158,15 @@ test('the SSL products are created once, sold yearly and mapped to their SSL2BUY
     expect(Product::where('type', 'ssl')->count())->toBe(3)
         ->and(ProductGroup::where('slug', 'certificati-ssl')->count())->toBe(1);
 });
+
+test('the SSL products go into the group the operator made', function () {
+    launchCatalog();
+    $group = ProductGroup::factory()->create(['name' => 'SSL', 'slug' => 'ssl']);
+
+    $this->artisan('esalogica:apply-launch-setup --write')
+        ->expectsOutputToContain('= gruppo: SSL')
+        ->assertSuccessful();
+
+    expect(Product::where('type', 'ssl')->pluck('group_id')->unique()->all())->toBe([$group->id])
+        ->and(ProductGroup::where('slug', 'certificati-ssl')->exists())->toBeFalse();
+});
