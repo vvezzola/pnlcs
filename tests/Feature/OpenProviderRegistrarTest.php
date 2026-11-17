@@ -183,5 +183,5 @@ test('the module is registered and appears with its config fields', function () 
 
     expect($module)->toBeInstanceOf(OpenProviderRegistrar::class)
         ->and(collect($module->getConfigFields())->pluck('name')->all())
-        ->toBe(['username', 'password', 'test_mode', 'margin_percent', 'round_up', 'daily_price_sync']);
+        ->toBe(['username', 'password', 'test_mode', 'margin_percent', 'round_up', 'daily_price_sync', 'it_declarations']);
 });

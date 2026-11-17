@@ -4,6 +4,7 @@ namespace Modules\Registrars\OpenProvider;
 
 use App\Contracts\RegistrarModuleInterface;
 use App\Contracts\SyncsDomainData;
+use App\Models\Client;
 use App\Models\Currency;
 use App\Models\Domain;
 use App\Models\DomainPricing;
@@ -38,6 +39,13 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
 
     protected ?string $token = null;
 
+    /**
+     * Extensions whose registry wants the owner's tax identity.
+     *
+     * @var list<string>
+     */
+    protected const TAX_IDENTITY_EXTENSIONS = ['it'];
+
     public function __construct()
     {
         $settings = $this->loadSettings();
@@ -65,6 +73,10 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
             ['name' => 'margin_percent', 'label' => 'Margin (%)', 'type' => 'text', 'required' => false, 'default' => '0'],
             ['name' => 'round_up', 'label' => 'Round prices up to a whole unit', 'type' => 'yesno', 'default' => '0'],
             ['name' => 'daily_price_sync', 'label' => 'Sync prices every day', 'type' => 'yesno', 'default' => '0'],
+            // Registro .it asks the registrant to accept its rules and the
+            // reseller to attest it obtained that acceptance; switch on only
+            // when the checkout's terms make the customer accept them.
+            ['name' => 'it_declarations', 'label' => '.it: declare the Registro .it terms accepted', 'type' => 'yesno', 'default' => '0'],
         ];
     }
 
@@ -240,6 +252,7 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
         try {
             [$name, $extension] = $this->splitDomain($domain->domain);
             $handle = $this->ownerHandle($domain, $params);
+            $this->prepareOwnerFor($extension, $handle, $domain);
 
             $body = [
                 'domain' => ['name' => $name, 'extension' => $extension],
@@ -250,7 +263,7 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
                 'billing_handle' => $handle,
                 'autorenew' => 'off', // renewals are this panel's job, not the registrar's
                 'name_servers' => $this->nameserverList($params['nameservers'] ?? $domain->nameservers),
-            ];
+            ] + $this->domainAdditionalData($extension);
 
             $data = $this->call('post', '/domains', $body);
 
@@ -267,6 +280,7 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
         try {
             [$name, $extension] = $this->splitDomain($domain->domain);
             $handle = $this->ownerHandle($domain, []);
+            $this->prepareOwnerFor($extension, $handle, $domain);
 
             $this->call('post', '/domains/transfer', [
                 'domain' => ['name' => $name, 'extension' => $extension],
@@ -278,7 +292,7 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
                 'autorenew' => 'off',
                 // The domain keeps answering from wherever it answers now.
                 'import_nameservers_from_registry' => true,
-            ]);
+            ] + $this->domainAdditionalData($extension));
 
             return ['success' => true, 'message' => 'Transfer initiated via Openprovider.'];
         } catch (\Throwable $e) {
@@ -514,7 +528,7 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
                 'state' => $params['state'] ?? $client->state ?? '',
                 'country' => strtoupper($params['country'] ?? $client->country ?? 'US'),
             ],
-        ]);
+        ] + $this->ownerIdentity($client));
 
         $handle = (string) ($data['handle'] ?? '');
         if ($handle === '') {
@@ -527,6 +541,67 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
         );
 
         return $handle;
+    }
+
+    /**
+     * The tax identity Openprovider files on the handle, the way its own
+     * WHMCS module does: a company's VAT number as "vat", a person's tax code
+     * (the Codice Fiscale for .it) as additional_data.social_security_number.
+     *
+     * @return array{vat?: string, additional_data?: array{social_security_number: string}}
+     */
+    protected function ownerIdentity(Client $client): array
+    {
+        $clean = fn (?string $value) => strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $value) ?? '');
+        $isCompany = $client->client_type === 'company'
+            || ($client->client_type !== 'individual' && trim((string) $client->company_name) !== '');
+
+        $vat = $clean($client->tax_id);
+        $taxCode = $clean($client->national_id);
+
+        if ($isCompany && $vat !== '') {
+            return ['vat' => $vat];
+        }
+        if (! $isCompany && ($taxCode !== '' || $vat !== '')) {
+            return ['additional_data' => ['social_security_number' => $taxCode !== '' ? $taxCode : $vat]];
+        }
+
+        return [];
+    }
+
+    /**
+     * What an extension needs on the owner before the registry will take it.
+     * .it wants the VAT number (companies) or the tax code (people): refused
+     * here with a clear message when the customer has neither, and written
+     * onto a handle created before the panel sent it.
+     */
+    protected function prepareOwnerFor(string $extension, string $handle, Domain $domain): void
+    {
+        if (! in_array(strtolower($extension), self::TAX_IDENTITY_EXTENSIONS, true)) {
+            return;
+        }
+
+        $identity = $this->ownerIdentity($domain->client);
+        if ($identity === []) {
+            throw new \RuntimeException(".{$extension} needs the customer's VAT number (companies) or tax code (individuals) on their profile.");
+        }
+
+        $this->call('put', '/customers/'.rawurlencode($handle), ['handle' => $handle] + $identity);
+    }
+
+    /**
+     * The registry declarations an extension needs on create and transfer,
+     * when the operator has switched them on.
+     *
+     * @return array{additional_data?: array<string, string>}
+     */
+    protected function domainAdditionalData(string $extension): array
+    {
+        if (strtolower($extension) !== 'it' || ($this->loadSettings()['it_declarations'] ?? '0') !== '1') {
+            return [];
+        }
+
+        return ['additional_data' => ['it_nexus_declaration' => 'YES', 'it_reseller_declaration' => 'YES']];
     }
 
     /** @return array{0: string, 1: string} name and extension */
