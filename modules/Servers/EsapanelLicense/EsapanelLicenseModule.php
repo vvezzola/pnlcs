@@ -484,6 +484,34 @@ class EsapanelLicenseModule extends AbstractServerModule
         return $packages;
     }
 
+    /**
+     * The module add-ons the License Server sells, by name => id, for the
+     * products' "addon|..." options.
+     *
+     * @return array<string, int>
+     */
+    public function listAddons(Server $server): array
+    {
+        $api = $this->apiFor($server);
+        if (! $api) {
+            throw new \RuntimeException(__('esapanel-license::messages.error.no_server'));
+        }
+
+        $plans = $api->get('plans', ['type' => 'client_addon', 'per_page' => 100]);
+        if (! $plans->ok) {
+            throw new \RuntimeException($plans->error);
+        }
+
+        $addons = [];
+        foreach ((array) $plans->data as $plan) {
+            if (is_array($plan) && ! empty($plan['id']) && ($plan['label'] ?? '') !== '') {
+                $addons[(string) $plan['label']] = (int) $plan['id'];
+            }
+        }
+
+        return $addons;
+    }
+
     public function testConnection(Server $server): bool
     {
         return (bool) $this->apiFor($server)?->get('plans', ['per_page' => 1])->ok;
