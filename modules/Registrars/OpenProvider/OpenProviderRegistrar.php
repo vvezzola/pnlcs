@@ -11,13 +11,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Openprovider, over its REST API (v1beta).
+ * Openprovider, over its REST API (v1).
  *
  * Written against the official Swagger definitions published at
- * docs.openprovider.com (2026-08): bearer token from POST /v1beta/auth/login,
- * every domain operation under /v1beta/domains. Contacts are "handles" -
- * created once per customer via POST /v1beta/customers and referenced by
+ * docs.openprovider.com (2026-08): bearer token from POST /v1/auth/login,
+ * every domain operation under /v1/domains. Contacts are "handles" -
+ * created once per customer via POST /v1/customers and referenced by
  * every registration and transfer.
+ *
+ * On /v1 since 2026-11: Openprovider retired /v1beta (switched off 30 June
+ * 2027) and documents /v1 as identical but for the base URL.
  *
  * Responses arrive wrapped: {code: 0, desc, data}. Zero is success; anything
  * else carries the reason in desc, which is what the operator sees.
@@ -39,8 +42,8 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
         // The sandbox host is published in Openprovider's own docs; it speaks
         // plain HTTP on a high port and holds an isolated account.
         $this->apiUrl = $testMode
-            ? 'http://api.sandbox.openprovider.nl:8480/v1beta'
-            : 'https://api.openprovider.eu/v1beta';
+            ? 'http://api.sandbox.openprovider.nl:8480/v1'
+            : 'https://api.openprovider.eu/v1';
         $this->username = $settings['username'] ?? '';
         $this->password = $settings['password'] ?? '';
     }
