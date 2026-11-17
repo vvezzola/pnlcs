@@ -49,6 +49,7 @@ test('the margin is applied and the prices rounded up to a whole euro', function
     opPriceSettings(['margin_percent' => '50', 'round_up' => '1']);
     $it = opTld('.it');
     opFakeTlds([['name' => 'it', 'prices' => [
+        'min_period' => 1, 'max_period' => 1,
         'create_price' => opQuote(4.99), 'renew_price' => opQuote(3.30),
         'transfer_price' => opQuote(4.00), 'restore_price' => opQuote(10.00),
     ]]]);
@@ -59,7 +60,8 @@ test('the margin is applied and the prices rounded up to a whole euro', function
         ->and((float) $it->fresh()->register_price)->toBe(8.0)
         ->and((float) $it->fresh()->renew_price)->toBe(5.0)
         ->and((float) $it->fresh()->transfer_price)->toBe(6.0)
-        ->and((float) $it->fresh()->restore_price)->toBe(15.0);
+        ->and((float) $it->fresh()->restore_price)->toBe(15.0)
+        ->and($it->fresh()->max_years)->toBe(1);
 
     // Asked for its own extensions only, as a repeated parameter.
     Http::assertSent(fn ($request) => str_contains($request->url(), '/tlds?')

@@ -120,6 +120,16 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
                     $next[$column] = $this->withMargin($amount * $factors[$currency], $margin, $roundUp);
                 }
 
+                // The registration periods the registry allows (.it: one
+                // year), so an order cannot ask for a term it would refuse.
+                if ($next !== []) {
+                    foreach (['min_period' => 'min_years', 'max_period' => 'max_years'] as $from => $column) {
+                        if ((int) ($prices[$from] ?? 0) > 0) {
+                            $next[$column] = (int) $prices[$from];
+                        }
+                    }
+                }
+
                 if ($next === []) {
                     $skipped++;
                     $skippedExtensions[] = $tld->extension;
