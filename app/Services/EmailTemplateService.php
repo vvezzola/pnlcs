@@ -36,6 +36,7 @@ class EmailTemplateService
         'ConfirmationCodeMail' => 'Confirmation Code',
         'DomainRegistrationMail' => 'Domain Registration Confirmation',
         'EmailVerificationMail' => 'Email Verification',
+        'DiskUsageWarningMail' => 'Disk Usage Warning',
         'DomainRenewalReminderMail' => 'Domain Renewal Reminder',
         'DomainMoveOfferedMail' => 'Domain Move Offered',
         'InvoiceCreatedMail' => 'Invoice Created',
@@ -284,6 +285,12 @@ class EmailTemplateService
             'billingDate' => 'billing_date',
             'deadline' => 'cancel_by',
             'renewalList' => 'renewal_list',
+            // The disk usage warning: how full the service is, and where to
+            // move to a larger plan.
+            'usagePercent' => 'usage_percent',
+            'diskUsed' => 'disk_used',
+            'diskLimit' => 'disk_limit',
+            'upgradeUrl' => 'upgrade_url',
         ] as $property => $name) {
             $value = $data[$property] ?? null;
 

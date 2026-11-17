@@ -117,6 +117,10 @@ return [
         'subject' => 'Dane połączenia aplikacji {app_name}',
         'message' => "Szanowny {client_name},\n\nOto dane połączenia zainstalowanej przez Ciebie aplikacji. Zachowaj tę wiadomość - zawiera wygenerowane hasła.\n\n{app_details}\n\n{CompanyName}",
     ],
+    'Disk Usage Warning' => [
+        'subject' => "Usługa {service_domain} zużyła {usage_percent}% miejsca - {CompanyName}",
+        'message' => "Dzień dobry {client_name},\n\nTwoja usługa {product_name} ({service_domain}) zużywa {disk_used} z {disk_limit} w pakiecie ({usage_percent}%). Poczta przechowywana na serwerze również zajmuje to miejsce.\n\nGdy miejsce się skończy, usługa nie przyjmie nowych danych, także przychodzącej poczty. Zwolnij trochę miejsca (na przykład archiwizując starą pocztę na komputerze) albo przejdź na większy plan: {upgrade_url}\n\nPozdrawiamy,\n{CompanyName}",
+    ],
     'Renewal Notice' => [
         'subject' => "Odnowienia, które zafakturujemy {billing_date} - {CompanyName}",
         'message' => "Szanowny {client_name},\n\nte usługi i domeny zbliżają się do odnowienia. Zafakturujemy je {billing_date}.\n\n{renewal_list}\n\nJeśli nie chcesz już którejś z nich, daj nam znać do {cancel_by}: w panelu klienta pod adresem {whmcs_url} użyj „Poproś o anulowanie” przy usłudze albo wyłącz automatyczne odnawianie domeny. Jeśli chcesz zachować wszystko, nie musisz nic robić.\n\n{CompanyName}",

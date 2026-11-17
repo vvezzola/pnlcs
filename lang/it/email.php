@@ -114,6 +114,14 @@ return [
         'reminder_body' => 'Ti ricordiamo gentilmente che la tua fattura è in scadenza.',
         'reminder_subject' => 'Promemoria di pagamento - Fattura n. :number',
     ],
+    'disk_usage_warning' => [
+        'subject' => 'Il servizio :domain ha usato il :percent% dello spazio - :company',
+        'intro' => 'Il tuo servizio :service sta usando :used dei :limit compresi (:percent%).',
+        'mail_counts' => 'Anche la posta conservata sul server occupa questo spazio.',
+        'when_full' => 'Quando lo spazio finisce, il servizio non accetta nuovi dati, compresa la posta in arrivo.',
+        'what_to_do' => 'Per continuare a usarlo libera un po\' di spazio (per esempio archiviando la posta vecchia sul tuo computer) oppure passa a un piano più grande.',
+        'button' => 'Scegli un piano più grande',
+    ],
     'renewal_notice' => [
         'subject' => 'Rinnovi che fattureremo il :date - :company',
         'intro' => 'Questi servizi e domini sono in scadenza. Li fattureremo il :date.',

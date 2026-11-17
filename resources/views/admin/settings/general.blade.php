@@ -127,6 +127,16 @@
                 {{ __('admin.settings.auto_termination_label') }}
             </label>
             <div style="font-size:12px;color:#777;margin-top:8px;">{{ __('admin.settings.automation_hint') }}</div>
+            <div class="form-group" style="margin-top:15px;max-width:50%;">
+                <label class="form-label" for="disk-usage-warning">{{ __('admin.settings.disk_usage_warning') }}</label>
+                <select id="disk-usage-warning" name="DiskUsageWarningPercent" class="form-control">
+                    <option value="0">{{ __('admin.settings.disk_usage_warning_off') }}</option>
+                    @foreach([70, 75, 80, 85, 90, 95] as $percent)
+                    <option value="{{ $percent }}" @selected((int) ($settings['DiskUsageWarningPercent'] ?? 0) === $percent)>{{ $percent }}%</option>
+                    @endforeach
+                </select>
+                <div style="font-size:12px;color:#777;margin-top:4px;">{{ __('admin.settings.disk_usage_warning_hint') }}</div>
+            </div>
         </div>
     </div>
 

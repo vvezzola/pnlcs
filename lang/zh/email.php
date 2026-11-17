@@ -120,6 +120,14 @@ return [
         'reminder_body' => '温馨提醒：您的发票即将到期。',
         'reminder_subject' => '付款提醒 - 发票 #:number',
     ],
+    'disk_usage_warning' => [
+        'subject' => '您的服务 :domain 已使用 :percent% 的空间 - :company',
+        'intro' => '您的服务 :service 已使用其 :limit 空间中的 :used（:percent%）。',
+        'mail_counts' => '保存在服务器上的邮件也计入此空间。',
+        'when_full' => '空间用尽后，服务将不再接收新数据，包括收到的邮件。',
+        'what_to_do' => '为保持正常使用，请释放部分空间（例如将旧邮件归档到您的电脑上），或升级到更大的套餐。',
+        'button' => '选择更大的套餐',
+    ],
     'renewal_notice' => [
         'subject' => '我们将于 :date 开票的续费项目 - :company',
         'intro' => '以下服务和域名即将续费。我们将于 :date 开具发票。',

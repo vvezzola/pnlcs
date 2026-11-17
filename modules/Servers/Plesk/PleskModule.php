@@ -923,8 +923,16 @@ class PleskModule extends AbstractServerModule
     }
 
     /**
-     * Pull disk/traffic per client via GET /clients/{id}/statistics and update
-     * the services directly (same contract as the cPanel module).
+     * Store on each active service what its account uses, and its limits.
+     *
+     * A service that manages one subscription is read from that subscription,
+     * all of them in one XML API call: the disk it takes (website, mail and
+     * databases), the disk space and traffic it may use, and this month's
+     * traffic. These used to come from the subscription's customer, so a
+     * subscription linked from an existing server - owned by the Plesk admin,
+     * with no customer recorded - was never read, and a customer with several
+     * subscriptions showed their sum on each. Resellers, and services known
+     * only by their customer, are still read per customer.
      */
     public function usageUpdate(Server $server): array
     {
@@ -935,7 +943,26 @@ class PleskModule extends AbstractServerModule
             ->where('status', 'active')
             ->get();
 
-        foreach ($services as $service) {
+        $bySubscription = $services->filter(fn (Service $service) => ! $this->isReseller($service) && $this->subscriptionId($service) !== null);
+
+        if ($bySubscription->isNotEmpty()) {
+            $usage = $this->subscriptionUsage($server);
+
+            foreach ($bySubscription as $service) {
+                $figures = $usage[$this->subscriptionId($service)] ?? null;
+                if ($figures === null) {
+                    // The server did not answer, or no longer has this subscription.
+                    $errors++;
+
+                    continue;
+                }
+
+                $service->update($figures);
+                $updated++;
+            }
+        }
+
+        foreach ($services->diffKeys($bySubscription) as $service) {
             $clientId = $this->getClientId($service);
             if (! $clientId) {
                 continue;
@@ -969,6 +996,40 @@ class PleskModule extends AbstractServerModule
         }
 
         return ['updated' => $updated, 'errors' => $errors];
+    }
+
+    /**
+     * Every subscription's usage and limits in megabytes, by subscription id.
+     * A limit of 0 means unlimited, as on the services table. An unanswered
+     * call gives an empty list.
+     *
+     * @return array<string, array{disk_usage: int, disk_limit: int, bw_usage?: int, bw_limit: int}>
+     */
+    private function subscriptionUsage(Server $server): array
+    {
+        $xml = $this->xmlApi($server, '<webspace><get><filter/><dataset><gen_info/><limits/><stat/></dataset></get></webspace>');
+        $megabytes = fn (string $bytes): int => (int) round(max(0, (float) $bytes) / 1048576);
+
+        $usage = [];
+        foreach ($xml ? ($xml->xpath('//webspace/get/result[status="ok"][data]') ?: []) : [] as $result) {
+            $limits = [];
+            foreach ($result->data->limits->limit ?? [] as $limit) {
+                $limits[(string) $limit->name] = (string) $limit->value;
+            }
+
+            $figures = [
+                'disk_usage' => $megabytes((string) $result->data->gen_info->real_size),
+                'disk_limit' => $megabytes($limits['disk_space'] ?? '0'),
+                'bw_limit' => $megabytes($limits['max_traffic'] ?? '0'),
+            ];
+            if (isset($result->data->stat->traffic)) {
+                $figures['bw_usage'] = $megabytes((string) $result->data->stat->traffic);
+            }
+
+            $usage[(string) $result->id] = $figures;
+        }
+
+        return $usage;
     }
 
     public function testConnection(Server $server): bool

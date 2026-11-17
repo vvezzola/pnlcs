@@ -120,6 +120,14 @@ return [
         'reminder_body' => 'Wir möchten Sie daran erinnern, dass Ihre Rechnung bald fällig wird.',
         'reminder_subject' => 'Zahlungserinnerung – Rechnung Nr. :number',
     ],
+    'disk_usage_warning' => [
+        'subject' => 'Ihr Dienst :domain hat :percent% seines Speicherplatzes belegt - :company',
+        'intro' => 'Ihr Dienst :service belegt :used von :limit (:percent%).',
+        'mail_counts' => 'Auch auf dem Server gespeicherte E-Mails zählen zu diesem Speicherplatz.',
+        'when_full' => 'Ist der Speicherplatz voll, nimmt der Dienst keine neuen Daten mehr an, auch keine eingehenden E-Mails.',
+        'what_to_do' => 'Damit er weiter funktioniert, geben Sie Speicherplatz frei (zum Beispiel indem Sie alte E-Mails auf Ihrem Computer archivieren) oder wechseln Sie zu einem größeren Tarif.',
+        'button' => 'Größeren Tarif wählen',
+    ],
     'renewal_notice' => [
         'subject' => 'Verlängerungen, die wir am :date in Rechnung stellen - :company',
         'intro' => 'Diese Dienste und Domains stehen zur Verlängerung an. Wir stellen sie am :date in Rechnung.',

@@ -121,6 +121,14 @@ return [
         'reminder_body' => 'This is a friendly reminder that your invoice is due soon.',
         'reminder_subject' => 'Payment Reminder - Invoice #:number',
     ],
+    'disk_usage_warning' => [
+        'subject' => 'Your service :domain has used :percent% of its space - :company',
+        'intro' => 'Your service :service is using :used of the :limit it includes (:percent%).',
+        'mail_counts' => 'Mail stored on the server counts towards this space too.',
+        'when_full' => 'When the space runs out, the service accepts no new data, incoming mail included.',
+        'what_to_do' => 'To keep it working, free some space (for example by archiving old mail on your computer) or move to a larger plan.',
+        'button' => 'Choose a larger plan',
+    ],
     'renewal_notice' => [
         'subject' => 'Renewals we will invoice on :date - :company',
         'intro' => 'These services and domains are coming up for renewal. We will invoice them on :date.',

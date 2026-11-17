@@ -120,6 +120,14 @@ return [
         'reminder_body' => 'Faturanızın ödeme tarihinin yaklaştığını hatırlatmak isteriz.',
         'reminder_subject' => 'Ödeme Hatırlatması - Fatura #:number',
     ],
+    'disk_usage_warning' => [
+        'subject' => 'Hizmetiniz :domain alanının %:percent kadarını kullandı - :company',
+        'intro' => 'Hizmetiniz :service, dahil olan :limit alanın :used kadarını kullanıyor (%:percent).',
+        'mail_counts' => 'Sunucuda saklanan e-postalar da bu alana dahildir.',
+        'when_full' => 'Alan dolduğunda hizmet, gelen e-postalar dahil yeni veri kabul etmez.',
+        'what_to_do' => 'Çalışmaya devam etmesi için biraz yer açın (örneğin eski e-postaları bilgisayarınızda arşivleyerek) ya da daha büyük bir pakete geçin.',
+        'button' => 'Daha büyük bir paket seçin',
+    ],
     'renewal_notice' => [
         'subject' => ':date tarihinde faturalayacağımız yenilemeler - :company',
         'intro' => 'Bu hizmetlerin ve alan adlarının yenileme zamanı yaklaşıyor. Bunları :date tarihinde faturalayacağız.',

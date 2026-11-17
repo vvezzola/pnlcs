@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Server;
+use App\Services\DiskUsageWarningService;
 use App\Services\Module\ModuleRegistry;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -78,6 +79,11 @@ class UsagePollingCommand extends Command
         }
 
         $this->info($summary.'.');
+
+        $warned = app(DiskUsageWarningService::class)->run();
+        if ($warned > 0) {
+            $this->line("Warned {$warned} customer(s) about disk space.");
+        }
 
         return Command::SUCCESS;
     }

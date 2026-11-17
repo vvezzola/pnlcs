@@ -121,6 +121,14 @@ return [
         'reminder_body' => 'To przyjazne przypomnienie, że Twoja faktura wkrótce będzie wymagać zapłaty.',
         'reminder_subject' => 'Przypomnienie o płatności – faktura #:number',
     ],
+    'disk_usage_warning' => [
+        'subject' => 'Usługa :domain zużyła :percent% miejsca - :company',
+        'intro' => 'Twoja usługa :service zużywa :used z :limit w pakiecie (:percent%).',
+        'mail_counts' => 'Poczta przechowywana na serwerze również zajmuje to miejsce.',
+        'when_full' => 'Gdy miejsce się skończy, usługa nie przyjmie nowych danych, także przychodzącej poczty.',
+        'what_to_do' => 'Aby działała dalej, zwolnij trochę miejsca (na przykład archiwizując starą pocztę na komputerze) albo przejdź na większy plan.',
+        'button' => 'Wybierz większy plan',
+    ],
     'renewal_notice' => [
         'subject' => 'Odnowienia, które zafakturujemy :date - :company',
         'intro' => 'Te usługi i domeny zbliżają się do odnowienia. Zafakturujemy je :date.',
