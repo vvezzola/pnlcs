@@ -370,7 +370,9 @@ class ApplyLaunchSetupCommand extends Command
                     'slug' => $slug,
                     'description' => $wanted['description'],
                     'hidden' => false,
-                    'show_domain_options' => false,
+                    // The order page's domain box is where the customer
+                    // names the domain the certificate is for.
+                    'show_domain_options' => true,
                     'pay_type' => 'recurring',
                     'auto_setup' => 'payment',
                     'ssl_module' => 'ssl2buy',

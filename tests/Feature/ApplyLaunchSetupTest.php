@@ -145,6 +145,7 @@ test('the SSL products are created once, sold yearly and mapped to their SSL2BUY
     $positive = Product::where('slug', 'ssl-positivessl')->first();
     expect($wildcard->type)->toBe('ssl')
         ->and($wildcard->ssl_module)->toBe('ssl2buy')
+        ->and($wildcard->show_domain_options)->toBeTrue()
         ->and($wildcard->group->slug)->toBe('certificati-ssl')
         ->and((float) $pricing->annually)->toBe(120.0)
         ->and((float) $pricing->monthly)->toBe(-1.0)
