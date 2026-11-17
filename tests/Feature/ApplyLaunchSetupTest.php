@@ -140,9 +140,9 @@ test('the SSL products are created once, sold yearly and mapped to their SSL2BUY
 
     $this->artisan('esalogica:apply-launch-setup --write')->assertSuccessful();
 
-    $wildcard = Product::where('slug', 'ssl-alphassl-wildcard')->first();
+    $wildcard = Product::where('slug', 'certificato-ssl-wildcard-alphassl')->first();
     $pricing = Pricing::where('rel_id', $wildcard->id)->where('type', 'product')->first();
-    $positive = Product::where('slug', 'ssl-positivessl')->first();
+    $positive = Product::where('slug', 'certificato-ssl-positivessl')->first();
     expect($wildcard->type)->toBe('ssl')
         ->and($wildcard->ssl_module)->toBe('ssl2buy')
         ->and($wildcard->show_domain_options)->toBeTrue()
@@ -150,7 +150,7 @@ test('the SSL products are created once, sold yearly and mapped to their SSL2BUY
         ->and((float) $pricing->annually)->toBe(120.0)
         ->and((float) $pricing->monthly)->toBe(-1.0)
         ->and(SslModuleSettings::getSetting('ssl2buy', 'product_map'))->toBe(collect([
-            $positive->id => 351, Product::where('slug', 'ssl-alphassl')->value('id') => 101, $wildcard->id => 102, 99 => 202,
+            $positive->id => 351, Product::where('slug', 'certificato-ssl-alphassl')->value('id') => 101, $wildcard->id => 102, 99 => 202,
         ])->sortKeys()->map(fn ($code, $id) => "{$id}={$code}")->implode(', '));
 
     $this->artisan('esalogica:apply-launch-setup')

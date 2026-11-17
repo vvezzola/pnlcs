@@ -85,19 +85,19 @@ class ApplyLaunchSetupCommand extends Command
      * @var array<string, array{name: string, code: int, annually: string, description: string}>
      */
     private const SSL_PRODUCTS = [
-        'ssl-positivessl' => [
+        'certificato-ssl-positivessl' => [
             'name' => 'Certificato SSL PositiveSSL',
             'code' => 351,
             'annually' => '40.00',
             'description' => 'Certificato SSL di Sectigo (PositiveSSL) per un dominio, con e senza www. Convalida del dominio via email, DNS o file; emesso di solito in pochi minuti.',
         ],
-        'ssl-alphassl' => [
+        'certificato-ssl-alphassl' => [
             'name' => 'Certificato SSL AlphaSSL',
             'code' => 101,
             'annually' => '50.00',
             'description' => 'Certificato SSL di GlobalSign (AlphaSSL) per un dominio, con e senza www. Convalida del dominio via email, DNS o file; emesso di solito in pochi minuti.',
         ],
-        'ssl-alphassl-wildcard' => [
+        'certificato-ssl-wildcard-alphassl' => [
             'name' => 'Certificato SSL Wildcard AlphaSSL',
             'code' => 102,
             'annually' => '120.00',
