@@ -27,6 +27,14 @@ class PerTldFakeRegistrar extends OpenProviderRegistrar
 
         return ['available' => str_starts_with($domain, 'free'), 'domain' => $domain];
     }
+
+    /** Openprovider asks in bulk; the fake answers the same either way. */
+    public function checkAvailabilityBulk(array $domains): array
+    {
+        return collect($domains)->mapWithKeys(fn ($domain) => [
+            $domain => ['available' => $this->checkAvailability($domain)['available']],
+        ])->all();
+    }
 }
 
 function perTldSetup(array $pricing): void

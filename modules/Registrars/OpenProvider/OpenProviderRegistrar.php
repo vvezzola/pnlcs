@@ -2,6 +2,7 @@
 
 namespace Modules\Registrars\OpenProvider;
 
+use App\Contracts\ChecksAvailabilityInBulk;
 use App\Contracts\RegistrarModuleInterface;
 use App\Contracts\SyncsDomainData;
 use App\Models\Client;
@@ -11,6 +12,8 @@ use App\Models\DomainPricing;
 use App\Models\ModuleLog;
 use App\Models\RegistrarSettings;
 use Carbon\Carbon;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -29,7 +32,7 @@ use Illuminate\Support\Facades\Log;
  * Responses arrive wrapped: {code: 0, desc, data}. Zero is success; anything
  * else carries the reason in desc, which is what the operator sees.
  */
-class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
+class OpenProviderRegistrar implements ChecksAvailabilityInBulk, RegistrarModuleInterface, SyncsDomainData
 {
     protected string $apiUrl;
 
@@ -45,6 +48,16 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
      * @var list<string>
      */
     protected const TAX_IDENTITY_EXTENSIONS = ['it'];
+
+    /** Seconds the one request for every name of a search may take. */
+    protected const BULK_CHECK_TIMEOUT = 8;
+
+    /**
+     * Seconds one name may take when asked on its own. Openprovider answers
+     * most extensions in a few seconds but has taken 45 for one .org; a
+     * slower name goes to WHOIS instead of holding up the whole page.
+     */
+    protected const SEARCH_CHECK_TIMEOUT = 10;
 
     public function __construct()
     {
@@ -400,18 +413,117 @@ class OpenProviderRegistrar implements RegistrarModuleInterface, SyncsDomainData
                 'domains' => [['name' => $name, 'extension' => $extension]],
             ]);
 
-            // The answer per domain is a status string: "free" is the only one
-            // that means it can be registered; "active" and "in use" mean taken.
-            $status = strtolower((string) ($data['results'][0]['status'] ?? ''));
+            $available = $this->availabilityOf((array) ($data['results'][0] ?? []));
+            if ($available === null) {
+                return ['available' => false, 'domain' => $domain, 'method' => 'openprovider_api', 'error' => 'The registry did not answer.'];
+            }
 
             return [
-                'available' => $status === 'free',
+                'available' => $available,
                 'domain' => $domain,
                 'method' => 'openprovider_api',
             ];
         } catch (\Throwable $e) {
             return ['available' => false, 'domain' => $domain, 'method' => 'openprovider_api', 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Every name of a search, quickly. First one request for all of them,
+     * which Openprovider answers in a few seconds; if a slow registry holds
+     * it past BULK_CHECK_TIMEOUT, one request per name in parallel, each with
+     * its own limit, so the slow one does not hold up the rest. A name with
+     * no answer, or an error, is left out for the caller to ask WHOIS. Asked
+     * one after another, a search with a slow extension (.org once took 45
+     * seconds) ran past the web server's minute and the visitor got a 504.
+     *
+     * @param  array<int, string>  $domains
+     * @return array<string, array{available: bool}>
+     */
+    public function checkAvailabilityBulk(array $domains): array
+    {
+        $names = [];
+        foreach (array_unique(array_map(fn ($d) => strtolower(trim((string) $d)), $domains)) as $domain) {
+            try {
+                $names[$domain] = $this->splitDomain($domain);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+        if ($names === []) {
+            return [];
+        }
+
+        $token = $this->authToken();
+        $body = fn (array $domains) => ['domains' => array_map(fn ($d) => ['name' => $names[$d][0], 'extension' => $names[$d][1]], $domains)];
+
+        try {
+            $response = Http::withToken($token)->timeout(self::BULK_CHECK_TIMEOUT)
+                ->post($this->apiUrl.'/domains/check', $body(array_keys($names)));
+            if ($response->successful() && ($response->json('code') ?? -1) === 0) {
+                return $this->availabilityAnswers((array) $response->json('data.results', []));
+            }
+        } catch (\Throwable) {
+            // Too slow or unreachable as a whole: ask name by name below.
+        }
+
+        $responses = Http::pool(fn (Pool $pool) => array_map(
+            fn (string $domain) => $pool->as($domain)
+                ->withToken($token)
+                ->timeout(self::SEARCH_CHECK_TIMEOUT)
+                ->post($this->apiUrl.'/domains/check', $body([$domain])),
+            array_keys($names),
+        ));
+
+        $answers = [];
+        foreach ($responses as $response) {
+            if ($response instanceof Response && $response->successful() && ($response->json('code') ?? -1) === 0) {
+                $answers += $this->availabilityAnswers((array) $response->json('data.results', []));
+            }
+        }
+
+        return $answers;
+    }
+
+    /**
+     * @param  array<int, mixed>  $results
+     * @return array<string, array{available: bool}>
+     */
+    protected function availabilityAnswers(array $results): array
+    {
+        $answers = [];
+        foreach ($results as $row) {
+            $domain = strtolower((string) ($row['domain'] ?? ''));
+            $available = is_array($row) ? $this->availabilityOf($row) : null;
+            if ($domain !== '' && $available !== null) {
+                $answers[$domain] = ['available' => $available];
+            }
+        }
+
+        return $answers;
+    }
+
+    /**
+     * One answer of /domains/check: true free, false taken, null not known.
+     *
+     * "free" is the only status that means it can be registered. A registry
+     * Openprovider cannot reach comes back as "active" too, with the reason
+     * saying so ("Registry currently not reachable ... Deadline Exceeded"):
+     * that is no answer, not a taken name.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    protected function availabilityOf(array $result): ?bool
+    {
+        $status = strtolower((string) ($result['status'] ?? ''));
+        if ($status === '') {
+            return null;
+        }
+        if ($status !== 'free' && preg_match('/reachable|unreachable|deadline|timed? ?out|unavailable/i', (string) ($result['reason'] ?? ''))) {
+            return null;
+        }
+
+        return $status === 'free';
     }
 
     public function syncDomain(Domain $domain): array
