@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\BannedEmail;
 use App\Models\Cart;
 use App\Models\Client;
 use App\Models\Currency;
@@ -7,6 +8,7 @@ use App\Models\Order;
 use App\Models\Pricing;
 use App\Models\Product;
 use App\Models\ProductGroup;
+use App\Models\Setting;
 use App\Models\User;
 
 /*
@@ -138,7 +140,7 @@ test('the guest cart survives logging in instead', function () {
 });
 
 test('a banned address cannot buy its way past the register ban', function () {
-    App\Models\BannedEmail::create(['email' => 'banned@example.test', 'domain' => 'example.test', 'reason' => 'test']);
+    BannedEmail::create(['email' => 'banned@example.test', 'domain' => 'example.test', 'reason' => 'test']);
     $product = guestProduct();
     $this->post(route('client.cart.add'), ['product_id' => $product->id, 'billing_cycle' => 'monthly']);
 
@@ -165,4 +167,15 @@ test('a logged-in customer checks out exactly as before', function () {
     // The account form is for visitors; a customer sees their own details.
     expect($html)->not->toContain('name="password_confirmation"')
         ->and($html)->toContain(__('client.checkout.contact_details'));
+});
+
+test('the terms and privacy accepted at checkout can be opened', function () {
+    Setting::set('TOSUrl', 'https://shop.test/terms');
+    Setting::set('PrivacyUrl', '');
+    $this->post(route('client.cart.add'), ['product_id' => guestProduct()->id, 'billing_cycle' => 'monthly']);
+
+    $html = $this->get(route('client.cart.checkout'))->assertOk()->getContent();
+
+    expect($html)->toContain('href="https://shop.test/terms"')
+        ->and($html)->toContain('href="'.route('legal.show', 'privacy').'"');
 });

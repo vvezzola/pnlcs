@@ -135,7 +135,11 @@
             <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:14px;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm)">
                 <input type="checkbox" name="terms" id="terms" value="1" required style="margin-top:2px;flex-shrink:0;accent-color:var(--primary)">
                 <span style="font-size:13px;color:var(--muted)">
-                    {{ __('client.auth.i_agree_to') }} <a href="#" class="link">{{ __('client.auth.terms_of_service') }}</a> {{ __('client.auth.and') }} <a href="#" class="link">{{ __('client.auth.privacy_policy') }}</a>.
+                    {{-- The documents the customer agrees to: the addresses set
+                         under Setup > General, as on the sign-up form, or the
+                         site's own legal pages. These were "#" links, so the
+                         terms being accepted could not be opened. --}}
+                    {{ __('client.auth.i_agree_to') }} <a href="{{ trim((string) \App\Models\Setting::get('TOSUrl', '')) ?: route('legal.show', 'terms') }}" target="_blank" rel="noopener" class="link">{{ __('client.auth.terms_of_service') }}</a> {{ __('client.auth.and') }} <a href="{{ trim((string) \App\Models\Setting::get('PrivacyUrl', '')) ?: route('legal.show', 'privacy') }}" target="_blank" rel="noopener" class="link">{{ __('client.auth.privacy_policy') }}</a>.
                 </span>
             </label>
             @guest
