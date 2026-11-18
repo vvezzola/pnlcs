@@ -665,22 +665,30 @@ class EsapanelLicenseModule extends AbstractServerModule
     }
 
     /**
-     * What the service's "addon|..." options chose: the value before the bar
-     * of each chosen sub-option. Null when the product has no such option,
-     * so a licence sold on a plan with its modules keeps its add-ons.
+     * What the service sells: the product's fixed add-ons, then what its
+     * "addon|..." options chose (the value before the bar of each chosen
+     * sub-option). Null when the product has neither, so a licence sold on a
+     * plan with its modules keeps its add-ons.
      *
      * @return list<string>|null
      */
     private function chosenAddons(Service $service): ?array
     {
+        // Add-ons the product always sells (a Trial with every module), in
+        // its configuration: "addons": ["LSP CSP", ...].
+        $fixed = array_values(array_filter(array_map(
+            fn ($addon) => trim((string) $addon),
+            (array) ($service->product?->config_options['addons'] ?? [])
+        ), fn (string $addon) => $addon !== ''));
+
         $hasOption = $service->product?->configOptionGroups()
             ->whereHas('options', fn ($q) => $q->where('option_name', 'like', self::ADDON_OPTION.'|%'))
             ->exists();
         if (! $hasOption) {
-            return null;
+            return $fixed !== [] ? $fixed : null;
         }
 
-        $chosen = [];
+        $chosen = $fixed;
         foreach ($service->configOptions()->with('option', 'sub')->get() as $row) {
             $key = strtolower(trim(explode('|', (string) $row->option?->option_name, 2)[0]));
             if ($key !== self::ADDON_OPTION || ! $row->sub || (int) $row->qty < 1) {

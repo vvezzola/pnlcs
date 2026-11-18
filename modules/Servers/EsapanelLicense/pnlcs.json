@@ -1,1 +1,1 @@
-{"name":"esapanellicense","type":"server","version":"0.1.0","description":"Esapanel licences, sold through the Esapanel License Server","author":{"name":"Esalogica"},"class":"Modules\\Servers\\EsapanelLicense\\EsapanelLicenseModule"}
+{"name": "esapanellicense", "type": "server", "version": "0.3.0", "description": "Esapanel licences, sold through the Esapanel License Server", "author": {"name": "Esalogica"}, "class": "Modules\\Servers\\EsapanelLicense\\EsapanelLicenseModule", "provider": "Modules\\Servers\\EsapanelLicense\\EsapanelLicenseServiceProvider"}

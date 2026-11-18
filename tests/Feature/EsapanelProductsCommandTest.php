@@ -17,6 +17,8 @@ use Modules\Servers\EsapanelLicense\EsapanelLicenseModule;
  * add-ons read from the License Server.
  */
 
+beforeEach(fn () => app()->setLocale('it'));
+
 /** A License Server with the five level plans and the module add-ons, less the ones named. */
 function epLicenseServer(array $withoutAddons = []): void
 {

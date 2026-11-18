@@ -470,3 +470,20 @@ it('reports a refused add-on change and keeps the licence\'s last day untouched'
         ->and($result['message'])->toContain('usage is above')
         ->and(collect($calls)->where('path', 'subscriptions/118/license')->count())->toBe(0);
 });
+
+it('creates a Trial with the add-ons its product always sells', function () {
+    $service = elService();
+    $service->product->update(['config_options' => ['package_name' => '75', 'addons' => ['LSP CSP', 'LSP UCP']]]);
+    $calls = elServer([
+        'GET lsp/licenses' => [],
+        'GET plans' => elAddonPlans(),
+        'GET customers' => [['id' => 57]],
+        'POST lsp/licenses' => elLicense(['trial' => true, 'modules' => ['csp', 'ucp']]),
+    ]);
+
+    expect((new EsapanelLicenseModule)->create($service->fresh())['success'])->toBeTrue();
+
+    $post = collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'lsp/licenses');
+    expect($post['body']['addon_ids'])->toBe([31, 34])
+        ->and($post['body']['service_plan_id'])->toBe(75);
+});
