@@ -152,6 +152,21 @@ test('addproduct creates a catalogue product the way the product screen does', f
         ->and(Pricing::where('type', 'product')->where('rel_id', $pid)->count())->toBe(Currency::count());
 });
 
+test('addproduct can make a hidden product, kept out of the store', function () {
+    $h = newEpHeaders(newEpAdmin());
+    $group = ProductGroup::factory()->create();
+
+    $pid = $this->withHeaders($h)->post('/api/v1/addproduct', [
+        'name' => 'Billing only', 'gid' => $group->id, 'type' => 'other', 'paytype' => 'recurring', 'hidden' => 1,
+    ])->assertOk()->json('pid');
+    $shown = $this->withHeaders($h)->post('/api/v1/addproduct', [
+        'name' => 'On sale', 'gid' => $group->id, 'type' => 'other', 'paytype' => 'recurring',
+    ])->assertOk()->json('pid');
+
+    expect(Product::find($pid)->hidden)->toBeTrue()
+        ->and(Product::find($shown)->hidden)->toBeFalse();
+});
+
 // ------------------------------------------------------------- timers ----
 
 test('task timers keep time, one running timer per task and person', function () {

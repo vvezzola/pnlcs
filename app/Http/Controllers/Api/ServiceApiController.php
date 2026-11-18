@@ -334,7 +334,13 @@ class ServiceApiController extends BaseApiController
         }
 
         $validated = $request->validate(\App\Services\ProductCreator::rules());
+        // WHMCS AddProduct's "hidden": a product made only to bill what is
+        // already sold is kept out of the store from the start.
+        $hidden = $request->validate(['hidden' => 'nullable|boolean'])['hidden'] ?? null;
         $product = $creator->create($validated, (array) $request->input('pricing', []), $request->filled('package_name') ? (string) $request->package_name : null);
+        if ($hidden !== null) {
+            $product->update(['hidden' => (bool) $hidden]);
+        }
 
         return $this->success(['pid' => $product->id]);
     }
