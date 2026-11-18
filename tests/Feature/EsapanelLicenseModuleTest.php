@@ -480,3 +480,20 @@ it('creates a Trial with the add-ons its product always sells', function () {
     expect($post['body']['addon_ids'])->toBe([31, 34])
         ->and($post['body']['service_plan_id'])->toBe(75);
 });
+
+it('leaves a free Trial its License Server length, not the service\'s monthly due date', function () {
+    $service = elService([], ['next_due_date' => now()->addMonth()->toDateString()]);
+    $service->product->update(['pay_type' => 'free', 'config_options' => ['package_name' => '75', 'addons' => ['31']]]);
+    $calls = elServer([
+        'GET lsp/licenses' => [],
+        'GET customers' => [['id' => 57]],
+        'POST lsp/licenses' => elLicense(['trial' => true]),
+    ]);
+
+    expect((new EsapanelLicenseModule)->create($service->fresh())['success'])->toBeTrue();
+
+    $post = collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'lsp/licenses');
+    expect($post['body'])->not->toHaveKey('valid_until');
+    expect((new EsapanelLicenseModule)->renew($service->fresh())['success'])->toBeTrue();
+    expect(collect($calls)->where('method', 'PUT')->count())->toBe(0);
+});

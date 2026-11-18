@@ -843,11 +843,17 @@ class EsapanelLicenseModule extends AbstractServerModule
 
     /**
      * The licence's last day: the day the service is next due. Null for a
-     * service with no due date (a Trial, a free product), which leaves the
-     * License Server's own length for the plan.
+     * free product (the Trial) and for a service with no due date, which
+     * leaves the License Server's own length for the plan (15 days for a
+     * Trial). A free product's service still gets a due date a cycle away,
+     * but there is no paid period for the licence to cover.
      */
     private function validUntil(Service $service): ?string
     {
+        if ($service->product?->pay_type === 'free') {
+            return null;
+        }
+
         $due = $service->next_due_date;
 
         return $due && $due->copy()->endOfDay()->isFuture() ? $due->toDateString() : null;
