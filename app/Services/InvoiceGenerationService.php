@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\Order;
+use App\Models\ProductGroup;
 use App\Models\Promotion;
 use App\Models\Service;
 use App\Models\ServiceAddon;
@@ -70,9 +71,9 @@ class InvoiceGenerationService
                 ? $this->oneInvoicePerRenewal($clientServices, $clientAddons, $clientDomains, $clientCharges)
                 : [[$clientServices->all(), $clientAddons->all(), $clientDomains->all(), $clientCharges->all()]];
 
-            foreach ($batches as [$batchServices, $batchAddons, $batchDomains, $batchCharges]) {
+            foreach ($this->apartByGroupBilling($batches) as [$batchServices, $batchAddons, $batchDomains, $batchCharges, $billing]) {
                 try {
-                    $invoice = $this->generateForServices($client, $batchServices, $batchAddons, $batchDomains, $batchCharges);
+                    $invoice = $this->generateForServices($client, $batchServices, $batchAddons, $batchDomains, $batchCharges, $billing);
 
                     if ($invoice) {
                         $summary['generated']++;
@@ -193,6 +194,54 @@ class InvoiceGenerationService
     private function separateRenewals(): bool
     {
         return (bool) (int) \App\Models\Setting::get('InvoiceRenewalsSeparately', 0);
+    }
+
+    /**
+     * The batches again, with the services of a product group billed on terms
+     * of its own (ProductGroup::hasOwnBilling) taken out onto a document per
+     * group, their addons with them. Everything else stays where it was, so a
+     * shop that sets no group terms invoices exactly as before.
+     *
+     * @param  array<int, array{0: array, 1: array, 2: array, 3: array}>  $batches
+     * @return array<int, array{0: array, 1: array, 2: array, 3: array, 4: ProductGroup|null}>
+     */
+    private function apartByGroupBilling(array $batches): array
+    {
+        $result = [];
+
+        foreach ($batches as [$services, $addons, $domains, $charges]) {
+            $apart = [];
+            $kept = [];
+            foreach ($services as $service) {
+                $service->loadMissing('product.group');
+                $group = ProductGroup::ownBillingFor($service->product);
+                if ($group) {
+                    $apart[$group->id] ??= ['group' => $group, 'services' => [], 'addons' => []];
+                    $apart[$group->id]['services'][] = $service;
+                } else {
+                    $kept[] = $service;
+                }
+            }
+
+            $rest = [];
+            foreach ($addons as $addon) {
+                $owner = collect($apart)->search(fn (array $part) => collect($part['services'])->contains(fn ($s) => (int) $s->id === (int) $addon->service_id));
+                if ($owner !== false) {
+                    $apart[$owner]['addons'][] = $addon;
+                } else {
+                    $rest[] = $addon;
+                }
+            }
+
+            if ($kept !== [] || $rest !== [] || $domains !== [] || $charges !== []) {
+                $result[] = [$kept, $rest, $domains, $charges, null];
+            }
+            foreach ($apart as $part) {
+                $result[] = [$part['services'], $part['addons'], [], [], $part['group']];
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -341,7 +390,7 @@ class InvoiceGenerationService
             ->get()
             ->all();
 
-        return $this->generateForServices($service->client, [$service], $addons);
+        return $this->generateForServices($service->client, [$service], $addons, billing: ProductGroup::ownBillingFor($service->product));
     }
 
     /**
@@ -763,7 +812,7 @@ class InvoiceGenerationService
     /**
      * @param  array<int, BillableItem>  $charges
      */
-    private function generateForServices(Client $client, array $services, array $addons = [], array $domains = [], array $charges = []): ?Invoice
+    private function generateForServices(Client $client, array $services, array $addons = [], array $domains = [], array $charges = [], ?ProductGroup $billing = null): ?Invoice
     {
         if (empty($services) && empty($addons) && empty($domains) && empty($charges)) {
             return null;
@@ -835,6 +884,7 @@ class InvoiceGenerationService
         $options = [
             'due_date' => InvoiceService::defaultDueDate(null, $client),
             'notes' => __('client.invoices.renewal_note', [], $client->language),
+            ...($billing?->invoiceOptions() ?? []),
         ];
 
         $invoice = $this->invoiceService->createInvoice($client, $items, $options);

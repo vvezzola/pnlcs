@@ -62,7 +62,7 @@ class ProductController extends Controller
 
     public function storeGroup(Request $request)
     {
-        $validated = $request->validate(['name' => 'required|string|max:255', 'headline' => 'nullable|string', 'tagline' => 'nullable|string']);
+        $validated = $request->validate(['name' => 'required|string|max:255', 'headline' => 'nullable|string', 'tagline' => 'nullable|string', 'invoice_type' => 'nullable|in:proforma,vat', 'invoice_due_days' => 'nullable|integer|between:0,365']);
         $validated['slug'] = UniqueSlug::for(ProductGroup::class, $validated['name'], 'group');
         ProductGroup::create($validated);
 
@@ -81,7 +81,7 @@ class ProductController extends Controller
 
     public function updateGroup(Request $request, ProductGroup $group)
     {
-        $validated = $request->validate(['name' => 'required|string|max:255', 'headline' => 'nullable|string', 'tagline' => 'nullable|string']);
+        $validated = $request->validate(['name' => 'required|string|max:255', 'headline' => 'nullable|string', 'tagline' => 'nullable|string', 'invoice_type' => 'nullable|in:proforma,vat', 'invoice_due_days' => 'nullable|integer|between:0,365']);
         // The slug stays: a rename does not move the group's address.
         $validated['hidden'] = $request->boolean('hidden');
         $group->update($validated);

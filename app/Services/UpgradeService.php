@@ -237,7 +237,7 @@ class UpgradeService
                 'description' => "Upgrade: {$currentName} -> {$newProduct->name} ({$service->billing_cycle}) - prorated for {$calc['remaining_days']} days - {$service->domain}",
                 'amount' => $calc['prorated_diff'],
                 'taxed' => $newProduct->tax ?? true,
-            ]], ['notes' => 'Prorated product upgrade charge.']);
+            ]], ['notes' => 'Prorated product upgrade charge.', ...(\App\Models\ProductGroup::ownBillingFor($newProduct)?->invoiceOptions() ?? [])]);
 
             return [
                 'success' => true, 'message' => null,

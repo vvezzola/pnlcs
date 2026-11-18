@@ -20,6 +20,7 @@ use App\Models\DomainPricing;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductGroup;
 use App\Models\Promotion;
 use App\Models\Server;
 use App\Models\Service;
@@ -102,11 +103,16 @@ class OrderService
             ] + $this->termsAcceptance());
 
             $invoiceItems = [];
+            // The billing of each line's product group (ProductGroup::
+            // hasOwnBilling), 0 for the shop's own terms: an order made of one
+            // such group alone is invoiced on that group's terms.
+            $billingGroups = [];
 
             foreach ($items as $item) {
                 $type = strtolower($item['type'] ?? 'service');
 
                 if ($type === 'domain') {
+                    $billingGroups[0] = null;
                     $domain = $this->createDomainForOrder($order, $client, $item);
                     $years = max(1, (int) ($item['registration_period'] ?? 1));
                     $action = strtolower((string) ($item['domain_type'] ?? 'register')) === 'transfer'
@@ -151,6 +157,8 @@ class OrderService
                     }
 
                     $service = $this->createServiceForOrder($order, $client, $item);
+                    $ownBilling = ProductGroup::ownBillingFor($service->product);
+                    $billingGroups[$ownBilling?->id ?? 0] = $ownBilling;
 
                     // The app the customer chose while ordering. Recorded on the
                     // service because that is what provisioning reads - the cart
@@ -233,9 +241,11 @@ class OrderService
             }
 
             // Generate invoice for the order
+            $orderBilling = count($billingGroups) === 1 ? reset($billingGroups) : null;
             $invoice = $this->invoiceService->createInvoice($client, $invoiceItems, [
                 'payment_method' => $paymentMethod,
                 'notes' => "Order #{$orderNum}",
+                ...($orderBilling?->invoiceOptions() ?? []),
             ]);
 
             // Apply promotion if provided

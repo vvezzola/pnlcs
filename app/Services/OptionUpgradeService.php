@@ -138,7 +138,7 @@ class OptionUpgradeService
                 ]),
                 'amount' => $prorated,
                 'taxed' => $service->product->tax ?? true,
-            ]], ['notes' => 'Prorated configurable option upgrade.']);
+            ]], ['notes' => 'Prorated configurable option upgrade.', ...(\App\Models\ProductGroup::ownBillingFor($service->product)?->invoiceOptions() ?? [])]);
 
             return ['success' => true, 'message' => null, 'invoice' => $invoice, 'applied' => false];
         }

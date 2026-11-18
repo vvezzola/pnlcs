@@ -19,6 +19,21 @@
             <div class="form-group"><label class="form-label">{{ __('admin.products.group_name') }} <span style="color:#d9534f;">*</span></label><input type="text" name="name" required class="form-control" value="{{ old('name', $group->name ?? '') }}"></div>
             <div class="form-group"><label class="form-label">{{ __('admin.products.headline') }}</label><input type="text" name="headline" class="form-control" value="{{ old('headline', $group->headline ?? '') }}"></div>
             <div class="form-group"><label class="form-label">{{ __('admin.products.tagline') }}</label><input type="text" name="tagline" class="form-control" value="{{ old('tagline', $group->tagline ?? '') }}"></div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div class="form-group" style="flex:1;min-width:220px;">
+                    <label class="form-label">{{ __('admin.products.group_invoice_type') }}</label>
+                    <select name="invoice_type" class="form-control">
+                        <option value="">{{ __('admin.products.group_invoice_type_default') }}</option>
+                        <option value="proforma" @selected(old('invoice_type', $group->invoice_type ?? '') === 'proforma')>{{ __('admin.products.group_invoice_type_proforma') }}</option>
+                        <option value="vat" @selected(old('invoice_type', $group->invoice_type ?? '') === 'vat')>{{ __('admin.products.group_invoice_type_vat') }}</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1;min-width:220px;">
+                    <label class="form-label">{{ __('admin.products.group_invoice_due_days') }}</label>
+                    <input type="number" name="invoice_due_days" min="0" max="365" class="form-control" value="{{ old('invoice_due_days', $group->invoice_due_days ?? '') }}">
+                </div>
+            </div>
+            <small style="display:block;color:#777;margin:-6px 0 12px;">{{ __('admin.products.group_billing_hint') }}</small>
             @if($editing)
             <div class="form-group">
                 <label style="font-weight:400;display:flex;gap:6px;align-items:center;"><input type="checkbox" name="hidden" value="1" @checked(old('hidden', $group->hidden))> {{ __('admin.products.hidden') }}</label>
