@@ -87,6 +87,7 @@ return [
         'plan_changed' => '* :name: piano #:id',
         'on_sale' => '* :name: in vendita',
         'new_group' => '+ opzioni :name',
+        'renamed_group' => '* opzioni :from rinominate :to',
         'linked' => '* opzioni collegate al prodotto',
         'new_option' => '+ :name: :prices',
         'new_choice' => '+ :name: :choice',

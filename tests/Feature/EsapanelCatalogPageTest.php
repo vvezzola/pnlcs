@@ -3,6 +3,7 @@
 use App\Models\Admin;
 use App\Models\AdminRole;
 use App\Models\ConfigOption;
+use App\Models\ConfigOptionGroup;
 use App\Models\ConfigOptionSub;
 use App\Models\Currency;
 use App\Models\Pricing;
@@ -146,4 +147,18 @@ test('a level the seller gives no price at gets no product', function () {
     app(EsapanelCatalog::class)->sync($server, $group, Currency::getDefault(), ['csp' => ['provider' => ['monthly' => '400', 'annually' => '4000']]], false, true);
 
     expect(Product::pluck('slug')->all())->toBe(['esapanel-provider']);
+});
+
+test('the option groups of the first command are taken over, not made twice', function () {
+    ['server' => $server, 'group' => $group] = cpShop();
+    cpLicenseServer();
+    $catalog = app(EsapanelCatalog::class);
+    $catalog->sync($server, $group, Currency::getDefault(), cpPrices(), false, true);
+    ConfigOptionGroup::where('name', 'Esapanel provider modules')->update(['name' => 'Esapanel Provider - moduli']);
+
+    $again = $catalog->sync($server, $group, Currency::getDefault(), cpPrices(), false, true);
+
+    expect($again['changes'])->toBe(1)
+        ->and(ConfigOptionGroup::where('name', 'like', 'Esapanel provider%')->count())->toBe(1)
+        ->and(Product::where('slug', 'esapanel-provider')->first()->configOptionGroups()->count())->toBe(1);
 });

@@ -274,6 +274,18 @@ class EsapanelCatalog
         // Found again by its name, so the name does not follow the language.
         $groupName = 'Esapanel '.$level.' modules';
         $group = ConfigOptionGroup::where('name', $groupName)->first();
+
+        // The first version of Esalogica's command named it "Esapanel
+        // Company - moduli": taken over and renamed, not made twice.
+        $legacy = $group ? null : ConfigOptionGroup::where('name', self::levelName($level).' - moduli')->first();
+        if ($legacy) {
+            $this->change(__('esapanel-license::messages.catalog.renamed_group', ['from' => $legacy->name, 'to' => $groupName]));
+            if ($this->write) {
+                $legacy->update(['name' => $groupName]);
+            }
+            $group = $legacy;
+        }
+
         if (! $group) {
             $this->change(__('esapanel-license::messages.catalog.new_group', ['name' => $groupName]));
             if ($this->write) {

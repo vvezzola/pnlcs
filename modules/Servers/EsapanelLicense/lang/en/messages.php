@@ -87,6 +87,7 @@ return [
         'plan_changed' => '* :name: plan #:id',
         'on_sale' => '* :name: on sale',
         'new_group' => '+ options :name',
+        'renamed_group' => '* options :from renamed :to',
         'linked' => '* options linked to the product',
         'new_option' => '+ :name: :prices',
         'new_choice' => '+ :name: :choice',
