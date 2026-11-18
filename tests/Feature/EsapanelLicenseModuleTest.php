@@ -80,6 +80,12 @@ function elService(array $moduleData = [], array $over = []): Service
     ], $over));
 }
 
+/** The site's mark in the refs: its host. */
+function elSite(): string
+{
+    return parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'pnlcs';
+}
+
 /** @return list<string> "METHOD path" of each call, in order */
 function elPaths(ArrayObject $calls): array
 {
@@ -99,20 +105,22 @@ it('creates the customer and the licence for a new service', function () {
 
     expect($result['success'])->toBeTrue();
     expect(elPaths($calls))->toBe([
-        'GET lsp/licenses', 'GET customers', 'GET customers', 'GET customers', 'POST customers', 'POST lsp/licenses',
+        'GET lsp/licenses', 'GET lsp/licenses',
+        'GET customers', 'GET customers', 'GET customers', 'GET customers', 'POST customers', 'POST lsp/licenses',
     ]);
 
-    $customer = $calls[4];
+    $customer = $calls[6];
     expect($customer['body'])->toMatchArray([
-        'name' => 'Rossi Srl', 'vat_number' => 'IT01234567890', 'owner_username' => 'pnlcs-'.$service->client_id,
-        'password_mode' => 'password', 'external_ref' => 'pnlcs:client:'.$service->client_id,
+        'name' => 'Rossi Srl', 'vat_number' => 'IT01234567890',
+        'owner_username' => 'pnlcs-'.substr(hash('sha256', elSite()), 0, 6).'-'.$service->client_id,
+        'password_mode' => 'password', 'external_ref' => 'pnlcs:'.elSite().':client:'.$service->client_id,
     ]);
     expect($customer['key'])->not->toBeNull();
     expect($customer['body']['password'])->toBe($customer['body']['password_confirmation']);
 
-    $license = $calls[5];
+    $license = $calls[7];
     expect($license['body'])->toMatchArray([
-        'customer_id' => 57, 'service_plan_id' => 5, 'external_ref' => 'pnlcs:service:'.$service->id,
+        'customer_id' => 57, 'service_plan_id' => 5, 'external_ref' => 'pnlcs:'.elSite().':service:'.$service->id,
         'valid_until' => $service->next_due_date->toDateString(),
     ]);
     expect($license['key'])->toContain('svc-'.$service->id.'-create');
@@ -159,8 +167,53 @@ it('uses the customer the License Server already has', function () {
 
     (new EsapanelLicenseModule)->create($service);
 
-    expect(elPaths($calls))->toBe(['GET lsp/licenses', 'GET customers', 'POST lsp/licenses']);
-    expect($calls[1]['query'])->toMatchArray(['external_ref' => 'pnlcs:client:'.$service->client_id]);
+    expect(elPaths($calls))->toBe(['GET lsp/licenses', 'GET lsp/licenses', 'GET customers', 'POST lsp/licenses']);
+    expect($calls[0]['query'])->toMatchArray(['external_ref' => 'pnlcs:'.elSite().':service:'.$service->id]);
+    expect($calls[1]['query'])->toMatchArray(['external_ref' => 'pnlcs:service:'.$service->id]);
+    expect($calls[2]['query'])->toMatchArray(['external_ref' => 'pnlcs:'.elSite().':client:'.$service->client_id]);
+});
+
+it('finds a licence written before the refs named the site', function () {
+    $service = elService();
+    $calls = new ArrayObject;
+    Http::preventStrayRequests();
+    Http::fake([EL_API.'*' => function (Request $request) use ($calls, $service) {
+        $calls->append($request->url());
+        $legacy = str_contains(urldecode($request->url()), 'external_ref=pnlcs:service:'.$service->id);
+
+        return Http::response(['data' => match (true) {
+            str_contains($request->url(), 'lsp/licenses') && $legacy => [elLicense()],
+            str_contains($request->url(), 'lsp/licenses') => [],
+            default => elLicense(),
+        }]);
+    }]);
+
+    expect((new EsapanelLicenseModule)->create($service)['success'])->toBeTrue()
+        ->and($service->fresh()->module_data['subscription_id'])->toBe(118);
+    expect(collect($calls)->filter(fn ($url) => str_contains($url, 'customers'))->count())->toBe(0);
+});
+
+it('marks the owner\'s email for this site when another partner already has it', function () {
+    $service = elService();
+    $posts = new ArrayObject;
+    Http::preventStrayRequests();
+    Http::fake([EL_API.'*' => function (Request $request) use ($posts) {
+        $path = explode('?', substr($request->url(), strlen(EL_API)))[0];
+        if ($request->method() === 'POST' && $path === 'customers') {
+            $posts->append($request->data());
+
+            return count($posts) === 1
+                ? Http::response(['message' => 'The given data was invalid.', 'errors' => ['owner_email' => ['The owner email has already been taken.']]], 422)
+                : Http::response(['data' => ['id' => 58]], 201);
+        }
+
+        return Http::response(['data' => $path === 'lsp/licenses' && $request->method() === 'POST' ? elLicense() : []]);
+    }]);
+
+    expect((new EsapanelLicenseModule)->create($service)['success'])->toBeTrue();
+    expect($posts[0]['owner_email'])->toBe('mario@rossi.test')
+        ->and($posts[1]['owner_email'])->toBe('mario+pnlcs-'.substr(hash('sha256', elSite()), 0, 6).'-'.$service->client_id.'@rossi.test')
+        ->and($posts[1]['email'])->toBe('mario@rossi.test');
 });
 
 it('takes back a licence the service already has instead of creating a second one', function () {

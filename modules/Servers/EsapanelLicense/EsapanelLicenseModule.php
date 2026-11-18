@@ -751,14 +751,18 @@ class EsapanelLicenseModule extends AbstractServerModule
 
     private function findLicense(LicenseServerClient $api, Service $service): LicenseServerResponse
     {
-        $found = $api->get('lsp/licenses', ['external_ref' => self::serviceRef($service)]);
-        if (! $found->ok) {
-            return $found;
+        // The site's own ref, then the one used before refs named the site.
+        foreach ([self::serviceRef($service), self::legacyRef('service', $service->id)] as $ref) {
+            $found = $api->get('lsp/licenses', ['external_ref' => $ref]);
+            if (! $found->ok) {
+                return $found;
+            }
+            if (is_array($found->data[0] ?? null)) {
+                return new LicenseServerResponse(true, 200, $found->data[0]);
+            }
         }
 
-        $first = $found->data[0] ?? null;
-
-        return new LicenseServerResponse(true, 200, is_array($first) ? $first : null);
+        return new LicenseServerResponse(true, 200, null);
     }
 
     /**
@@ -774,13 +778,16 @@ class EsapanelLicenseModule extends AbstractServerModule
             return __('esapanel-license::messages.error.no_client');
         }
 
+        // A reseller's account sees only its own customers, so the VAT and
+        // email searches never find another partner's.
         $searches = array_filter([
-            'external_ref' => self::clientRef($client),
-            'vat_number' => trim((string) $client->tax_id),
-            'email' => trim((string) $client->email),
-        ], fn ($value) => $value !== '');
+            ['external_ref', self::clientRef($client)],
+            ['external_ref', self::legacyRef('client', $client->id)],
+            ['vat_number', trim((string) $client->tax_id)],
+            ['email', trim((string) $client->email)],
+        ], fn (array $search) => $search[1] !== '');
 
-        foreach ($searches as $field => $value) {
+        foreach ($searches as [$field, $value]) {
             $found = $api->get('customers', [$field => $value, 'per_page' => 1]);
             if (! $found->ok) {
                 return $found->error;
@@ -793,15 +800,18 @@ class EsapanelLicenseModule extends AbstractServerModule
         $person = trim($client->first_name.' '.$client->last_name);
         $name = trim((string) $client->company_name) ?: $person;
 
-        $created = $api->post('customers', array_filter([
+        $body = fn (string $ownerEmail) => array_filter([
             'name' => $name,
             'company_name' => trim((string) $client->company_name),
             'vat_number' => trim((string) $client->tax_id),
             'email' => (string) $client->email,
             'country' => (string) $client->country,
             'owner_name' => $person ?: $name,
-            'owner_username' => 'pnlcs-'.$client->id,
-            'owner_email' => (string) $client->email,
+            // Users are unique across the whole License Server, every
+            // partner's included: the site's mark keeps two sites' client
+            // #5 apart.
+            'owner_username' => 'pnlcs-'.self::siteMark().'-'.$client->id,
+            'owner_email' => $ownerEmail,
             // The owner never needs the License Server's panel: a password
             // nobody is told, and no mail asking them to choose one. It is
             // worked out, not drawn: a retry must send the same request, or
@@ -811,7 +821,17 @@ class EsapanelLicenseModule extends AbstractServerModule
             'password_confirmation' => $password,
             'notes' => 'PNLCS client #'.$client->id,
             'external_ref' => self::clientRef($client),
-        ], fn ($value) => $value !== ''), 'pnlcs-'.self::site().'-client-'.$client->id.'-create');
+        ], fn ($value) => $value !== '');
+        $key = 'pnlcs-'.self::site().'-client-'.$client->id.'-create';
+
+        $created = $api->post('customers', $body((string) $client->email), $key);
+
+        // The same person bought from another partner first: their email is
+        // already an owner there. The owner never signs in, so an address
+        // of theirs marked for this site does.
+        if (! $created->ok && $created->status === 422 && str_contains($created->error, 'owner_email')) {
+            $created = $api->post('customers', $body(self::ownerAlias((string) $client->email, $client)), $key);
+        }
 
         if (! $created->ok || empty($created->data['id'])) {
             return $created->error !== '' ? $created->error : __('esapanel-license::messages.error.no_client');
@@ -847,14 +867,38 @@ class EsapanelLicenseModule extends AbstractServerModule
         return is_array($this->getModuleData($service)['installation'] ?? null);
     }
 
+    /**
+     * The refs carry the site: they are unique across the whole License
+     * Server, so two partners' PNLCS client #5 must not share one.
+     */
     private static function serviceRef(Service $service): string
     {
-        return 'pnlcs:service:'.$service->id;
+        return 'pnlcs:'.self::site().':service:'.$service->id;
     }
 
     private static function clientRef(Client $client): string
     {
-        return 'pnlcs:client:'.$client->id;
+        return 'pnlcs:'.self::site().':client:'.$client->id;
+    }
+
+    /** The refs written before they carried the site, still found. */
+    private static function legacyRef(string $kind, int $id): string
+    {
+        return 'pnlcs:'.$kind.':'.$id;
+    }
+
+    /** A short mark of this site, for the names that cannot hold its host. */
+    private static function siteMark(): string
+    {
+        return substr(hash('sha256', self::site()), 0, 6);
+    }
+
+    /** name@example.it -> name+pnlcs-1a2b3c-5@example.it */
+    private static function ownerAlias(string $email, Client $client): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        return $local.'+pnlcs-'.self::siteMark().'-'.$client->id.'@'.$domain;
     }
 
     private static function ownerPassword(Client $client): string
