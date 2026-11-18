@@ -141,3 +141,40 @@ test('an upgrade to a product of the group is charged on the group\'s terms', fu
     expect($result['invoice']->type)->toBe('proforma')
         ->and($result['invoice']->due_date->toDateString())->toBe('2027-02-18');
 });
+
+test('a group with days before due is invoiced that many days ahead of each renewal, not on the billing day', function () {
+    pgbGeneralTerms();
+    $licences = ProductGroup::factory()->create(['invoice_type' => 'proforma', 'invoice_due_days' => 15, 'invoice_days_before_due' => 20]);
+    $client = Client::factory()->create(['tax_exempt' => true]);
+    $licence = pgbService($client, pgbProduct($licences), '2027-03-05');
+    $licence->update(['billing_cycle' => 'Monthly']);
+    $hosting = pgbService($client, pgbProduct(), '2027-03-05');
+    $generate = function (string $day) {
+        $this->travelTo(Carbon::parse($day.' 06:00:00'));
+        app(InvoiceGenerationService::class)->generateDueInvoices();
+    };
+
+    $generate('2027-02-01');
+    expect(Invoice::where('client_id', $client->id)->get()->pluck('items')->flatten()->pluck('rel_id')->all())->toBe([$hosting->id]);
+
+    $generate('2027-02-12');
+    expect(Invoice::where('client_id', $client->id)->where('type', 'proforma')->exists())->toBeFalse();
+
+    $generate('2027-02-13');
+    $proforma = Invoice::with('items')->where('client_id', $client->id)->where('type', 'proforma')->sole();
+    expect($proforma->due_date->toDateString())->toBe('2027-02-28')
+        ->and($proforma->items->pluck('rel_id')->all())->toBe([$licence->id]);
+});
+
+test('the renewal notice leaves out a group invoiced on its own days', function () {
+    pgbGeneralTerms();
+    $licences = ProductGroup::factory()->create(['invoice_type' => 'proforma', 'invoice_due_days' => 15, 'invoice_days_before_due' => 20]);
+    $client = Client::factory()->create();
+    pgbService($client, pgbProduct($licences), '2027-03-05');
+    $hosting = pgbService($client, pgbProduct(), '2027-03-05');
+    $this->travelTo(Carbon::parse('2027-01-15 09:30:00'));
+
+    $upcoming = app(InvoiceGenerationService::class)->upcomingRenewals(Carbon::parse('2027-02-01'));
+
+    expect($upcoming['services']->pluck('id')->all())->toBe([$hosting->id]);
+});

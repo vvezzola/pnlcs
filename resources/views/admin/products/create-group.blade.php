@@ -32,6 +32,10 @@
                     <label class="form-label">{{ __('admin.products.group_invoice_due_days') }}</label>
                     <input type="number" name="invoice_due_days" min="0" max="365" class="form-control" value="{{ old('invoice_due_days', $group->invoice_due_days ?? '') }}">
                 </div>
+                <div class="form-group" style="flex:1;min-width:220px;">
+                    <label class="form-label">{{ __('admin.products.group_invoice_days_before_due') }}</label>
+                    <input type="number" name="invoice_days_before_due" min="0" max="365" class="form-control" value="{{ old('invoice_days_before_due', $group->invoice_days_before_due ?? '') }}">
+                </div>
             </div>
             <small style="display:block;color:#777;margin:-6px 0 12px;">{{ __('admin.products.group_billing_hint') }}</small>
             @if($editing)

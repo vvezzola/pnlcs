@@ -11,11 +11,11 @@ class ProductGroup extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'slug', 'headline', 'tagline', 'order_form_template', 'hidden', 'sort_order', 'invoice_type', 'invoice_due_days'];
+    protected $fillable = ['name', 'slug', 'headline', 'tagline', 'order_form_template', 'hidden', 'sort_order', 'invoice_type', 'invoice_due_days', 'invoice_days_before_due'];
 
     protected function casts(): array
     {
-        return ['hidden' => 'boolean', 'invoice_due_days' => 'integer'];
+        return ['hidden' => 'boolean', 'invoice_due_days' => 'integer', 'invoice_days_before_due' => 'integer'];
     }
 
     public function products()
@@ -25,11 +25,38 @@ class ProductGroup extends Model
 
     /**
      * Whether this group's products are billed apart from the rest: on a
-     * document of their own type, or with days to pay of their own.
+     * document of their own type, with days to pay of their own, or each
+     * renewal a set number of days before it is due.
      */
     public function hasOwnBilling(): bool
     {
-        return in_array($this->invoice_type, ['proforma', 'vat'], true) || $this->invoice_due_days !== null;
+        return in_array($this->invoice_type, ['proforma', 'vat'], true) || $this->invoice_due_days !== null || $this->invoice_days_before_due !== null;
+    }
+
+    /**
+     * Days before its due date a renewal of this group is invoiced, or null
+     * when it waits for the run that invoices the rest of the shop (the
+     * consolidated billing day, or InvoiceDaysBeforeDue).
+     *
+     * A billing day once a month bills a monthly renewal only once the month
+     * before it is paid, on the next billing day: a licence due on the 5th was
+     * invoiced on the 1st and payable after it had run out. Raised a set
+     * number of days ahead instead, each renewal is payable before its day.
+     */
+    public function ownLead(): ?int
+    {
+        return $this->invoice_days_before_due;
+    }
+
+    /**
+     * The longest lead any group sets, so one query can reach every renewal
+     * a group invoices early; null when no group sets one.
+     */
+    public static function longestOwnLead(): ?int
+    {
+        $longest = static::max('invoice_days_before_due');
+
+        return $longest === null ? null : (int) $longest;
     }
 
     /**

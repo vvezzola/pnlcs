@@ -99,13 +99,21 @@ class InvoiceGenerationService
      *
      * @return array{services: Collection<int, Service>, addons: Collection<int, ServiceAddon>, domains: Collection<int, Domain>, charges: Collection<int, BillableItem>}
      */
-    public function dueItems(Carbon $cutoff, int $daysAhead): array
+    public function dueItems(Carbon $cutoff, int $daysAhead, bool $withOwnLead = true): array
     {
+        // A group that invoices each renewal a set number of days ahead
+        // (ProductGroup::ownLead) reaches further than this run may: the
+        // query reaches as far as the longest such lead, and isDueNow() then
+        // holds each renewal to its own group's rule.
+        $today = now()->startOfDay();
+        $longestLead = $withOwnLead ? ProductGroup::longestOwnLead() : null;
+        $reach = $longestLead === null ? $cutoff : $cutoff->copy()->max($today->copy()->addDays($longestLead)->endOfDay());
+
         // Only active services that are due for renewal and not already
         // invoiced. The dedup guard used to be missing entirely despite what
         // this comment claimed, so calling this twice billed the customer
         // twice.
-        $services = Service::with('client', 'product')
+        $services = Service::with('client', 'product.group')
             ->where('status', 'active')
             // The customer turned renewal off; billing them anyway is what got
             // the account suspended for an invoice they never wanted.
@@ -120,17 +128,21 @@ class InvoiceGenerationService
             // billing resumes on its own if the service is put back to work.
             ->whereDoesntHave('cancellationRequest', fn ($c) => $c->whereNull('processed_at'))
             ->whereNotNull('next_due_date')
-            ->where('next_due_date', '<=', $cutoff)
+            ->where('next_due_date', '<=', $reach)
             ->where('amount', '>', 0)
             ->whereHas('client')
             ->whereDoesntHave('client.invoices', fn ($q) => $q
                 ->whereNotIn('status', InvoiceStatus::settled())
                 ->whereHas('items', fn ($i) => $i->where('type', 'Hosting')->whereColumn('rel_id', 'services.id')))
-            ->get();
+            ->get()
+            ->filter(fn (Service $service) => $this->isDueNow($service->product?->group, $service->next_due_date, $cutoff, $today, $withOwnLead))
+            ->values();
 
         // Addons renew on their own dates, so they are collected separately and
         // then billed on the same invoice as the client's due services.
-        $addons = app(AddonService::class)->dueQuery($cutoff)->get();
+        $addons = app(AddonService::class)->dueQuery($reach)->with('service.product.group')->get()
+            ->filter(fn (ServiceAddon $addon) => $this->isDueNow($addon->service?->product?->group, $addon->next_due_date, $cutoff, $today, $withOwnLead))
+            ->values();
 
         $domains = Domain::with('client')
             // Grace counts as billable: the registry still renews at the
@@ -197,6 +209,25 @@ class InvoiceGenerationService
     }
 
     /**
+     * Whether a renewal is invoiced by this run: by the run's own cutoff, or,
+     * for a group that invoices a set number of days ahead, once its due date
+     * is that close. Without $withOwnLead (the renewal notice, which lists
+     * what the billing day will raise) such a group's renewals are left out:
+     * the billing day does not raise them.
+     */
+    private function isDueNow(?ProductGroup $group, mixed $dueDate, Carbon $cutoff, Carbon $today, bool $withOwnLead): bool
+    {
+        $due = Carbon::parse($dueDate);
+        $lead = $group?->ownLead();
+
+        if ($lead === null) {
+            return $due->lte($cutoff);
+        }
+
+        return $withOwnLead && $due->lte($today->copy()->addDays($lead)->endOfDay());
+    }
+
+    /**
      * The batches again, with the services of a product group billed on terms
      * of its own (ProductGroup::hasOwnBilling) taken out onto a document per
      * group, their addons with them. Everything else stays where it was, so a
@@ -223,11 +254,16 @@ class InvoiceGenerationService
                 }
             }
 
+            // An addon goes with its service's group, renewing in this run
+            // or not: billed on the shop's terms it would land on the wrong
+            // document.
             $rest = [];
             foreach ($addons as $addon) {
-                $owner = collect($apart)->search(fn (array $part) => collect($part['services'])->contains(fn ($s) => (int) $s->id === (int) $addon->service_id));
-                if ($owner !== false) {
-                    $apart[$owner]['addons'][] = $addon;
+                $addon->loadMissing('service.product.group');
+                $group = ProductGroup::ownBillingFor($addon->service?->product);
+                if ($group) {
+                    $apart[$group->id] ??= ['group' => $group, 'services' => [], 'addons' => []];
+                    $apart[$group->id]['addons'][] = $addon;
                 } else {
                     $rest[] = $addon;
                 }
@@ -366,7 +402,7 @@ class InvoiceGenerationService
     public function upcomingRenewals(Carbon $billingDay): array
     {
         [$cutoff, $daysAhead] = $this->billingWindow($billingDay);
-        $items = $this->dueItems($cutoff, $daysAhead);
+        $items = $this->dueItems($cutoff, $daysAhead, withOwnLead: false);
 
         return ['services' => $items['services'], 'addons' => $items['addons'], 'domains' => $items['domains']];
     }
