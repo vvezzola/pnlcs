@@ -81,6 +81,14 @@ return [
         'semi_annually' => 'Halbjährlich',
         'triennially' => 'Alle drei Jahre',
     ],
+    'billing_per' => [
+        'annually' => '/Jahr',
+        'monthly' => '/Monat',
+        'months' => '/:count Monate',
+        'quarterly' => '/Quartal',
+        'semiannually' => '/Halbjahr',
+        'years' => '/:count Jahre',
+    ],
     'confirm' => [
         'delete_confirm' => 'Ja, löschen Sie es',
         'delete_text' => 'Diese Aktion kann nicht rückgängig gemacht werden.',

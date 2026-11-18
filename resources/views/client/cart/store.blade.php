@@ -48,7 +48,7 @@
                     {{-- A free product says so, not "$0.00 /monthly". --}}
                     <div class="pn-product-price">{{ __('common.billing.free') }}</div>
                 @elseif($startingPrice !== null)
-                    <div class="pn-product-price">{{ display_money_fmt($startingPrice) }} <span class="cycle">/{{ $startingCycle }}</span></div>
+                    <div class="pn-product-price">{{ display_money_fmt($startingPrice) }} <span class="cycle">{{ \App\Services\BillingCycleHelper::perLabel($startingCycle) }}</span></div>
                 @else
                     <div class="pn-product-price">{{ __('client.store.contact_us') }}</div>
                 @endif

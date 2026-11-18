@@ -81,6 +81,14 @@ return [
         'semi_annually' => '半年付',
         'triennially' => '三年付',
     ],
+    'billing_per' => [
+        'annually' => '/年',
+        'monthly' => '/月',
+        'months' => '/:count个月',
+        'quarterly' => '/季度',
+        'semiannually' => '/半年',
+        'years' => '/:count年',
+    ],
     'confirm' => [
         'delete_confirm' => '是，确认删除',
         'delete_text' => '此操作无法撤销。',

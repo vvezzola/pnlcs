@@ -81,6 +81,14 @@ return [
         'semi_annually' => '6 Aylık',
         'triennially' => '3 Yıllık',
     ],
+    'billing_per' => [
+        'annually' => '/yıl',
+        'monthly' => '/ay',
+        'months' => '/:count ay',
+        'quarterly' => '/çeyrek',
+        'semiannually' => '/6 ay',
+        'years' => '/:count yıl',
+    ],
     'confirm' => [
         'delete_confirm' => 'Evet, sil',
         'delete_text' => 'Bu işlem geri alınamaz.',

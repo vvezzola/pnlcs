@@ -120,6 +120,23 @@ class BillingCycleHelper
         };
     }
 
+    /**
+     * The price's period, short, after a price: "/month", "/year", "/2 years",
+     * "/7 months". The store printed the cycle's key ("/annually") in every
+     * language.
+     */
+    public static function perLabel(string $cycle): string
+    {
+        $months = self::months($cycle);
+
+        return match (true) {
+            $months === null => '/'.$cycle,
+            in_array($months, [1, 3, 6, 12], true) => __('common.billing_per.'.self::NAME_FOR_MONTHS[$months]),
+            $months % 12 === 0 => __('common.billing_per.years', ['count' => intdiv($months, 12)]),
+            default => __('common.billing_per.months', ['count' => $months]),
+        };
+    }
+
     /** Advance a date by exactly one billing cycle (non-mutating).
      *
      * NoOverflow throughout: plain addMonth turns 31 January into 3 March, so

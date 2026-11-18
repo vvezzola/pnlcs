@@ -81,6 +81,14 @@ return [
         'semi_annually' => 'Półrocznie',
         'triennially' => 'Co trzy lata',
     ],
+    'billing_per' => [
+        'annually' => '/rok',
+        'monthly' => '/miesiąc',
+        'months' => '/:count mies.',
+        'quarterly' => '/kwartał',
+        'semiannually' => '/pół roku',
+        'years' => '/:count lat',
+    ],
     'confirm' => [
         'delete_confirm' => 'Tak, usuń',
         'delete_text' => 'Tej operacji nie można cofnąć.',

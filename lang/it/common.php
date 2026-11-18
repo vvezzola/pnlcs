@@ -81,6 +81,14 @@ return [
         'semi_annually' => 'Semestrale',
         'triennially' => 'Triennale',
     ],
+    'billing_per' => [
+        'annually' => '/anno',
+        'monthly' => '/mese',
+        'months' => '/:count mesi',
+        'quarterly' => '/trimestre',
+        'semiannually' => '/semestre',
+        'years' => '/:count anni',
+    ],
     'confirm' => [
         'delete_confirm' => 'Sì, elimina',
         'delete_text' => 'Questa azione non può essere annullata.',

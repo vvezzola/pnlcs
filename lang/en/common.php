@@ -81,6 +81,14 @@ return [
         'semi_annually' => 'Semi-Annually',
         'triennially' => 'Triennially',
     ],
+    'billing_per' => [
+        'annually' => '/year',
+        'monthly' => '/month',
+        'months' => '/:count months',
+        'quarterly' => '/quarter',
+        'semiannually' => '/6 months',
+        'years' => '/:count years',
+    ],
     'confirm' => [
         'delete_confirm' => 'Yes, delete it',
         'delete_text' => 'This action cannot be undone.',
