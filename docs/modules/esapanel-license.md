@@ -49,5 +49,5 @@ The page can be used again at any time: it adds what is missing and changes the 
 ## Good to know
 
 - Each reseller sees only its own customers on the License Server. The references PNLCS writes carry your site's name, so they never clash with another partner's.
-- If the same customer already bought from another partner with the same email, the owner is made with an alias of that email (`name+pnlcs-…@domain`). The owner never signs in to the License Server, so the alias gets no mail.
+- End customers never sign in to the License Server: they find their code in their client area. The owner the module makes for each customer is therefore only technical, with an address like `lsp-…-5@yoursite.com` that gets no mail. The company's real email stays on the customer record.
 - A customer can order a level with no module: the licence is then made with no module, at 0.

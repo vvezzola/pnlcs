@@ -193,27 +193,20 @@ it('finds a licence written before the refs named the site', function () {
     expect(collect($calls)->filter(fn ($url) => str_contains($url, 'customers'))->count())->toBe(0);
 });
 
-it('marks the owner\'s email for this site when another partner already has it', function () {
+it('gives the owner a technical address of this site and keeps the real one on the customer', function () {
     $service = elService();
-    $posts = new ArrayObject;
-    Http::preventStrayRequests();
-    Http::fake([EL_API.'*' => function (Request $request) use ($posts) {
-        $path = explode('?', substr($request->url(), strlen(EL_API)))[0];
-        if ($request->method() === 'POST' && $path === 'customers') {
-            $posts->append($request->data());
-
-            return count($posts) === 1
-                ? Http::response(['message' => 'The given data was invalid.', 'errors' => ['owner_email' => ['The owner email has already been taken.']]], 422)
-                : Http::response(['data' => ['id' => 58]], 201);
-        }
-
-        return Http::response(['data' => $path === 'lsp/licenses' && $request->method() === 'POST' ? elLicense() : []]);
-    }]);
+    $calls = elServer([
+        'GET lsp/licenses' => [],
+        'GET customers' => [],
+        'POST customers' => ['id' => 58],
+        'POST lsp/licenses' => elLicense(),
+    ]);
 
     expect((new EsapanelLicenseModule)->create($service)['success'])->toBeTrue();
-    expect($posts[0]['owner_email'])->toBe('mario@rossi.test')
-        ->and($posts[1]['owner_email'])->toBe('mario+pnlcs-'.substr(hash('sha256', elSite()), 0, 6).'-'.$service->client_id.'@rossi.test')
-        ->and($posts[1]['email'])->toBe('mario@rossi.test');
+
+    $customer = collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'customers');
+    expect($customer['body']['owner_email'])->toBe('lsp-'.substr(hash('sha256', elSite()), 0, 6).'-'.$service->client_id.'@'.elSite())
+        ->and($customer['body']['email'])->toBe('mario@rossi.test');
 });
 
 it('takes back a licence the service already has instead of creating a second one', function () {

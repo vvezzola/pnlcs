@@ -808,18 +808,20 @@ class EsapanelLicenseModule extends AbstractServerModule
         $person = trim($client->first_name.' '.$client->last_name);
         $name = trim((string) $client->company_name) ?: $person;
 
-        $body = fn (string $ownerEmail) => array_filter([
+        $created = $api->post('customers', array_filter([
             'name' => $name,
             'company_name' => trim((string) $client->company_name),
             'vat_number' => trim((string) $client->tax_id),
             'email' => (string) $client->email,
             'country' => (string) $client->country,
             'owner_name' => $person ?: $name,
-            // Users are unique across the whole License Server, every
-            // partner's included: the site's mark keeps two sites' client
-            // #5 apart.
+            // The owner is a technical user: end customers never sign in to
+            // the License Server, they get their code here. Users are unique
+            // across the whole License Server, every partner's included, so
+            // both carry the site's mark; the customer's real address stays
+            // in "email" above, which need not be unique.
             'owner_username' => 'pnlcs-'.self::siteMark().'-'.$client->id,
-            'owner_email' => $ownerEmail,
+            'owner_email' => self::ownerEmail($client),
             // The owner never needs the License Server's panel: a password
             // nobody is told, and no mail asking them to choose one. It is
             // worked out, not drawn: a retry must send the same request, or
@@ -829,17 +831,7 @@ class EsapanelLicenseModule extends AbstractServerModule
             'password_confirmation' => $password,
             'notes' => 'PNLCS client #'.$client->id,
             'external_ref' => self::clientRef($client),
-        ], fn ($value) => $value !== '');
-        $key = 'pnlcs-'.self::site().'-client-'.$client->id.'-create';
-
-        $created = $api->post('customers', $body((string) $client->email), $key);
-
-        // The same person bought from another partner first: their email is
-        // already an owner there. The owner never signs in, so an address
-        // of theirs marked for this site does.
-        if (! $created->ok && $created->status === 422 && str_contains($created->error, 'owner_email')) {
-            $created = $api->post('customers', $body(self::ownerAlias((string) $client->email, $client)), $key);
-        }
+        ], fn ($value) => $value !== ''), 'pnlcs-'.self::site().'-client-'.$client->id.'-create');
 
         if (! $created->ok || empty($created->data['id'])) {
             return $created->error !== '' ? $created->error : __('esapanel-license::messages.error.no_client');
@@ -901,12 +893,10 @@ class EsapanelLicenseModule extends AbstractServerModule
         return substr(hash('sha256', self::site()), 0, 6);
     }
 
-    /** name@example.it -> name+pnlcs-1a2b3c-5@example.it */
-    private static function ownerAlias(string $email, Client $client): string
+    /** lsp-1a2b3c-5@my.partner.it: an address of this site that needs no mailbox. */
+    private static function ownerEmail(Client $client): string
     {
-        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
-
-        return $local.'+pnlcs-'.self::siteMark().'-'.$client->id.'@'.$domain;
+        return 'lsp-'.self::siteMark().'-'.$client->id.'@'.self::site();
     }
 
     private static function ownerPassword(Client $client): string

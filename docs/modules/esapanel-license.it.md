@@ -49,5 +49,5 @@ La pagina si può usare di nuovo quando vuoi: aggiunge quello che manca e cambia
 ## Da sapere
 
 - Ogni rivenditore vede solo i propri clienti sul License Server. I riferimenti che PNLCS scrive portano il nome del tuo sito, quindi non si confondono con quelli di altri partner.
-- Se lo stesso cliente ha già comprato da un altro partner con la stessa email, il titolare viene creato con un alias della sua email (`nome+pnlcs-…@dominio`). Il titolare non entra mai nel License Server, quindi l'alias non riceve posta.
+- I clienti finali non entrano mai nel License Server: il codice lo trovano nella loro area clienti. Il titolare che il modulo crea per ogni cliente è quindi solo tecnico, con un indirizzo come `lsp-…-5@tuosito.it` che non riceve posta. L'email vera dell'azienda resta nella scheda del cliente.
 - Un cliente può ordinare un livello senza nessun modulo: la licenza nasce senza moduli e a 0 €.
