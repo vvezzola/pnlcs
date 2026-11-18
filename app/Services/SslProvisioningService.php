@@ -262,7 +262,10 @@ class SslProvisioningService
 
             // A certificate that has ended is nothing to renew or revoke here,
             // and attached to a service it would hide the live one.
-            if (in_array($status, ['Cancelled', 'Expired', 'Revoked'], true)) {
+            // A provider can still call an order "active" a year after its
+            // certificate ran out (SSL2BUY does): the date says it has ended.
+            if (in_array($status, ['Cancelled', 'Expired', 'Revoked'], true)
+                || ($expires && \Illuminate\Support\Carbon::parse($expires)->endOfDay()->isPast())) {
                 $result['skipped']++;
 
                 continue;

@@ -222,12 +222,15 @@ test('an ended certificate is not attached, and the latest one of a domain claim
         ['order_id' => '8001', 'common_name' => 'shop.example.com', 'status' => 'active', 'valid_till' => '2026-01-10'],
         ['order_id' => '8002', 'common_name' => 'shop.example.com', 'status' => 'active', 'valid_till' => '2027-03-01'],
         ['order_id' => '8003', 'common_name' => 'shop.example.com', 'status' => 'expired', 'valid_till' => '2025-01-01'],
+        // Still "active" at the provider, a year after the date.
+        ['order_id' => '8004', 'common_name' => 'shop.example.com', 'status' => 'active', 'valid_till' => now()->subYear()->toDateString()],
     ]);
 
     $result = app(SslProvisioningService::class)->importRemoteOrders('gogetssl');
 
     expect(SslOrder::where('remote_id', '8002')->value('service_id'))->toBe($ssl->id)
         ->and(SslOrder::where('remote_id', '8003')->exists())->toBeFalse()
+        ->and(SslOrder::where('remote_id', '8004')->exists())->toBeFalse()
         ->and($result['skipped'])->toBeGreaterThanOrEqual(1);
 });
 
