@@ -353,7 +353,7 @@ class SSL2BuyModule extends AbstractSslModule
                     }
                     $orders[] = [
                         'remote_id' => (string) ($remote['OrderNumber'] ?? ''),
-                        'domain' => (string) ($remote['DomainName'] ?? ''),
+                        'domain' => trim((string) ($remote['DomainName'] ?? '')) ?: $this->listedOrderDomain($remote),
                         'status' => (string) ($remote['OrderStatus'] ?? ''),
                         'valid_from' => null,
                         'valid_till' => $this->apiDate($remote['ExpireOn'] ?? null),
@@ -369,6 +369,34 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         return $orders;
+    }
+
+    /**
+     * The domain of a listed order the list shows without one. SSL2BUY opens
+     * each further year of a multi-year subscription as a new order at no
+     * cost, and lists it with a blank domain; its details carry the domain.
+     * Asked only for an order still running, so the old ones cost no call.
+     *
+     * @param  array<string, mixed>  $remote
+     */
+    private function listedOrderDomain(array $remote): string
+    {
+        $expires = $this->apiDate($remote['ExpireOn'] ?? null);
+        $family = self::familyForName((string) ($remote['ProductName'] ?? ''));
+        if (! $family || ! $expires || now()->toDateString() > $expires
+            || in_array($this->mapRemoteStatus((string) ($remote['OrderStatus'] ?? '')), ['Cancelled', 'Expired', 'Revoked'], true)) {
+            return '';
+        }
+
+        try {
+            $details = $this->call(self::FAMILIES[$family]['details'], ['OrderNumber' => (int) ($remote['OrderNumber'] ?? 0)]);
+        } catch (Throwable $e) {
+            Log::warning('SSL2BUY order details failed', ['order' => $remote['OrderNumber'] ?? null, 'error' => $e->getMessage()]);
+
+            return '';
+        }
+
+        return trim((string) ($details['DomainName'] ?? $details['BaseOrderDetails']['DomainName'] ?? ''));
     }
 
     /** Map an SSL2BUY order status onto the panel's SslOrder status. */

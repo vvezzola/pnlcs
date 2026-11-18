@@ -168,6 +168,25 @@ test('the orders already on the account are listed across pages', function () {
         ->and($module->mapRemoteStatus($orders[1]['status']))->toBe('Awaiting Issuance');
 });
 
+test('a running order listed without a domain takes it from its details, an ended one is not asked for', function () {
+    $this->travelTo('2026-11-18');
+    Http::fake([
+        'api.ssl2buy.com/orderservice/order/getorderlist' => Http::response(['OrderList' => [
+            ['OrderNumber' => 21, 'ProductName' => 'AlphaSSL Wildcard Certificate', 'DomainName' => '', 'OrderStatus' => 'Active', 'ExpireOn' => '2026-12-02T00:00:00'],
+            ['OrderNumber' => 22, 'ProductName' => 'AlphaSSL Wildcard Certificate', 'DomainName' => '', 'OrderStatus' => 'Expired', 'ExpireOn' => '2023-01-03T00:00:00'],
+        ], 'TotalPages' => 1, 'StatusCode' => 0]),
+        'api.ssl2buy.com/queryservice/globalsign/getorderdetails' => Http::response([
+            'DomainName' => '*.example.com', 'OrderStatus' => 'COMPLETED', 'StatusCode' => 0,
+        ]),
+    ]);
+
+    $orders = (new SSL2BuyModule)->listRemoteOrders();
+
+    expect($orders[0]['domain'])->toBe('*.example.com')
+        ->and($orders[1]['domain'])->toBe('');
+    Http::assertSentCount(2);
+});
+
 test('the administrator sees the DNS record the validation waits for', function () {
     $order = ssl2buyOrder(['remote_id' => '987654', 'status' => 'Awaiting Issuance', 'config_data' => ['dcv' => [
         'method' => 'DNS', 'name' => '_ABC.shop.example.com', 'type' => 'CNAME', 'value' => 'AAA.BBB.sectigo.com',
