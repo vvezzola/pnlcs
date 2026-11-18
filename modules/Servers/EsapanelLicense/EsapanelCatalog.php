@@ -144,6 +144,13 @@ class EsapanelCatalog
         DB::transaction(function () use ($group, $currency, $prices, $visible, $plans) {
             foreach (self::LEVELS as $level => $plan) {
                 $this->lines[] = __('esapanel-license::messages.catalog.level', ['name' => self::levelName($level), 'plan' => $plan, 'id' => $plans[$plan]]);
+                // A level the seller gives no price at is not sold: no product
+                // made for it (one already on sale is left as it is).
+                if (! self::pricedAt($level, $prices) && ! Product::where('slug', self::slug($level))->exists()) {
+                    $this->lines[] = '  '.__('esapanel-license::messages.catalog.not_sold');
+
+                    continue;
+                }
                 $product = $this->product(self::slug($level), self::levelName($level), self::levelDescription($level), $group, $currency, $plans[$plan], $visible, false, []);
                 $this->moduleOptions($level, $product, $currency, $prices);
             }
@@ -158,6 +165,21 @@ class EsapanelCatalog
         });
 
         return ['ok' => true, 'changes' => $this->changes, 'lines' => $this->lines];
+    }
+
+    /** @param  array<string, array<string, mixed>>  $prices */
+    private static function pricedAt(string $level, array $prices): bool
+    {
+        $columns = $level === 'company' ? ['company_small', 'company_large'] : [$level];
+        foreach (array_keys(self::MODULES) as $module) {
+            foreach ($columns as $column) {
+                if (self::price($prices[$module][$column] ?? null) !== null) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /** @return list<string> every add-on the catalogue sells */

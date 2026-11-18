@@ -91,6 +91,7 @@ return [
         'new_option' => '+ :name: :prices',
         'new_choice' => '+ :name: :choice',
         'price' => '* :name :choice: :from -> :to',
+        'not_sold' => 'no price given: not sold',
         'none' => 'None',
         'size' => [
             'devices_25' => '25 devices', 'devices_100' => '100 devices',

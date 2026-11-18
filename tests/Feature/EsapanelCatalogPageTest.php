@@ -136,3 +136,12 @@ test('once the License Server has the Trial plan, a free Trial sells every modul
         ->and($trial->config_options['addons'])->toBe(['LSP CSP', 'LSP CSPH', 'LSP UCP', 'LSP DRP', 'LSP WFP', 'LSP WFPH'])
         ->and($trial->configOptionGroups()->count())->toBe(0);
 });
+
+test('a level the seller gives no price at gets no product', function () {
+    ['server' => $server, 'group' => $group] = cpShop();
+    cpLicenseServer();
+
+    app(EsapanelCatalog::class)->sync($server, $group, Currency::getDefault(), ['csp' => ['provider' => ['monthly' => '400', 'annually' => '4000']]], false, true);
+
+    expect(Product::pluck('slug')->all())->toBe(['esapanel-provider']);
+});
