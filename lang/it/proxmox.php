@@ -69,6 +69,18 @@ return [
         'backup_protected' => 'Quel backup è protetto e non può essere eliminato qui.',
     ],
 
+    'purpose' => [
+        'vm_backup' => 'fare backup',
+        'vm_clone' => 'clonare i template KVM',
+        'vm_config_cdrom' => 'avviare una ISO di installazione',
+        'vm_config_cloudinit' => 'impostare password e indirizzi con cloud-init',
+        'vm_config_hwtype' => 'impostare il tipo di hardware di una VM installata da ISO',
+        'vm_console' => 'aprire la console',
+        'vm_guestagent_audit' => 'leggere gli indirizzi IP del guest',
+        'vm_guestagent_unrestricted' => 'cambiare la password senza riavviare',
+        'vm_snapshot' => 'fare snapshot',
+        'vm_snapshot_rollback' => 'ripristinare gli snapshot',
+    ],
     'check' => [
         'no_vendor' => 'Non è impostato alcuno snippet vendor di cloud-init. Le immagini cloud di Debian, Ubuntu e RHEL rifiutano l\'accesso SSH con password, quindi i clienti non potrebbero entrare con la password fornita da PNLCS. Crea lo snippet con i comandi qui sotto e indicalo su questo server.',
         'vendor_missing' => 'Lo snippet vendor :volume non esiste sul nodo :node. Crealo con i comandi qui sotto.',

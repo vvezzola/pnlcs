@@ -69,6 +69,18 @@ return [
         'backup_protected' => 'Ta kopia zapasowa jest chroniona i nie można jej tu usunąć.',
     ],
 
+    'purpose' => [
+        'vm_backup' => 'robić kopii zapasowych',
+        'vm_clone' => 'klonować szablonów KVM',
+        'vm_config_cdrom' => 'uruchomić ISO instalacyjnego',
+        'vm_config_cloudinit' => 'ustawiać haseł i adresów przez cloud-init',
+        'vm_config_hwtype' => 'ustawić typu sprzętu maszyny zainstalowanej z ISO',
+        'vm_console' => 'otworzyć konsoli',
+        'vm_guestagent_audit' => 'odczytać adresów IP gościa',
+        'vm_guestagent_unrestricted' => 'zmienić hasła bez restartu',
+        'vm_snapshot' => 'robić snapshotów',
+        'vm_snapshot_rollback' => 'przywracać snapshotów',
+    ],
     'check' => [
         'no_vendor' => 'Nie ustawiono fragmentu vendor cloud-init. Obrazy chmurowe Debian, Ubuntu i RHEL odrzucają logowanie hasłem przez SSH, więc klienci nie mogliby zalogować się hasłem od PNLCS. Utwórz fragment poniższymi poleceniami i wpisz go w tym serwerze.',
         'vendor_missing' => 'Fragment vendor :volume nie istnieje na węźle :node. Utwórz go poniższymi poleceniami.',

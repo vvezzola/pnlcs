@@ -441,6 +441,17 @@ it('passes a token limited to its pool, and reads inherited and exact rights cor
         ->and(collect($report['checks'])->where('level', 'fail'))->toBeEmpty();
 });
 
+it('says what a missing optional right is for in the admin\'s language', function () {
+    $pve = FakeProxmox::install()->template(9000);
+    unset($pve->permissions['/']['VM.Clone']);
+    app()->setLocale('it');
+
+    $warnings = collect((new ProxmoxModule)->diagnose(pveServer())['checks'])->where('level', 'warn')->pluck('text')->implode(' ');
+
+    expect($warnings)->toContain('Manca VM.Clone: PNLCS non può clonare i template KVM.')
+        ->and($warnings)->not->toContain('clone KVM templates');
+});
+
 it('fails a token that cannot use the bridge', function () {
     $pve = FakeProxmox::install()->template(9000);
     unset($pve->permissions['/']['SDN.Use']);

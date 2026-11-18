@@ -92,6 +92,18 @@ YAML;
     public function __construct(private readonly ProxmoxClient $api) {}
 
     /**
+     * What a right is for, in the admin's language. PURPOSE stays the English
+     * wording; it was put as it is into the translated sentence ("PNLCS non
+     * può clone KVM templates").
+     */
+    public static function purpose(string $priv): string
+    {
+        $key = 'proxmox.purpose.'.strtolower(str_replace('.', '_', $priv));
+
+        return \Illuminate\Support\Facades\Lang::has($key) ? __($key) : (self::PURPOSE[$priv] ?? $priv);
+    }
+
+    /**
      * Commands that turn each official cloud image into a template PNLCS can
      * sell: downloaded once, imported as the boot disk, given a cloud-init
      * drive and put into the pool. The id is the next free one, so running a
@@ -206,7 +218,7 @@ YAML;
                 $add('ok', 'guest_rights', ['path' => $guestPath]);
             }
             foreach ($missingOther as $priv) {
-                $add('warn', 'missing_optional', ['priv' => $priv, 'purpose' => self::PURPOSE[$priv] ?? $priv]);
+                $add('warn', 'missing_optional', ['priv' => $priv, 'purpose' => self::purpose($priv)]);
                 $rightsProblem = true;
             }
 

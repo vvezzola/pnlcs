@@ -69,6 +69,18 @@ return [
         'backup_protected' => '该备份受保护，无法在此删除。',
     ],
 
+    'purpose' => [
+        'vm_backup' => '进行备份',
+        'vm_clone' => '克隆 KVM 模板',
+        'vm_config_cdrom' => '从安装 ISO 启动',
+        'vm_config_cloudinit' => '通过 cloud-init 设置密码和地址',
+        'vm_config_hwtype' => '为通过 ISO 安装的虚拟机设置硬件类型',
+        'vm_console' => '打开控制台',
+        'vm_guestagent_audit' => '读取虚拟机的 IP 地址',
+        'vm_guestagent_unrestricted' => '无需重启即可更改密码',
+        'vm_snapshot' => '创建快照',
+        'vm_snapshot_rollback' => '回滚快照',
+    ],
     'check' => [
         'no_vendor' => '未设置 cloud-init vendor 片段。Debian、Ubuntu 和 RHEL 云镜像会拒绝 SSH 密码登录，客户将无法使用 PNLCS 提供的密码登录。请用下面的命令创建该片段，并在此服务器中填写。',
         'vendor_missing' => 'vendor 片段 :volume 在节点 :node 上不存在。请用下面的命令创建。',

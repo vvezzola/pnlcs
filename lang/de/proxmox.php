@@ -69,6 +69,18 @@ return [
         'backup_protected' => 'Diese Sicherung ist geschützt und kann hier nicht gelöscht werden.',
     ],
 
+    'purpose' => [
+        'vm_backup' => 'Backups erstellen',
+        'vm_clone' => 'KVM-Vorlagen klonen',
+        'vm_config_cdrom' => 'eine Installations-ISO starten',
+        'vm_config_cloudinit' => 'Passwörter und Adressen mit cloud-init setzen',
+        'vm_config_hwtype' => 'den Hardwaretyp einer per ISO installierten VM setzen',
+        'vm_console' => 'die Konsole öffnen',
+        'vm_guestagent_audit' => 'die IP-Adressen des Gasts lesen',
+        'vm_guestagent_unrestricted' => 'ein Passwort ohne Neustart ändern',
+        'vm_snapshot' => 'Snapshots anlegen',
+        'vm_snapshot_rollback' => 'Snapshots zurücksetzen',
+    ],
     'check' => [
         'no_vendor' => 'Kein Cloud-Init-Vendor-Snippet eingetragen. Cloud-Images von Debian, Ubuntu und RHEL lehnen SSH-Anmeldungen mit Passwort ab, Kunden könnten sich mit dem Passwort von PNLCS nicht anmelden. Legen Sie das Snippet mit den Befehlen unten an und tragen Sie es bei diesem Server ein.',
         'vendor_missing' => 'Das Vendor-Snippet :volume existiert auf Node :node nicht. Legen Sie es mit den Befehlen unten an.',

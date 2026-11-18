@@ -69,6 +69,18 @@ return [
         'backup_protected' => 'Bu yedek korumalı; buradan silinemez.',
     ],
 
+    'purpose' => [
+        'vm_backup' => 'yedek almak',
+        'vm_clone' => 'KVM şablonlarını klonlamak',
+        'vm_config_cdrom' => 'kurulum ISO\'sundan başlatmak',
+        'vm_config_cloudinit' => 'cloud-init ile parola ve adres ayarlamak',
+        'vm_config_hwtype' => 'ISO ile kurulan VM\'nin donanım türünü ayarlamak',
+        'vm_console' => 'konsolu açmak',
+        'vm_guestagent_audit' => 'misafirin IP adreslerini okumak',
+        'vm_guestagent_unrestricted' => 'yeniden başlatmadan parola değiştirmek',
+        'vm_snapshot' => 'anlık görüntü almak',
+        'vm_snapshot_rollback' => 'anlık görüntüye geri dönmek',
+    ],
     'check' => [
         'no_vendor' => 'Cloud-init vendor snippet\'i tanımlı değil. Debian, Ubuntu ve RHEL cloud imajları SSH\'ta parolayla girişi reddeder; müşteriler PNLCS\'in verdiği parolayla giremez. Snippet\'i aşağıdaki komutlarla oluşturun ve bu sunucuya girin.',
         'vendor_missing' => ':volume vendor snippet\'i :node node\'unda yok. Aşağıdaki komutlarla oluşturun.',
