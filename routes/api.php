@@ -208,4 +208,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/reissuesslorder', [\App\Http\Controllers\Api\SslApiController::class, 'reissueSslOrder']);
     Route::post('/resendsslvalidation', [\App\Http\Controllers\Api\SslApiController::class, 'resendSslValidation']);
     Route::get('/getsslapproveremails', [\App\Http\Controllers\Api\SslApiController::class, 'getSslApproverEmails']);
+
+    // Esalogica only: the subscriptions import and the billing simulation,
+    // for a full administrator's credential (not in ApiPermissionMap).
+    Route::post('esalogicaimportabbonamenti', [\App\Http\Controllers\Api\EsalogicaImportController::class, 'importAbbonamenti']);
+    Route::post('esalogicasimulafatture', [\App\Http\Controllers\Api\EsalogicaImportController::class, 'simulaFatture']);
 });

@@ -210,8 +210,9 @@ test('no API endpoint answers with a server error', function () {
             $bad = $status >= 500 || $status === 429 || $status === 401
                 || ($mode === 'missing' && $status === 200 && $route['method'] === 'POST' && ($response->json('result') === 'success')
                     // These create something new and take no id, so a success
-                    // with made-up ids is the right answer.
-                    && ! in_array($route['uri'], ['/api/v1/createoauthcredential'], true));
+                    // with made-up ids is the right answer. Esalogica's billing
+                    // simulation (local only) takes no id and writes nothing.
+                    && ! in_array($route['uri'], ['/api/v1/createoauthcredential', '/api/v1/esalogicasimulafatture'], true));
 
             // Nothing that signs in or moves a domain may leave in a response:
             // a model that forgets to hide a column hands it to every caller
