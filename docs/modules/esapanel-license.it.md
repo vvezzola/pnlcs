@@ -21,7 +21,7 @@ In **Setup, Server**, aggiungi un server:
 
 ## 2. I prodotti: il catalogo Esapanel
 
-Apri **Licenze Esapanel**, nel menu in alto. Nella pagina:
+Apri **Estensioni, Licenze Esapanel**, nel menu in alto. Nella pagina:
 
 1. scegli il License Server e il gruppo prodotti;
 2. scrivi i tuoi prezzi, al mese e all'anno, IVA esclusa, per ogni modulo e livello. Un modulo lasciato vuoto in un livello non viene venduto lì;

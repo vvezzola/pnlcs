@@ -21,7 +21,7 @@ In **Setup, Servers**, add a server:
 
 ## 2. The products: the Esapanel catalogue
 
-Open **Esapanel licences** in the top menu. On the page:
+Open **Extensions, Esapanel licences** in the top menu. On the page:
 
 1. pick the License Server and the product group;
 2. write your prices, per month and per year, without VAT, for each module and level. A module left empty at a level is not sold there;

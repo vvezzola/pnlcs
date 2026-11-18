@@ -68,7 +68,9 @@ function cpPrices(): array
 
 test('the page asks for a License Server first, and is for staff who manage products', function () {
     $this->actingAs(cpStaff(), 'admin')->get(route('admin.esapanel-catalog.index'))
-        ->assertOk()->assertSee(__('esapanel-license::messages.page.title'))->assertDontSee('name="action"', false);
+        ->assertOk()->assertSee(__('esapanel-license::messages.page.title'))->assertDontSee('name="action"', false)
+        // In the Extensions menu, which the module fills on its own.
+        ->assertSee('href="'.route('admin.esapanel-catalog.index').'"', false);
 
     $this->actingAs(cpStaff(['list_products']), 'admin')->get(route('admin.esapanel-catalog.index'))->assertForbidden();
 });

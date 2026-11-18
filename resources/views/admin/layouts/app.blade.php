@@ -142,13 +142,6 @@
             </li>
             @endif
 
-            {{-- Esapanel licences: the catalogue page of modules/Servers/EsapanelLicense (Esalogica's own) --}}
-            @if(auth('admin')->user()?->hasPermission('manage_products') && \Illuminate\Support\Facades\Route::has('admin.esapanel-catalog.index'))
-            <li style="float:left; width:auto;">
-                <a href="{{ route('admin.esapanel-catalog.index') }}"><i class="fas fa-shield-alt"></i> {{ __('esapanel-license::messages.page.menu') }}</a>
-            </li>
-            @endif
-
             {{-- Utilities --}}
             <li class="has-dropdown" style="float:left; width:auto; position:relative;">
                 <a href="#" onclick="event.preventDefault();"><i class="fas fa-wrench"></i> {{ __('admin.nav.utilities') }}</a>
