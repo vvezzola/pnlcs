@@ -11,7 +11,8 @@ use Modules\Servers\AbstractServerModule;
 
 /**
  * Esapanel licences, sold through the Esapanel License Server (LSP).
- * Esalogica's own; kept out of upstream PNLCS.
+ * Esalogica's module, given to the partners who sell Esapanel; not part of
+ * PNLCS itself.
  *
  * The License Server is a server record (Setup -> Servers) of this type: its
  * hostname, port 9943 unless another is given, and the key of its API account
