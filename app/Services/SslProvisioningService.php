@@ -211,8 +211,10 @@ class SslProvisioningService
      * service happened to carry that domain first, another client's included.
      *
      * A new order is attached to a live service with that domain that has no
-     * certificate yet, an SSL product before a hosting one. An order with no
-     * such service is skipped, since an SSL order must belong to a client.
+     * certificate yet, an SSL product before a hosting one, the latest
+     * certificate of a domain first. An order with no such service, or one
+     * that has ended (cancelled, expired, revoked), is skipped: an SSL order
+     * must belong to a client, and an ended one would hide the live one.
      *
      * @return array{imported: int, updated: int, skipped: int, failed: bool}
      */
@@ -229,6 +231,11 @@ class SslProvisioningService
         if ($orders === null) {
             return ['failed' => true] + $result;
         }
+
+        // The latest certificate of a domain first: a provider lists last
+        // year's order beside this year's, and the first one met claims the
+        // service.
+        usort($orders, fn ($a, $b) => strcmp((string) ($b['valid_till'] ?? ''), (string) ($a['valid_till'] ?? '')));
 
         foreach ($orders as $remote) {
             $domain = strtolower(trim((string) ($remote['domain'] ?? '')));
@@ -249,6 +256,14 @@ class SslProvisioningService
                 $existing->update(array_filter(['status' => $status, 'crt_expires' => $expires], fn ($v) => $v !== null && $v !== ''));
                 $this->fetchImportedCertificate($module, $existing);
                 $result['updated']++;
+
+                continue;
+            }
+
+            // A certificate that has ended is nothing to renew or revoke here,
+            // and attached to a service it would hide the live one.
+            if (in_array($status, ['Cancelled', 'Expired', 'Revoked'], true)) {
+                $result['skipped']++;
 
                 continue;
             }

@@ -223,6 +223,28 @@ class SslApiController extends Controller
         }
     }
 
+    /**
+     * Bring the certificates that exist at a provider into the panel, as the
+     * "Import" button of the SSL orders screen does (moduleName: ssl2buy,
+     * gogetssl).
+     */
+    public function importSslOrders(Request $request)
+    {
+        $data = $request->validate(['moduleName' => 'required|string|max:50']);
+        $name = strtolower($data['moduleName']);
+        $module = app(\App\Services\Module\ModuleRegistry::class)->getSslModule($name);
+        if (! $module || ! method_exists($module, 'listRemoteOrders')) {
+            return response()->json(['result' => 'error', 'message' => 'No SSL module of that name can list its orders.'], 404);
+        }
+
+        $result = app(\App\Services\SslProvisioningService::class)->importRemoteOrders($name);
+        if ($result['failed']) {
+            return response()->json(['result' => 'error', 'message' => 'The provider could not be read: check the module and its credentials.'], 422);
+        }
+
+        return response()->json(['result' => 'success'] + $result);
+    }
+
     /** A hostname, wildcard allowed (*.example.com) - what a certificate is issued for. */
     private static function hostnameRule(): \Closure
     {

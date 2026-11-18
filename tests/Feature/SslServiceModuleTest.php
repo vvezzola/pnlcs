@@ -2,6 +2,7 @@
 
 use App\Models\Admin;
 use App\Models\AdminRole;
+use App\Models\ApiCredential;
 use App\Models\Client;
 use App\Models\Product;
 use App\Models\ProductGroup;
@@ -10,6 +11,7 @@ use App\Models\Service;
 use App\Models\SslModuleSettings;
 use App\Models\SslOrder;
 use App\Services\SslProvisioningService;
+use Database\Factories\ApiCredentialFactory;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 
@@ -210,6 +212,36 @@ test('an order the panel already has keeps its service and client', function () 
     expect($order->service_id)->toBe($owner->id)
         ->and($order->client_id)->toBe($owner->client_id)
         ->and($order->status)->toBe('Expired');
+});
+
+test('an ended certificate is not attached, and the latest one of a domain claims its service', function () {
+    Mail::fake();
+    $ssl = sslsmService(sslsmProduct(['type' => 'ssl', 'ssl_module' => 'gogetssl']), ['status' => 'active', 'domain' => 'shop.example.com']);
+    $hosting = sslsmService(sslsmProduct(['server_type' => 'cpanel']), ['status' => 'active', 'domain' => 'shop.example.com']);
+    fakeGoGetSsl([
+        ['order_id' => '8001', 'common_name' => 'shop.example.com', 'status' => 'active', 'valid_till' => '2026-01-10'],
+        ['order_id' => '8002', 'common_name' => 'shop.example.com', 'status' => 'active', 'valid_till' => '2027-03-01'],
+        ['order_id' => '8003', 'common_name' => 'shop.example.com', 'status' => 'expired', 'valid_till' => '2025-01-01'],
+    ]);
+
+    $result = app(SslProvisioningService::class)->importRemoteOrders('gogetssl');
+
+    expect(SslOrder::where('remote_id', '8002')->value('service_id'))->toBe($ssl->id)
+        ->and(SslOrder::where('remote_id', '8003')->exists())->toBeFalse()
+        ->and($result['skipped'])->toBeGreaterThanOrEqual(1);
+});
+
+test('the import can be run over the API by a full administrator', function () {
+    Mail::fake();
+    $ssl = sslsmService(sslsmProduct(['type' => 'ssl', 'ssl_module' => 'gogetssl']), ['status' => 'active']);
+    fakeGoGetSsl([['order_id' => '9101', 'common_name' => $ssl->domain, 'status' => 'active', 'valid_till' => '2027-03-01']]);
+    $credential = ApiCredential::factory()->create();
+
+    $this->withHeaders(['X-API-Key' => $credential->identifier, 'X-API-Secret' => ApiCredentialFactory::PLAINTEXT_SECRET])
+        ->postJson('/api/v1/importsslorders', ['moduleName' => 'gogetssl'])
+        ->assertOk()->assertJsonPath('imported', 1);
+
+    expect(SslOrder::where('remote_id', '9101')->value('service_id'))->toBe($ssl->id);
 });
 
 test('an account that cannot be read is reported, not counted as empty', function () {
