@@ -127,6 +127,9 @@ class ClientApiController extends BaseApiController
             'firstname' => 'sometimes|required|string|max:255',
             'lastname' => 'sometimes|required|string|max:255',
             'country' => 'sometimes|nullable|string|size:2',
+            // WHMCS UpdateClient's name: no VAT on the client's invoices, as
+            // the "tax exempt" box on the admin screen.
+            'taxexempt' => 'sometimes|boolean',
         ]);
 
         // The login that signs in with the account's address moves with it,
@@ -141,6 +144,9 @@ class ClientApiController extends BaseApiController
             if ($request->has($api)) {
                 $client->$db = $request->$api;
             }
+        }
+        if ($request->has('taxexempt')) {
+            $client->tax_exempt = $request->boolean('taxexempt');
         }
         $client->save();
 
