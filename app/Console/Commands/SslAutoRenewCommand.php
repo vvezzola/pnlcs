@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Log;
  * The next certificate is a free reissue while the order runs on, and a new
  * order, which is paid for, once it does not; when a subscription of several
  * years has a further year to come from the provider, that is left to be
- * configured there rather than bought again. A new order is
- * placed only for a service that is active, set to renew and paid past
- * today, and never twice for the same certificate: a renewal that failed is
- * left for the administrator. A certificate whose key only the customer
+ * configured there rather than bought again. A new order is placed only for
+ * a service that is active, set to renew and paid past today (one given at no
+ * charge has nothing to pay), and never twice for the same certificate: a
+ * renewal that failed is left for the administrator. A certificate whose key only the customer
  * holds is theirs to renew.
  *
  * Validation and installing follow from the status check
@@ -100,7 +100,9 @@ class SslAutoRenewCommand extends Command
         if (! $service || $service->status !== 'active' || ! $service->auto_renew) {
             return 'the SSL service is not active or not set to renew';
         }
-        if (! $service->next_due_date || $service->next_due_date->lte(today())) {
+        // A service given at no charge is never invoiced, so its due date
+        // never moves: there is nothing for it to have paid.
+        if ((float) $service->amount > 0 && (! $service->next_due_date || $service->next_due_date->lte(today()))) {
             return 'the SSL service is not paid past today';
         }
 

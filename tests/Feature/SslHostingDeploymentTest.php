@@ -85,6 +85,9 @@ function fakeDeployment(string $siteCertificate = 'examplewild-2025-26', string 
             $body = $request->body();
             $seen->xml[] = $body;
             $reply = match (true) {
+                str_contains($body, '<parent-name>') => '<site><get>'
+                    .'<result><status>ok</status><id>92</id><data><gen_info><name>shop.example.com</name></gen_info></data></result>'
+                    .'<result><status>ok</status><id>93</id><data><gen_info><name>example.org</name></gen_info></data></result></get></site>',
                 str_contains($body, '<site><get>') => '<site><get><result><status>ok</status><id>91</id><data><gen_info><name>example.com</name></gen_info></data></result></get></site>',
                 str_contains($body, '<get_rec>') => '<dns><get_rec><result><status>ok</status><id>7</id><data><site-id>91</site-id><type>TXT</type><host>example.com.</host><value>v=spf1 +a ~all</value></data></result></get_rec></dns>',
                 str_contains($body, '<add_rec>') => '<dns><add_rec><result><status>ok</status><id>14289</id></result></add_rec></dns>',
@@ -142,6 +145,8 @@ test('a renewal waiting for DNS validation is validated and installed on the hos
     expect($install)->toContain('<name>example.com-wildcard-2027-06-06</name><site>example.com</site>')
         ->toContain('<pvt>'.deployKeyPair()[0].'</pvt><cert>'.deployKeyPair()[1])
         ->and($seen->cli)->toContain(['site', '--update', 'example.com', '-certificate-name', 'example.com-wildcard-2027-06-06'])
+        ->and($seen->cli)->toContain(['site', '--update', 'shop.example.com', '-certificate-name', 'example.com-wildcard-2027-06-06'])
+        ->and(collect($seen->cli)->contains(fn ($call) => ($call[2] ?? null) === 'example.org'))->toBeFalse()
         ->and($seen->cli)->toContain(['domain_pref', '--update', 'example.com', '-mail_certificate', 'example.com-wildcard-2027-06-06', '-webmail_certificate', 'example.com-wildcard-2027-06-06'])
         ->and(collect($seen->xml)->contains(fn ($xml) => str_contains($xml, '<del_rec><filter><id>14289</id>')))->toBeTrue();
 

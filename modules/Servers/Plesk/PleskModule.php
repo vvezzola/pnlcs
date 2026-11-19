@@ -325,6 +325,20 @@ class PleskModule extends AbstractServerModule
             $moved[] = 'website';
         }
 
+        // The subscription's other sites the certificate covers (a wildcard's
+        // my.example.com, shop.example.com) use the same pool, and were on the
+        // certificate it renews just as the main site was.
+        foreach ($this->childSites($server, $domain) as $child) {
+            if (! $this->certificateCovers($cert, $child)) {
+                continue;
+            }
+            $info = $this->cli($server, 'site', ['--info', $child]);
+            if ($info !== null && $moves($this->cliValue($info, 'Certificate'))
+                && $this->cli($server, 'site', ['--update', $child, '-certificate-name', $name]) !== null) {
+                $moved[] = $child;
+            }
+        }
+
         $params = [];
         foreach (['mail' => 'SSL/TLS certificate for mail', 'webmail' => 'SSL/TLS certificate for webmail'] as $use => $label) {
             if ($moves($this->cliValue($prefs, $label))) {
@@ -337,6 +351,42 @@ class PleskModule extends AbstractServerModule
         }
 
         return ['success' => true, 'message' => $moved === [] ? 'Installed; nothing was using the certificate it replaces.' : 'Installed for '.implode(', ', $moved).'.', 'moved' => $moved];
+    }
+
+    /**
+     * The sites a subscription holds besides its main domain.
+     *
+     * @return array<int, string>
+     */
+    private function childSites(Server $server, string $domain): array
+    {
+        $xml = $this->xmlApi($server, '<site><get><filter><parent-name>'.$this->xmlText($domain).'</parent-name></filter><dataset><gen_info/></dataset></get></site>');
+
+        return array_values(array_filter(array_map('strval', $xml ? ($xml->xpath('//result[status="ok"]/data/gen_info/name') ?: []) : [])));
+    }
+
+    /** Whether a certificate names a host, directly or by a wildcard one level up. */
+    private function certificateCovers(string $cert, string $host): bool
+    {
+        $parsed = @openssl_x509_parse($cert);
+        if (! is_array($parsed)) {
+            return false;
+        }
+
+        $names = [(string) ($parsed['subject']['CN'] ?? '')];
+        foreach (explode(',', (string) ($parsed['extensions']['subjectAltName'] ?? '')) as $entry) {
+            $names[] = trim((string) preg_replace('/^\s*DNS:/', '', $entry));
+        }
+
+        $host = strtolower($host);
+        foreach (array_filter($names) as $name) {
+            $name = strtolower($name);
+            if ($name === $host || (str_starts_with($name, '*.') && substr($host, strpos($host, '.') + 1) === substr($name, 2))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** The id of the site (or subscription) a domain names, or null. */

@@ -19,7 +19,7 @@ function autoRenewOrder(array $attributes = [], array $service = []): SslOrder
 {
     $client = Client::factory()->create();
     $ssl = Service::factory()->create(array_merge([
-        'client_id' => $client->id, 'domain' => 'example.com', 'status' => 'active', 'auto_renew' => true,
+        'client_id' => $client->id, 'domain' => 'example.com', 'status' => 'active', 'auto_renew' => true, 'amount' => 90,
         'next_due_date' => '2028-10-16',
         'product_id' => Product::factory()->create(['group_id' => ProductGroup::factory()->create()->id, 'type' => 'ssl', 'ssl_module' => 'ssl2buy'])->id,
     ], $service));
@@ -144,4 +144,14 @@ test('a year of a subscription that has further years to come is not bought agai
         ->assertSuccessful();
 
     Http::assertNothingSent();
+});
+
+test('a service given at no charge, never invoiced, still has its certificate reissued', function () {
+    autoRenewFake();
+    $this->travelTo('2027-05-20 07:30:00');
+    autoRenewOrder([], ['amount' => 0, 'next_due_date' => '2027-01-01']);
+
+    $this->artisan('pnlcs:ssl-auto-renew')->assertSuccessful();
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/GSReissueCertificate'));
 });
