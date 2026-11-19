@@ -726,7 +726,7 @@ class SSL2BuyModule extends AbstractSslModule
             'emailAddress' => (string) ($params['email'] ?? ''),
         ], fn (string $value) => $value !== '');
 
-        $csr = openssl_csr_new($subject, $key, ['digest_alg' => 'sha256']);
+        $csr = openssl_csr_new($subject, $key, ['digest_alg' => 'sha256', 'config' => __DIR__.'/csr.cnf']);
         if ($csr === false || ! openssl_csr_export($csr, $csrPem) || ! openssl_pkey_export($key, $keyPem)) {
             return ['success' => false, 'message' => 'The CSR could not be generated'];
         }

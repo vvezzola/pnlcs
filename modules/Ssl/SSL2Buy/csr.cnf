@@ -1,0 +1,8 @@
+# The request section a CSR is generated with. Left to the system's
+# openssl.cnf, PHP fills every subject field the CSR does not name with its
+# *_default value: "Default Company Ltd" on Red Hat, "Internet Widgits Pty
+# Ltd" on Debian. Without defaults, the subject is what the order gives.
+[req]
+distinguished_name = req_distinguished_name
+
+[req_distinguished_name]

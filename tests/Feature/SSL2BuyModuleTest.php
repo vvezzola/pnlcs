@@ -409,3 +409,9 @@ test('a customer recorded as a company alone renews with the contact set in the 
         && $request['ContactInfo']['Email'] === 'ssl@reseller.example'
         && $request['ContactInfo']['Phone'] === '+39.0307654321');
 });
+
+test('a CSR made here names only what it is given, not the server\'s OpenSSL defaults', function () {
+    $generated = (new SSL2BuyModule)->generateCsr(['domain' => '*.example.com']);
+
+    expect(openssl_csr_get_subject($generated['csr']))->toBe(['CN' => '*.example.com']);
+});
