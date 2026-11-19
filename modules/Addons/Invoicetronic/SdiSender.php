@@ -34,23 +34,28 @@ class SdiSender
      *
      * @return array{sent: int, errors: int, updated: int}
      */
-    public function run(): array
+    public function run(bool $byStaff = false): array
     {
-        return $this->sendDue() + ['updated' => $this->refresh()];
+        return $this->sendDue($byStaff) + ['updated' => $this->refresh()];
     }
 
     /**
      * Sends the invoices that are due, and retries the posts that did not
-     * get through last time.
+     * get through last time. With automatic sending off, staff send them all
+     * at once when they have checked them ($byStaff).
+     *
+     * The delay runs from the invoice's last change, not its creation: a
+     * draft prepared days ago and issued now waits like any new invoice, and
+     * one still being corrected is not sent halfway.
      *
      * @return array{sent: int, errors: int}
      */
-    public function sendDue(): array
+    public function sendDue(bool $byStaff = false): array
     {
         $counts = ['sent' => 0, 'errors' => 0];
         $from = InvoicetronicSettings::sendFrom();
 
-        if (InvoicetronicSettings::resolve()['auto_send'] !== '1' || $from === null) {
+        if ((! $byStaff && InvoicetronicSettings::resolve()['auto_send'] !== '1') || $from === null) {
             return $counts;
         }
 
@@ -62,6 +67,7 @@ class SdiSender
             ->where('total', '!=', 0)
             ->whereDate('date', '>=', $from->toDateString())
             ->where('created_at', '<=', now()->subMinutes(InvoicetronicSettings::delayMinutes()))
+            ->where('updated_at', '<=', now()->subMinutes(InvoicetronicSettings::delayMinutes()))
             ->whereNotIn('id', SdiSubmission::select('invoice_id'))
             ->orderBy('date')->orderBy('id')
             ->limit(self::BATCH)

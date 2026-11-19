@@ -13,11 +13,14 @@ class InvoicetronicController extends Controller
 {
     public function __construct(private SdiSender $sender) {}
 
-    /** The scheduled pass, run now. */
+    /**
+     * The scheduled pass, run now: what is due goes out even with automatic
+     * sending off, so the month's invoices are sent together once checked.
+     */
     public function sync(): RedirectResponse
     {
         try {
-            $counts = $this->sender->run();
+            $counts = $this->sender->run(byStaff: true);
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());
         }

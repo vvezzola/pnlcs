@@ -44,7 +44,7 @@ function sdiInvoice(array $attributes = []): Invoice
         'buyer_company_name' => 'Rossi Srl', 'buyer_address1' => 'Via Roma 1', 'buyer_postcode' => '24121', 'buyer_city' => 'Bergamo',
         'buyer_state' => 'BG', 'buyer_country' => 'IT', 'buyer_tax_id' => 'IT01234567890', 'buyer_client_type' => 'company',
         'buyer_custom_fields' => ['Codice destinatario SDI / PEC' => 'M5UXCR1'],
-        'created_at' => '2027-01-01 08:00:00',
+        'created_at' => '2027-01-01 08:00:00', 'updated_at' => '2027-01-01 08:00:00',
     ]);
     InvoiceItem::factory()->create([
         'invoice_id' => $invoice->id, 'client_id' => $invoice->client_id, 'description' => 'Hosting WebPro50 rossi.it',
@@ -101,6 +101,7 @@ it('leaves alone invoices it must not send on its own', function (array $invoice
 })->with([
     'dated before the start date' => [['date' => '2026-12-31'], []],
     'created within the delay' => [['created_at' => '2027-01-01 11:30:00'], []],
+    'a draft issued within the delay' => [['created_at' => '2026-12-20 08:00:00', 'updated_at' => '2027-01-01 11:30:00'], []],
     'a proforma' => [['type' => 'proforma'], []],
     'a draft' => [['status' => 'draft'], []],
     'cancelled' => [['status' => 'cancelled'], []],
@@ -190,4 +191,20 @@ it('reads the SDI outcome, with the reasons of a rejection', function () {
         ->and($rejected->fresh())->state->toBe(SdiSubmission::REJECTED)
         ->and($rejected->fresh()->message)->toBe('00404 Fattura duplicata (Verificare il campo Numero)');
     Http::assertSent(fn (Request $request) => str_contains($request->url(), 'ids=1%2C2') || str_contains($request->url(), 'ids=1,2'));
+});
+
+it('sends what is due when staff run it, with automatic sending off', function () {
+    sdiSettings(['auto_send' => '0']);
+    sdiInvoice();
+    Http::fake([
+        SDI_SEND_URL => Http::response(acceptedSend(), 201),
+        'https://api.invoicetronic.com/v1/send?*' => Http::response([]),
+        'https://api.invoicetronic.com/v1/update?*' => Http::response([]),
+    ]);
+    (new InvoicetronicServiceProvider(app()))->boot();
+    app('router')->getRoutes()->refreshNameLookups();
+
+    $this->actingAs(sdiAdmin(), 'admin')->post(route('admin.invoicetronic.sync'))->assertSessionHas('success');
+
+    expect(SdiSubmission::count())->toBe(1);
 });
