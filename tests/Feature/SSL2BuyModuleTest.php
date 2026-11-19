@@ -415,3 +415,16 @@ test('a CSR made here names only what it is given, not the server\'s OpenSSL def
 
     expect(openssl_csr_get_subject($generated['csr']))->toBe(['CN' => '*.example.com']);
 });
+
+test('a GlobalSign reissue with the order\'s own CSR keeps the key the panel holds', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response(['GSOrderNumber' => 'GSNEW', 'StatusCode' => 0])]);
+    $order = ssl2buyOrder(['domain' => '*.example.com', 'status' => 'Completed', 'remote_id' => '3268596', 'private_key' => 'PANEL-KEY',
+        'config_data' => ['ssl2buy_family' => 'globalsign', 'ssl2buy_product' => 102]]);
+
+    $result = (new SSL2BuyModule)->reissueCertificate($order, (string) $order->csr);
+
+    expect($result['success'])->toBeTrue()
+        ->and($order->refresh()->private_key)->toBe('PANEL-KEY')
+        ->and($order->status)->toBe('Awaiting Issuance');
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/GSReissueCertificate'));
+});

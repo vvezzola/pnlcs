@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Admin;
+use App\Models\AdminRole;
 use App\Models\Client;
 use App\Models\Product;
 use App\Models\ProductGroup;
@@ -198,4 +200,18 @@ test('after a reissue, the certificate issued before is not taken for the new on
 
     expect($order->refresh()->status)->toBe('Awaiting Issuance')
         ->and($order->cert)->toBeNull();
+});
+
+test('the administrator installs an order that was already complete, and sees under what name', function () {
+    $seen = fakeDeployment(issued: true);
+    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => deployKeyPair()[1], 'crt_expires' => '2027-06-06']);
+    $admin = Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
+
+    $this->actingAs($admin, 'admin')
+        ->post(route('admin.ssl.action', $order), ['action' => 'install'])
+        ->assertSessionHas('success');
+
+    expect(collect($seen->xml)->contains(fn ($xml) => str_contains($xml, '<install>')))->toBeTrue();
+    $this->actingAs($admin, 'admin')->get(route('admin.ssl.show', $order))
+        ->assertSee('example.com-wildcard-2027-06-06');
 });

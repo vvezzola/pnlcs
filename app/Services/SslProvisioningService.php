@@ -147,6 +147,23 @@ class SslProvisioningService
         return $result;
     }
 
+    /**
+     * Installs the issued certificate on the hosting of its domain now, as
+     * the status check does on its own once a certificate is issued: for an
+     * order that was already complete, or to install it again.
+     */
+    public function installOnHosting(SslOrder $order, bool $again = false): array
+    {
+        if ($again) {
+            $data = (array) ($order->config_data ?? []);
+            unset($data['installed_certificate_hash']);
+            $order->update(['config_data' => $data]);
+        }
+
+        return $this->deployment->install($order)
+            ?? ['success' => false, 'message' => __('admin.ssl.install_not_possible')];
+    }
+
     public function revokeCertificate(SslOrder $order, string $reason = ''): array
     {
         $module = $this->getModuleForOrder($order);

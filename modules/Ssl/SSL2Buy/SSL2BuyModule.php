@@ -636,12 +636,15 @@ class SSL2BuyModule extends AbstractSslModule
      * AlphaSSL bought for a year is issued for about 200 days, and the rest
      * of the year comes as a reissue. Without a CSR given, the panel makes a
      * new key and CSR; one given is the customer's, whose key it does not
-     * hold. The domain is validated again, as for a new order.
+     * hold, unless it is the order's own. The domain is validated again, as
+     * for a new order.
      */
     private function reissueGlobalSign(SslOrder $order, string $newCsr): array
     {
         try {
-            $key = null;
+            // The CSR already on the order keeps the key that goes with it;
+            // another one is the customer's, whose key the panel does not hold.
+            $key = trim($newCsr) === trim((string) $order->csr) ? $order->private_key : null;
             if (trim($newCsr) === '') {
                 $generated = $this->generateCsr(['domain' => (string) $order->domain]);
                 if (! $generated['success']) {

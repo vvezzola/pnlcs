@@ -173,6 +173,16 @@
                     @if(auth('admin')->user()?->hasPermission('manage_services'))
                         <a href="{{ route('admin.ssl.download', $order) }}" class="btn btn-success w-100">{{ __('admin.ssl.download_cert') }}</a>
                     @endif
+                    @if(! empty($order->private_key))
+                        <form method="POST" action="{{ route('admin.ssl.action', $order) }}">
+                            @csrf
+                            <input type="hidden" name="action" value="install">
+                            <button type="submit" class="btn btn-primary w-100" onclick="return pnConfirm(event, @js(__('admin.ssl.confirm_install')))">{{ __('admin.ssl.install_on_hosting') }}</button>
+                        </form>
+                        @if(! empty($order->config_data['installed_certificate']))
+                            <small class="text-muted">{{ __('admin.ssl.installed_as', ['name' => $order->config_data['installed_certificate']]) }}</small>
+                        @endif
+                    @endif
                     <form method="POST" action="{{ route('admin.ssl.action', $order) }}">
                         @csrf
                         <input type="hidden" name="action" value="renew">

@@ -60,6 +60,7 @@ class SslOrderController extends Controller
             'reissue' => $this->sslService->reissueCertificate($sslOrder, $request->input('csr', '')),
             'resend' => $this->sslService->resendValidation($sslOrder),
             'renew' => $this->sslService->renewCertificate($sslOrder),
+            'install' => $this->sslService->installOnHosting($sslOrder, again: true),
             default => ['success' => false, 'message' => __('admin.messages.unknown_action', ['action' => $action])],
         };
 
