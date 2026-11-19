@@ -215,3 +215,21 @@ test('the administrator installs an order that was already complete, and sees un
     $this->actingAs($admin, 'admin')->get(route('admin.ssl.show', $order))
         ->assertSee('example.com-wildcard-2027-06-06');
 });
+
+test('an imported certificate attached to the hosting moves onto the SSL service created to bill it', function () {
+    $order = deployOrder(deployServer());
+    $admin = Admin::factory()->create(['role_id' => AdminRole::factory()->fullAdmin()->create()->id]);
+    $hosting = Service::where('client_id', $order->client_id)->whereNotNull('server_id')->first();
+    $order->update(['service_id' => $hosting->id]);
+    $billing = Service::factory()->create(['client_id' => $order->client_id, 'domain' => 'example.com', 'product_id' => Product::factory()->create(['group_id' => ProductGroup::factory()->create()->id, 'type' => 'ssl'])->id]);
+    $stranger = Service::factory()->create(['client_id' => Client::factory()->create()->id]);
+    $taken = Service::where('client_id', $order->client_id)->whereNull('server_id')->whereKeyNot($billing->id)->first();
+    SslOrder::create(['client_id' => $order->client_id, 'service_id' => $taken->id, 'module' => 'ssl2buy', 'domain' => 'other.example.com', 'status' => 'Completed']);
+
+    $this->actingAs($admin, 'admin')->put(route('admin.ssl.service', $order), ['service_id' => $stranger->id])->assertSessionHasErrors('service_id');
+    $this->actingAs($admin, 'admin')->put(route('admin.ssl.service', $order), ['service_id' => $taken->id])->assertSessionHas('error');
+    expect($order->refresh()->service_id)->toBe($hosting->id);
+
+    $this->actingAs($admin, 'admin')->put(route('admin.ssl.service', $order), ['service_id' => $billing->id])->assertSessionHas('success');
+    expect($order->refresh()->service_id)->toBe($billing->id);
+});

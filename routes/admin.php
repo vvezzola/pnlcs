@@ -776,5 +776,6 @@ Route::middleware(['admin.auth', 'admin.2fa'])->prefix('admin')->name('admin.')-
         Route::get('ssl-orders/{sslOrder}/download', [SslOrderController::class, 'downloadCert'])->name('ssl.download');
         Route::post('ssl-orders/import', [SslOrderController::class, 'importRemote'])->name('ssl.import');
         Route::post('ssl-orders/{sslOrder}/action', [SslOrderController::class, 'moduleAction'])->name('ssl.action');
+        Route::put('ssl-orders/{sslOrder}/service', [SslOrderController::class, 'linkService'])->name('ssl.service');
     });
 });

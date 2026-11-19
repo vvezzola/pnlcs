@@ -47,7 +47,31 @@ class SslOrderController extends Controller
         if ($sslOrder->isCompleted()) {
             $this->sslService->completeChain($sslOrder);
         }
-        return view('admin.ssl.show', ['order' => $sslOrder]);
+        $services = $sslOrder->client?->services()->with('product')->orderByDesc('id')->get() ?? collect();
+
+        return view('admin.ssl.show', ['order' => $sslOrder, 'services' => $services]);
+    }
+
+    /**
+     * Moves the order onto another service of the same customer. An imported
+     * certificate is attached to the domain's hosting when the customer has
+     * no SSL service yet; the one created to bill it then takes it over, and
+     * with it the renewal, which asks whether that service is paid.
+     */
+    public function linkService(Request $request, SslOrder $sslOrder)
+    {
+        $validated = $request->validate([
+            'service_id' => ['required', \Illuminate\Validation\Rule::exists('services', 'id')->where('client_id', $sslOrder->client_id)],
+        ]);
+
+        $taken = SslOrder::where('service_id', $validated['service_id'])->whereKeyNot($sslOrder->id)->exists();
+        if ($taken) {
+            return back()->with('error', __('admin.ssl.service_taken'));
+        }
+
+        $sslOrder->update(['service_id' => (int) $validated['service_id']]);
+
+        return redirect()->route('admin.ssl.show', $sslOrder)->with('success', __('admin.ssl.service_linked'));
     }
 
     public function moduleAction(Request $request, SslOrder $sslOrder)

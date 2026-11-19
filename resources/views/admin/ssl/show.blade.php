@@ -149,6 +149,24 @@
         </div>
         @endif
 
+        @if($services->count() > 0 && auth('admin')->user()?->hasPermission('manage_services'))
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="POST" action="{{ route('admin.ssl.service', $order) }}">
+                    @csrf
+                    @method('PUT')
+                    <label for="ssl-service" class="form-label">{{ __('admin.ssl.link_service') }}</label>
+                    <select id="ssl-service" name="service_id" class="form-select form-select-sm mb-2">
+                        @foreach($services as $service)
+                            <option value="{{ $service->id }}" @selected($service->id === $order->service_id)>#{{ $service->id }} {{ $service->product?->name }} {{ $service->domain }} ({{ $service->status }})</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary w-100">{{ __('admin.ssl.link_service_save') }}</button>
+                </form>
+            </div>
+        </div>
+        @endif
+
         {{-- Actions --}}
         <div class="card mb-4">
             <div class="card-header"><h5 class="mb-0">{{ __('admin.ssl.actions') }}</h5></div>
