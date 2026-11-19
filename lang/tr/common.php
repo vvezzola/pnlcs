@@ -376,6 +376,7 @@ return [
         'col_price' => 'Fiyat, 1 yıl',
         'col_extra_domain' => 'Ek alan adı',
         'col_orderable' => 'Panelden sipariş edilebilir',
+        'auto_renew_days' => 'Müşterinin SSL hizmeti etkin ve ödenmişse, sertifika bitmeden bu kadar gün önce kendiliğinden yenile (boş: asla)',
         'contact_first_name' => 'Yenileme iletişimi: ad (boş: müşterininki)',
         'contact_last_name' => 'Yenileme iletişimi: soyad',
         'contact_email' => 'Yenileme iletişimi: e-posta',

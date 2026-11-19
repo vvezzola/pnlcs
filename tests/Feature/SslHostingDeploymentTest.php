@@ -19,6 +19,25 @@ use Illuminate\Support\Facades\Http;
  * webmail.
  */
 
+/**
+ * A private key and a certificate made from it, as an issued order holds.
+ *
+ * @return array{0: string, 1: string}
+ */
+function deployKeyPair(): array
+{
+    static $pair = null;
+    if ($pair === null) {
+        $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+        $csr = openssl_csr_new(['commonName' => '*.example.com'], $key, ['digest_alg' => 'sha256']);
+        openssl_x509_export(openssl_csr_sign($csr, null, $key, 200, ['digest_alg' => 'sha256']), $cert);
+        openssl_pkey_export($key, $pem);
+        $pair = [$pem, $cert];
+    }
+
+    return $pair;
+}
+
 function deployServer(): Server
 {
     return Server::factory()->create([
@@ -41,7 +60,7 @@ function deployOrder(Server $server, array $attributes = []): SslOrder
 
     return SslOrder::create(array_merge([
         'client_id' => $client->id, 'service_id' => $ssl->id, 'module' => 'ssl2buy', 'domain' => '*.example.com',
-        'remote_id' => '3268596', 'status' => 'Awaiting Issuance', 'private_key' => 'PRIVATE-KEY',
+        'remote_id' => '3268596', 'status' => 'Awaiting Issuance', 'private_key' => deployKeyPair()[0],
         'config_data' => ['ssl2buy_family' => 'globalsign', 'ssl2buy_product' => 102,
             'dcv' => ['method' => 'DNS', 'name' => 'example.com', 'type' => 'TXT', 'value' => '_globalsign-domain-verification=abc']],
     ], $attributes));
@@ -94,7 +113,7 @@ function fakeDeployment(string $siteCertificate = 'examplewild-2025-26', string 
                 ? ['OrderStatus' => 'COMPLETED', 'StartDate' => '2026-11-19T06:57:56', 'EndDate' => '2027-06-06T06:57:56', 'StatusCode' => 0]
                 : ['OrderStatus' => 'WAIT_FOR_APPROVAL', 'DNSText' => '_globalsign-domain-verification=abc', 'StatusCode' => 0]);
         },
-        'api.ssl2buy.com/orderservice/GlobalSignFullOrder/GetCertificate' => Http::response(['X509Cert' => 'CERT', 'InterCert' => 'INTER', 'StatusCode' => 0]),
+        'api.ssl2buy.com/orderservice/GlobalSignFullOrder/GetCertificate' => Http::response(['X509Cert' => deployKeyPair()[1], 'InterCert' => 'INTER', 'StatusCode' => 0]),
     ]);
 
     return $seen;
@@ -118,21 +137,21 @@ test('a renewal waiting for DNS validation is validated and installed on the hos
 
     $install = collect($seen->xml)->first(fn ($xml) => str_contains($xml, '<install>'));
     expect($install)->toContain('<name>example.com-wildcard-2027-06-06</name><site>example.com</site>')
-        ->toContain('<pvt>PRIVATE-KEY</pvt><cert>CERT</cert>')
+        ->toContain('<pvt>'.deployKeyPair()[0].'</pvt><cert>'.deployKeyPair()[1])
         ->and($seen->cli)->toContain(['site', '--update', 'example.com', '-certificate-name', 'example.com-wildcard-2027-06-06'])
         ->and($seen->cli)->toContain(['domain_pref', '--update', 'example.com', '-mail_certificate', 'example.com-wildcard-2027-06-06', '-webmail_certificate', 'example.com-wildcard-2027-06-06'])
         ->and(collect($seen->xml)->contains(fn ($xml) => str_contains($xml, '<del_rec><filter><id>14289</id>')))->toBeTrue();
 
     $order->refresh();
     expect($order->config_data['installed_certificate'])->toBe('example.com-wildcard-2027-06-06')
-        ->and($order->config_data['installed_remote_id'])->toBe('3268596')
+        ->and($order->config_data['installed_certificate_hash'])->toBe(sha1($order->cert))
         ->and($order->config_data)->not->toHaveKey('dns_record');
 });
 
 test('a certificate already installed is not installed again on the next check', function () {
     $seen = fakeDeployment(issued: true);
-    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => 'CERT', 'crt_expires' => '2027-06-06']);
-    $order->update(['config_data' => $order->config_data + ['installed_remote_id' => '3268596']]);
+    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => deployKeyPair()[1], 'crt_expires' => '2027-06-06']);
+    $order->update(['config_data' => $order->config_data + ['installed_certificate_hash' => sha1(deployKeyPair()[1])]]);
 
     app(SslProvisioningService::class)->pollCertificateStatus($order);
 
@@ -142,7 +161,7 @@ test('a certificate already installed is not installed again on the next check',
 
 test('the places on Let\'s Encrypt are left to renew themselves', function () {
     $seen = fakeDeployment(siteCertificate: 'Lets Encrypt example.com', issued: true);
-    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => 'CERT', 'crt_expires' => '2027-06-06']);
+    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => deployKeyPair()[1], 'crt_expires' => '2027-06-06']);
 
     app(SslProvisioningService::class)->pollCertificateStatus($order);
 
@@ -152,7 +171,7 @@ test('the places on Let\'s Encrypt are left to renew themselves', function () {
 
 test('a certificate whose key the customer holds is left for them to install', function () {
     $seen = fakeDeployment(issued: true);
-    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => 'CERT', 'private_key' => null]);
+    $order = deployOrder(deployServer(), ['status' => 'Completed', 'cert' => deployKeyPair()[1], 'private_key' => null]);
 
     app(SslProvisioningService::class)->pollCertificateStatus($order);
 
@@ -168,4 +187,15 @@ test('a domain not hosted here gets nothing published', function () {
 
     expect($seen->xml)->toBe([])
         ->and($seen->verified)->toBeFalse();
+});
+
+test('after a reissue, the certificate issued before is not taken for the new one', function () {
+    fakeDeployment(issued: true);
+    $order = deployOrder(deployServer(), ['status' => 'Awaiting Issuance']);
+    $order->update(['private_key' => openssl_pkey_export(openssl_pkey_new(['private_key_bits' => 2048]), $other) ? $other : null]);
+
+    app(SslProvisioningService::class)->pollCertificateStatus($order);
+
+    expect($order->refresh()->status)->toBe('Awaiting Issuance')
+        ->and($order->cert)->toBeNull();
 });

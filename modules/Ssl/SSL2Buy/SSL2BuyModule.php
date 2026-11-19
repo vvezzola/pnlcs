@@ -154,6 +154,8 @@ class SSL2BuyModule extends AbstractSslModule
             ],
         ];
 
+        $fields['auto_renew_days'] = ['label' => __('common.ssl2buy.auto_renew_days'), 'type' => 'text'];
+
         foreach (array_keys(self::RENEWAL_CONTACT) as $key) {
             $fields[$key] = ['label' => __('common.ssl2buy.'.$key), 'type' => 'text'];
         }
@@ -336,6 +338,35 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         return $result;
+    }
+
+    /**
+     * Days before a certificate ends that the panel renews it by itself, or
+     * null when it does not: the setting is empty or zero.
+     */
+    public function autoRenewDays(): ?int
+    {
+        $days = (int) trim((string) $this->getSetting('auto_renew_days', ''));
+
+        return $days > 0 ? $days : null;
+    }
+
+    /**
+     * Whether the order's subscription runs well past its certificate, so the
+     * next certificate is a free reissue rather than a new order: an AlphaSSL
+     * year comes as a certificate of about 200 days and a reissue. An order
+     * placed here says how many years it bought; one renewed here before it
+     * said so bought one, and holds the key the renewal made. An imported
+     * order is renewed.
+     */
+    public function reissueCoversNext(SslOrder $order): bool
+    {
+        $years = (int) ($order->config_data['ssl2buy_years'] ?? (empty($order->private_key) ? 0 : 1));
+        if ($years < 1 || ! $order->order_date || ! $order->crt_expires || $this->familyFor($order) !== 'globalsign') {
+            return false;
+        }
+
+        return $order->order_date->copy()->addYears($years)->gt($order->crt_expires->copy()->addDays(30));
     }
 
     /**
@@ -566,6 +597,10 @@ class SSL2BuyModule extends AbstractSslModule
             return $this->buildResult(false, 'No remote order ID');
         }
 
+        if ($this->familyFor($order) === 'globalsign') {
+            return $this->reissueGlobalSign($order, $newCsr);
+        }
+
         try {
             $this->requireComodo($order, 'reissue');
             $method = $this->approvalMethod($order, (string) $order->validation_method);
@@ -584,6 +619,57 @@ class SSL2BuyModule extends AbstractSslModule
                 'fullchain' => null,
                 'completion_date' => null,
                 'config_data' => $this->withDcv($order, 'comodo', $newCsr, $method, $response),
+            ]);
+
+            $result = $this->buildResult(true, 'Reissue requested', $this->publicFields($response));
+        } catch (Throwable $e) {
+            $result = $this->buildResult(false, "Reissue error: {$e->getMessage()}");
+        }
+
+        $this->logAction($order, 'reissueCertificate', $result);
+
+        return $result;
+    }
+
+    /**
+     * A new certificate within the order's subscription, at no cost: an
+     * AlphaSSL bought for a year is issued for about 200 days, and the rest
+     * of the year comes as a reissue. Without a CSR given, the panel makes a
+     * new key and CSR; one given is the customer's, whose key it does not
+     * hold. The domain is validated again, as for a new order.
+     */
+    private function reissueGlobalSign(SslOrder $order, string $newCsr): array
+    {
+        try {
+            $key = null;
+            if (trim($newCsr) === '') {
+                $generated = $this->generateCsr(['domain' => (string) $order->domain]);
+                if (! $generated['success']) {
+                    throw new RuntimeException($generated['message']);
+                }
+                [$newCsr, $key] = [$generated['csr'], $generated['key']];
+            }
+
+            $response = $this->call('orderservice/GlobalSignFullOrder/GSReissueCertificate', [
+                'OrderNumber' => (int) $order->remote_id,
+                'CSR' => $newCsr,
+            ]);
+
+            $data = (array) ($order->config_data ?? []);
+            unset($data['dcv']);
+            $data['ca_order_number'] = (string) ($response['GSOrderNumber'] ?? ($data['ca_order_number'] ?? ''));
+            $data['reissued_at'] = now()->toDateTimeString();
+
+            $order->update([
+                'csr' => $newCsr,
+                'private_key' => $key,
+                'status' => 'Awaiting Issuance',
+                'cert' => null,
+                'ca_cert' => null,
+                'fullchain' => null,
+                'completion_date' => null,
+                'last_polled_at' => null,
+                'config_data' => $data,
             ]);
 
             $result = $this->buildResult(true, 'Reissue requested', $this->publicFields($response));
@@ -941,6 +1027,7 @@ class SSL2BuyModule extends AbstractSslModule
                 'config_data' => array_merge($this->withDcv($order, $product['family'], (string) $order->csr, $method, $response), [
                     'ssl2buy_product' => $code,
                     'ssl2buy_family' => $product['family'],
+                    'ssl2buy_years' => $years,
                     'ca_order_number' => (string) ($response['ComodoOrderNumber'] ?? $response['GSOrderNumber'] ?? ''),
                 ]),
             ]);

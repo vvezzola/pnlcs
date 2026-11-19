@@ -376,6 +376,7 @@ return [
         'col_price' => 'Cena, 1 rok',
         'col_extra_domain' => 'Dodatkowa domena',
         'col_orderable' => 'Można zamówić w panelu',
+        'auto_renew_days' => 'Odnawiaj samodzielnie tyle dni przed wygaśnięciem, gdy usługa SSL klienta jest aktywna i opłacona (puste: nigdy)',
         'contact_first_name' => 'Kontakt do odnowień: imię (puste: klienta)',
         'contact_last_name' => 'Kontakt do odnowień: nazwisko',
         'contact_email' => 'Kontakt do odnowień: e-mail',

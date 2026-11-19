@@ -376,6 +376,7 @@ return [
         'col_price' => 'Prezzo, 1 anno',
         'col_extra_domain' => 'Dominio aggiuntivo',
         'col_orderable' => 'Ordinabile dal pannello',
+        'auto_renew_days' => 'Rinnova da solo questo numero di giorni prima della scadenza, se il servizio SSL del cliente è attivo e pagato (vuoto: mai)',
         'contact_first_name' => 'Contatto per i rinnovi: nome (vuoto: quello del cliente)',
         'contact_last_name' => 'Contatto per i rinnovi: cognome',
         'contact_email' => 'Contatto per i rinnovi: email',

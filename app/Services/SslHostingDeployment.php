@@ -69,7 +69,7 @@ class SslHostingDeployment
     public function install(SslOrder $order): ?array
     {
         if ($order->status !== 'Completed' || blank($order->cert) || blank($order->private_key)
-            || ($order->config_data['installed_remote_id'] ?? null) === (string) $order->remote_id) {
+            || ($order->config_data['installed_certificate_hash'] ?? null) === sha1((string) $order->cert)) {
             return null;
         }
 
@@ -93,7 +93,7 @@ class SslHostingDeployment
         );
 
         if ($result['success']) {
-            $this->remember($order, ['installed_remote_id' => (string) $order->remote_id, 'installed_certificate' => $name]);
+            $this->remember($order, ['installed_certificate_hash' => sha1((string) $order->cert), 'installed_certificate' => $name]);
             $this->removeValidation($order);
         }
         Log::info('SSL certificate install', ['order' => $order->id, 'certificate' => $name, 'result' => $result['message']]);

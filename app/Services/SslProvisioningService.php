@@ -112,6 +112,17 @@ class SslProvisioningService
 
         // If certificate was just issued, send notification
         $order->refresh();
+
+        // After a reissue the authority can still answer with the certificate
+        // it issued before, until the new one is out: it does not match the
+        // key made for the reissue, and the order keeps waiting for it.
+        if ($order->status === 'Completed' && ! empty($order->private_key) && ! empty($order->cert)
+            && ! @openssl_x509_check_private_key((string) $order->cert, (string) $order->private_key)) {
+            $order->update(['status' => 'Awaiting Issuance', 'cert' => null, 'ca_cert' => null, 'fullchain' => null, 'completion_date' => null]);
+
+            return $result;
+        }
+
         $this->completeChain($order);
         if ($previousStatus !== 'Completed' && $order->status === 'Completed') {
             $this->sendCertificateIssuedEmail($order);
@@ -153,7 +164,12 @@ class SslProvisioningService
             return ['success' => false, 'message' => __('messages.error.ssl_module_not_found_short')];
         }
 
-        return $module->reissueCertificate($order, $newCsr);
+        $result = $module->reissueCertificate($order, $newCsr);
+        if ($result['success']) {
+            $this->deployment->publishValidation($order->refresh());
+        }
+
+        return $result;
     }
 
     public function resendValidation(SslOrder $order): array

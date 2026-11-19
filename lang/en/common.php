@@ -376,6 +376,7 @@ return [
         'col_price' => 'Price, 1 year',
         'col_extra_domain' => 'Extra domain',
         'col_orderable' => 'Can be ordered from the panel',
+        'auto_renew_days' => 'Renew by itself this many days before a certificate ends, when the customer\'s SSL service is active and paid (empty: never)',
         'contact_first_name' => 'Renewal contact: first name (empty: the customer’s)',
         'contact_last_name' => 'Renewal contact: last name',
         'contact_email' => 'Renewal contact: email',

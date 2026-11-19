@@ -376,6 +376,7 @@ return [
         'col_price' => '价格（1 年）',
         'col_extra_domain' => '附加域名',
         'col_orderable' => '可在面板中订购',
+        'auto_renew_days' => '客户的 SSL 服务有效且已付款时，在证书到期前这么多天自动续订（留空：从不）',
         'contact_first_name' => '续订联系人：名（留空：使用客户的）',
         'contact_last_name' => '续订联系人：姓',
         'contact_email' => '续订联系人：电子邮件',

@@ -376,6 +376,7 @@ return [
         'col_price' => 'Preis, 1 Jahr',
         'col_extra_domain' => 'Zusätzliche Domain',
         'col_orderable' => 'Im Panel bestellbar',
+        'auto_renew_days' => 'So viele Tage vor Ablauf selbst verlängern, wenn der SSL-Dienst des Kunden aktiv und bezahlt ist (leer: nie)',
         'contact_first_name' => 'Kontakt für Verlängerungen: Vorname (leer: der des Kunden)',
         'contact_last_name' => 'Kontakt für Verlängerungen: Nachname',
         'contact_email' => 'Kontakt für Verlängerungen: E-Mail',

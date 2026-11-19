@@ -84,6 +84,10 @@ Schedule::command('pnlcs:ssl-status-poll')->everyFiveMinutes();
 // SSL Expiry Check - daily at 09:00
 Schedule::command('pnlcs:ssl-expiry-check')->dailyAt('09:00');
 
+// SSL auto-renew - daily, before the expiry notices: certificates the panel
+// manages are reissued or renewed when their module says how many days ahead
+Schedule::command('pnlcs:ssl-auto-renew')->dailyAt('07:30')->withoutOverlapping();
+
 // Close tickets left inactive in an auto-close status - hourly
 Schedule::command('pnlcs:ticket-auto-close')->hourly()->withoutOverlapping();
 
