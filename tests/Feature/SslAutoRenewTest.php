@@ -32,7 +32,7 @@ function autoRenewOrder(array $attributes = [], array $service = []): SslOrder
         'csr' => 'OLD-CSR', 'validation_method' => 'DNS', 'cert_type' => 'AlphaSSL Wildcard',
         'admin_first_name' => 'Laura', 'admin_last_name' => 'Verdi', 'admin_email' => 'ssl@reseller.example', 'admin_phone' => '+39.0307654321',
         'order_date' => '2026-11-19 06:25:22', 'crt_expires' => '2027-06-06',
-        'config_data' => ['ssl2buy_family' => 'globalsign', 'ssl2buy_product' => 102, 'ssl2buy_years' => 1],
+        'config_data' => ['ssl2buy_family' => 'globalsign', 'ssl2buy_product' => 102, 'ssl2buy_years' => 1, 'ssl2buy_amount' => 57, 'ssl2buy_paid_on' => '2026-11-19'],
     ], $attributes));
 }
 
@@ -41,10 +41,20 @@ beforeEach(function () {
     SslModuleSettings::setSetting('ssl2buy', 'api_key', 'secret-key');
     SslModuleSettings::setSetting('ssl2buy', 'auto_renew_days', '20');
     Http::preventStrayRequests();
-    Http::fake(['api.ssl2buy.com/*' => Http::response(['SSL2BuyOrderNumber' => 3500001, 'GSOrderNumber' => 'GSNEW', 'StatusCode' => 0])]);
 });
 
+/**
+ * SSL2BUY, answering the calls a test names and taking every other order.
+ *
+ * @param  array<string, mixed>  $answers
+ */
+function autoRenewFake(array $answers = []): void
+{
+    Http::fake($answers + ['api.ssl2buy.com/*' => Http::response(['SSL2BuyOrderNumber' => 3500001, 'GSOrderNumber' => 'GSNEW', 'StatusCode' => 0])]);
+}
+
 test('a certificate ending within its subscription is reissued with a new key, at no cost', function () {
+    autoRenewFake();
     $this->travelTo('2027-05-20 07:30:00');
     $order = autoRenewOrder();
     $oldKey = $order->private_key;
@@ -63,6 +73,7 @@ test('a certificate ending within its subscription is reissued with a new key, a
 });
 
 test('a certificate ending with its subscription is bought again', function () {
+    autoRenewFake();
     $this->travelTo('2027-11-05 07:30:00');
     $order = autoRenewOrder(['crt_expires' => '2027-11-19']);
 
@@ -84,6 +95,7 @@ test('nothing is bought twice for the same certificate, even after a failure', f
 });
 
 test('a customer who has not paid, a certificate not yet due, or no setting renews nothing', function (array $order, array $service, ?string $days) {
+    autoRenewFake();
     $this->travelTo('2027-11-05 07:30:00');
     SslModuleSettings::setSetting('ssl2buy', 'auto_renew_days', (string) $days);
     autoRenewOrder(array_merge(['crt_expires' => '2027-11-19'], $order), $service);
@@ -98,3 +110,38 @@ test('a customer who has not paid, a certificate not yet due, or no setting rene
     'customer holds the key' => [['private_key' => null], [], '20'],
     'auto renew off' => [[], [], ''],
 ]);
+
+test('an imported order is read first, and the first year of a subscription bought for two is reissued, not bought', function () {
+    $this->travelTo('2027-01-25 07:30:00');
+    autoRenewFake([
+        'api.ssl2buy.com/queryservice/globalsign/getorderdetails' => Http::response([
+            'DomainName' => '*.esalogica.com', 'OrderStatus' => 'COMPLETED', 'StartDate' => '2026-07-29T12:35:43+00:00', 'EndDate' => '2027-02-13T12:35:43+00:00',
+            'ValidityPeriod' => 12, 'BaseOrderDetails' => ['ProductName' => 'AlphaSSL Wildcard Certificate', 'Year' => 2, 'TotalAmount' => 104.5, 'PaidDate' => '2026-07-29T12:24:31.853'],
+            'StatusCode' => 0,
+        ]),
+        'api.ssl2buy.com/orderservice/GlobalSignFullOrder/GetCertificate' => Http::response(['X509Cert' => 'CERT', 'StatusCode' => 0]),
+        'api.ssl2buy.com/orderservice/GlobalSignFullOrder/GSReissueCertificate' => Http::response(['GSOrderNumber' => 'GSNEW', 'StatusCode' => 0]),
+    ]);
+    $order = autoRenewOrder(['remote_id' => '3244452', 'crt_expires' => '2027-02-13', 'private_key' => null, 'csr' => null, 'order_date' => null,
+        'config_data' => ['ssl2buy_family' => 'globalsign']]);
+
+    $this->artisan('pnlcs:ssl-auto-renew')->assertSuccessful();
+
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/GSReissueCertificate'));
+    Http::assertNotSent(fn (Request $request) => str_contains($request->url(), 'FullOrder/AlphaSSL'));
+    expect($order->refresh()->config_data)->toMatchArray(['ssl2buy_years' => 2, 'ssl2buy_paid_on' => '2026-07-29', 'ssl2buy_validity_months' => 12]);
+});
+
+test('a year of a subscription that has further years to come is not bought again', function () {
+    autoRenewFake();
+    $this->travelTo('2027-07-15 07:30:00');
+    autoRenewOrder(['crt_expires' => '2027-07-29', 'config_data' => [
+        'ssl2buy_family' => 'globalsign', 'ssl2buy_product' => 102, 'ssl2buy_years' => 2, 'ssl2buy_amount' => 104.5, 'ssl2buy_paid_on' => '2026-07-29',
+    ]]);
+
+    $this->artisan('pnlcs:ssl-auto-renew')
+        ->expectsOutputToContain('waits at the provider')
+        ->assertSuccessful();
+
+    Http::assertNothingSent();
+});

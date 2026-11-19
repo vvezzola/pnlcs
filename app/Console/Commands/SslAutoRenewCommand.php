@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\Log;
  * Renews by itself a certificate the panel manages, a set number of days
  * before it ends, when its module is told to (SSL2BUY: auto_renew_days).
  *
- * The next certificate is a free reissue while the subscription bought runs
- * on, and a new order, which is paid for, once it does not. A new order is
+ * The next certificate is a free reissue while the order runs on, and a new
+ * order, which is paid for, once it does not; when a subscription of several
+ * years has a further year to come from the provider, that is left to be
+ * configured there rather than bought again. A new order is
  * placed only for a service that is active, set to renew and paid past
  * today, and never twice for the same certificate: a renewal that failed is
  * left for the administrator. A certificate whose key only the customer
@@ -52,7 +54,18 @@ class SslAutoRenewCommand extends Command
                 continue;
             }
 
+            // An imported order does not say what was bought until it is read.
+            if (method_exists($module, 'knowsSubscription') && ! $module->knowsSubscription($order)) {
+                $module->getCertificateStatus($order);
+                $order->refresh();
+            }
+
             $reissue = method_exists($module, 'reissueCoversNext') && $module->reissueCoversNext($order);
+            if (! $reissue && method_exists($module, 'subscriptionContinues') && $module->subscriptionContinues($order)) {
+                $this->line("  [--] {$label}: the next year of its subscription waits at the provider, to be configured there");
+
+                continue;
+            }
             $action = $reissue ? 'reissue' : 'renew';
             if ($dryRun) {
                 $this->line("  [..] {$label}: would {$action}");

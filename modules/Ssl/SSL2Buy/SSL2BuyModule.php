@@ -352,21 +352,49 @@ class SSL2BuyModule extends AbstractSslModule
     }
 
     /**
-     * Whether the order's subscription runs well past its certificate, so the
-     * next certificate is a free reissue rather than a new order: an AlphaSSL
-     * year comes as a certificate of about 200 days and a reissue. An order
-     * placed here says how many years it bought; one renewed here before it
-     * said so bought one, and holds the key the renewal made. An imported
-     * order is renewed.
+     * Whether the order still runs well past its certificate, so the next
+     * certificate is a free reissue rather than a new order: an AlphaSSL
+     * year is issued as a certificate of about 200 days and a reissue. Each
+     * SSL2BUY order covers its validity period (12 months) from when it was
+     * paid, also within a subscription of several years, whose further years
+     * come as orders of their own. One renewed here before the payment date
+     * was read counts from its order date.
      */
     public function reissueCoversNext(SslOrder $order): bool
     {
-        $years = (int) ($order->config_data['ssl2buy_years'] ?? (empty($order->private_key) ? 0 : 1));
-        if ($years < 1 || ! $order->order_date || ! $order->crt_expires || $this->familyFor($order) !== 'globalsign') {
+        if (! $order->crt_expires || $this->familyFor($order) !== 'globalsign') {
             return false;
         }
 
-        return $order->order_date->copy()->addYears($years)->gt($order->crt_expires->copy()->addDays(30));
+        $paidOn = $order->config_data['ssl2buy_paid_on'] ?? null;
+        $start = $paidOn ? Carbon::parse($paidOn) : $order->order_date?->copy();
+        if (! $start || ($paidOn === null && empty($order->private_key))) {
+            return false;
+        }
+
+        $months = (int) ($order->config_data['ssl2buy_validity_months'] ?? 12) ?: 12;
+
+        return $start->addMonths($months)->gt($order->crt_expires->copy()->addDays(30));
+    }
+
+    /**
+     * Whether a further year of the order's subscription is to come from
+     * SSL2BUY as an order at no cost, waiting to be configured there: the
+     * order bought several years, or is itself such a year (paid 0). Buying
+     * a new certificate then would pay twice.
+     */
+    public function subscriptionContinues(SslOrder $order): bool
+    {
+        $years = (int) ($order->config_data['ssl2buy_years'] ?? 0);
+        $amount = $order->config_data['ssl2buy_amount'] ?? null;
+
+        return $years > 1 || ($amount !== null && (float) $amount === 0.0);
+    }
+
+    /** Whether what was bought is known, or the order should be read first. */
+    public function knowsSubscription(SslOrder $order): bool
+    {
+        return isset($order->config_data['ssl2buy_paid_on']);
     }
 
     /**
@@ -474,6 +502,18 @@ class SSL2BuyModule extends AbstractSslModule
             if ($expires) {
                 $updates['crt_expires'] = $expires;
             }
+            // What was bought: an order list does not say, and the renewal
+            // needs it to tell a free reissue from a purchase (reissueCoversNext).
+            $base = (array) ($details['BaseOrderDetails'] ?? []);
+            foreach (['Year' => 'ssl2buy_years', 'TotalAmount' => 'ssl2buy_amount', 'PaidDate' => 'ssl2buy_paid_on'] as $field => $key) {
+                if (isset($base[$field]) && $base[$field] !== '') {
+                    $data[$key] = $field === 'PaidDate' ? substr((string) $base[$field], 0, 10) : $base[$field];
+                }
+            }
+            if (! empty($details['ValidityPeriod'])) {
+                $data['ssl2buy_validity_months'] = (int) $details['ValidityPeriod'];
+            }
+
             $productName = (string) ($details['BaseOrderDetails']['ProductName'] ?? '');
             if ($productName !== '' && empty($order->cert_type)) {
                 $updates['cert_type'] = $productName;
