@@ -239,6 +239,145 @@ class PleskModule extends AbstractServerModule
     }
 
     /**
+     * A record in the DNS zone Plesk serves for a domain, such as the value a
+     * certificate authority looks for to validate it. A record already there
+     * with the same value is taken as it is.
+     *
+     * @return array{success: bool, message: string, record_id?: int}
+     */
+    public function addDnsRecord(Server $server, string $zone, string $type, string $host, string $value): array
+    {
+        $siteId = $this->siteIdByName($server, $zone);
+        if ($siteId === null) {
+            return ['success' => false, 'message' => "Plesk serves no site named {$zone}."];
+        }
+
+        $fqdn = rtrim(($host !== '' ? $host.'.' : '').$zone, '.').'.';
+        $records = $this->xmlApi($server, "<dns><get_rec><filter><site-id>{$siteId}</site-id></filter></get_rec></dns>");
+        foreach ($records ? ($records->xpath('//result[data]') ?: []) : [] as $record) {
+            if (strcasecmp((string) $record->data->type, $type) === 0
+                && strcasecmp(rtrim((string) $record->data->host, '.').'.', $fqdn) === 0
+                && trim((string) $record->data->value) === $value) {
+                return ['success' => true, 'message' => 'The record was already there.', 'record_id' => (int) $record->id];
+            }
+        }
+
+        $xml = $this->xmlApi($server, '<dns><add_rec><site-id>'.$siteId.'</site-id><type>'.$this->xmlText($type).'</type><host>'
+            .$this->xmlText($host).'</host><value>'.$this->xmlText($value).'</value></add_rec></dns>');
+        if (! $this->xmlOk($xml)) {
+            return ['success' => false, 'message' => $this->xmlError($xml)];
+        }
+
+        return ['success' => true, 'message' => 'Record added.', 'record_id' => (int) ($xml->xpath('//result/id')[0] ?? 0)];
+    }
+
+    public function removeDnsRecord(Server $server, int $recordId): bool
+    {
+        return $this->xmlOk($this->xmlApi($server, "<dns><del_rec><filter><id>{$recordId}</id></filter></del_rec></dns>"));
+    }
+
+    /**
+     * Puts an issued certificate in the domain's certificate pool and moves
+     * onto it each place that served the one it replaces: the website, mail
+     * and webmail. With nothing named as replaced, the places on a
+     * certificate of another kind than Let's Encrypt move, as one bought
+     * elsewhere and installed by hand would be the one this renews; those on
+     * Let's Encrypt are left to renew themselves.
+     *
+     * @param  array<int, string>  $replaces
+     * @return array{success: bool, message: string, moved?: array<int, string>}
+     */
+    public function installSslCertificate(Server $server, string $domain, string $name, string $key, string $cert, string $ca, array $replaces = []): array
+    {
+        $pool = $this->xmlApi($server, '<certificate><get-pool><filter><domain-name>'.$this->xmlText($domain).'</domain-name></filter></get-pool></certificate>');
+        $names = array_map('strval', $pool ? ($pool->xpath('//certificates/certificate/name') ?: []) : []);
+
+        if (! in_array($name, $names, true)) {
+            $xml = $this->xmlApi($server, '<certificate><install><name>'.$this->xmlText($name).'</name><site>'.$this->xmlText($domain).'</site><content>'
+                .'<csr></csr><pvt>'.$this->xmlText($key).'</pvt><cert>'.$this->xmlText($cert).'</cert><ca>'.$this->xmlText($ca).'</ca>'
+                .'</content></install></certificate>');
+            if (! $this->xmlOk($xml)) {
+                return ['success' => false, 'message' => 'Plesk did not take the certificate: '.$this->xmlError($xml)];
+            }
+        }
+
+        $moves = fn (string $current) => $current !== '' && $current !== $name
+            && ($replaces !== [] ? in_array($current, $replaces, true) : ! str_starts_with(strtolower($current), 'lets encrypt'));
+
+        $site = $this->cli($server, 'site', ['--info', $domain]);
+        $prefs = $this->cli($server, 'domain_pref', ['--info', $domain]);
+        if ($site === null || $prefs === null) {
+            return ['success' => false, 'message' => "The certificate is in the pool of {$domain}, but Plesk did not say where it is used: assign it by hand."];
+        }
+
+        $moved = [];
+        if ($moves($this->cliValue($site, 'Certificate'))) {
+            if ($this->cli($server, 'site', ['--update', $domain, '-certificate-name', $name]) === null) {
+                return ['success' => false, 'message' => "The certificate is in the pool of {$domain}, but the website could not be moved onto it."];
+            }
+            $moved[] = 'website';
+        }
+
+        $params = [];
+        foreach (['mail' => 'SSL/TLS certificate for mail', 'webmail' => 'SSL/TLS certificate for webmail'] as $use => $label) {
+            if ($moves($this->cliValue($prefs, $label))) {
+                array_push($params, "-{$use}_certificate", $name);
+                $moved[] = $use;
+            }
+        }
+        if ($params !== [] && $this->cli($server, 'domain_pref', ['--update', $domain, ...$params]) === null) {
+            return ['success' => false, 'message' => "The certificate is in the pool of {$domain}, but mail could not be moved onto it."];
+        }
+
+        return ['success' => true, 'message' => $moved === [] ? 'Installed; nothing was using the certificate it replaces.' : 'Installed for '.implode(', ', $moved).'.', 'moved' => $moved];
+    }
+
+    /** The id of the site (or subscription) a domain names, or null. */
+    private function siteIdByName(Server $server, string $domain): ?int
+    {
+        $xml = $this->xmlApi($server, '<site><get><filter><name>'.$this->xmlText($domain).'</name></filter><dataset><gen_info/></dataset></get></site>');
+        $id = $xml ? ($xml->xpath('//result[status="ok"]/id') ?: []) : [];
+
+        return $id ? (int) $id[0] : null;
+    }
+
+    /**
+     * One command of Plesk's command line through the REST API, its output
+     * or null when it failed.
+     *
+     * @param  array<int, string>  $params
+     */
+    private function cli(Server $server, string $command, array $params): ?string
+    {
+        try {
+            $response = $this->http($server)->timeout(120)->post($this->baseUrl($server)."/cli/{$command}/call", ['params' => $params]);
+        } catch (\Throwable $e) {
+            Log::warning('Plesk CLI call failed', ['server' => $server->id, 'command' => $command, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+
+        if (! $response->successful() || (int) $response->json('code', -1) !== 0) {
+            Log::warning('Plesk CLI call refused', ['server' => $server->id, 'command' => $command, 'stderr' => (string) $response->json('stderr', '')]);
+
+            return null;
+        }
+
+        return (string) $response->json('stdout', '');
+    }
+
+    /** The value a "Label:   value" line of command output gives, or ''. */
+    private function cliValue(string $output, string $label): string
+    {
+        return preg_match('/^'.preg_quote($label, '/').':\s*(.*)$/mi', $output, $m) ? trim($m[1]) : '';
+    }
+
+    private function xmlText(string $value): string
+    {
+        return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
      * Whether every result of an XML API answer came back ok.
      */
     private function xmlOk(?\SimpleXMLElement $xml): bool

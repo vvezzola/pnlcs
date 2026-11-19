@@ -18,6 +18,7 @@ class SslProvisioningService
     public function __construct(
         protected ModuleRegistry $registry,
         protected SslChainBuilder $chainBuilder,
+        protected SslHostingDeployment $deployment,
     ) {}
 
     public function getModuleForOrder(SslOrder $order): ?SslModuleInterface
@@ -94,6 +95,19 @@ class SslProvisioningService
         }
 
         $previousStatus = $order->status;
+
+        // While the authority waits, the record it validates by goes into the
+        // zone of the domain's hosting, and an authority that does not look by
+        // itself is asked to look.
+        if ($order->status !== 'Completed') {
+            $this->deployment->publishValidation($order);
+            $published = ($order->config_data['dns_record']['value'] ?? null) !== null
+                && ($order->config_data['dns_record']['value'] ?? null) === ($order->config_data['dcv']['value'] ?? '');
+            if ($published && method_exists($module, 'verifyDnsValidation')) {
+                $module->verifyDnsValidation($order);
+            }
+        }
+
         $result = $module->getCertificateStatus($order);
 
         // If certificate was just issued, send notification
@@ -102,6 +116,7 @@ class SslProvisioningService
         if ($previousStatus !== 'Completed' && $order->status === 'Completed') {
             $this->sendCertificateIssuedEmail($order);
         }
+        $this->deployment->install($order->refresh());
 
         return $result;
     }
@@ -113,7 +128,12 @@ class SslProvisioningService
             return ['success' => false, 'message' => __('messages.error.ssl_module_not_found_short')];
         }
 
-        return $module->renewCertificate($order);
+        $result = $module->renewCertificate($order);
+        if ($result['success']) {
+            $this->deployment->publishValidation($order->refresh());
+        }
+
+        return $result;
     }
 
     public function revokeCertificate(SslOrder $order, string $reason = ''): array

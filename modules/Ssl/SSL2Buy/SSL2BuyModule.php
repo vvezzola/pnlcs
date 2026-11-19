@@ -339,6 +339,34 @@ class SSL2BuyModule extends AbstractSslModule
     }
 
     /**
+     * Asks GlobalSign to look for the DNS record now. It does not look by
+     * itself: an order validated by DNS waited until someone pressed the
+     * check in the SSL2BUY panel. Sectigo checks on its own; other orders
+     * have nothing to ask.
+     */
+    public function verifyDnsValidation(SslOrder $order): array
+    {
+        $dcv = (array) ($order->config_data['dcv'] ?? []);
+        if (($dcv['method'] ?? '') !== 'DNS' || $this->familyFor($order) !== 'globalsign' || empty($order->remote_id)) {
+            return $this->buildResult(false, 'Nothing to verify for this order');
+        }
+
+        try {
+            $response = $this->call('orderservice/GlobalSignFullOrder/GSDNSVerification', [
+                'OrderNumber' => (int) $order->remote_id,
+                'DomainToVerify' => (string) ($dcv['name'] ?? $this->baseDomain((string) $order->domain)),
+            ]);
+            $result = $this->buildResult(true, 'DNS verification asked', ['status' => (string) ($response['CertificateStatus'] ?? '')]);
+        } catch (Throwable $e) {
+            $result = $this->buildResult(false, "SSL2BUY: {$e->getMessage()}");
+        }
+
+        $this->logAction($order, 'verifyDnsValidation', $result);
+
+        return $result;
+    }
+
+    /**
      * Fills what a renewal needs and the order may lack: a key and CSR made
      * here, the customer's details as the contact, and DNS validation. What
      * the order already carries is kept. Nothing is saved: the order placed
