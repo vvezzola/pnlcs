@@ -12,6 +12,7 @@ use App\Models\SslOrder;
 use App\Services\SslProvisioningService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Modules\Servers\Plesk\PleskModule;
 
 /*
  * A certificate the panel renews is validated and installed on the Plesk
@@ -232,4 +233,12 @@ test('an imported certificate attached to the hosting moves onto the SSL service
 
     $this->actingAs($admin, 'admin')->put(route('admin.ssl.service', $order), ['service_id' => $billing->id])->assertSessionHas('success');
     expect($order->refresh()->service_id)->toBe($billing->id);
+});
+
+test('a validation record already gone from the zone counts as removed', function () {
+    Http::fake(['https://plesk.test:8443/enterprise/control/agent.php' => Http::response(
+        '<?xml version="1.0"?><packet><dns><del_rec><result><status>error</status><errcode>1013</errcode><errtext>Record does not exist</errtext></result></del_rec></dns></packet>'
+    )]);
+
+    expect((new PleskModule)->removeDnsRecord(deployServer(), 5480))->toBeTrue();
 });

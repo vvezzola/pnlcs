@@ -271,9 +271,16 @@ class PleskModule extends AbstractServerModule
         return ['success' => true, 'message' => 'Record added.', 'record_id' => (int) ($xml->xpath('//result/id')[0] ?? 0)];
     }
 
+    /**
+     * Takes a record away again. One already gone, removed by hand or by an
+     * earlier call that was not heard back from, counts as removed: Plesk
+     * answers "does not exist" (1013) for it.
+     */
     public function removeDnsRecord(Server $server, int $recordId): bool
     {
-        return $this->xmlOk($this->xmlApi($server, "<dns><del_rec><filter><id>{$recordId}</id></filter></del_rec></dns>"));
+        $xml = $this->xmlApi($server, "<dns><del_rec><filter><id>{$recordId}</id></filter></del_rec></dns>");
+
+        return $this->xmlOk($xml) || ($xml && in_array('1013', array_map('strval', $xml->xpath('//result/errcode') ?: []), true));
     }
 
     /**
