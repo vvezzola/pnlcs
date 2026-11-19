@@ -2378,6 +2378,7 @@ return [
     'log_retention.table_gateway_events' => 'Payment webhooks',
     'log_retention.table_activity_logs' => 'Activity log',
     'log_retention.table_whois_logs' => 'Domain searches',
+    'log_retention.table_user_logins' => 'Sign-ins (IP and browser)',
     'log_retention.table_module_queue' => 'Module queue (finished)',
     'products.pricing' => 'Pricing',
     'products.product_details' => 'Product Details',

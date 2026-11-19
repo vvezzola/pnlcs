@@ -76,3 +76,17 @@ test('dry run reports without deleting', function () {
 
     expect(DB::table('emails')->where('subject', 'old')->exists())->toBeTrue();
 });
+
+test('sign-ins with their IP are kept a year, then pruned', function () {
+    $user = \App\Models\User::factory()->create();
+    $signIn = fn (int $daysAgo) => DB::table('user_logins')->insertGetId([
+        'user_id' => $user->id, 'successful' => true, 'method' => 'password',
+        'ip_address' => '203.0.113.7', 'user_agent' => 'Firefox', 'created_at' => now()->subDays($daysAgo),
+    ]);
+    $signIn(400);
+    $recent = $signIn(300);
+
+    $this->artisan('pnlcs:prune-logs')->assertExitCode(0);
+
+    expect(DB::table('user_logins')->pluck('id')->all())->toBe([$recent]);
+});

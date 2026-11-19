@@ -2289,6 +2289,7 @@ return [
     'log_retention.table_gateway_events' => 'Вебхуки платежів',
     'log_retention.table_activity_logs' => 'Журнал активності',
     'log_retention.table_whois_logs' => 'Пошуки доменів',
+    'log_retention.table_user_logins' => 'Входи (IP і браузер)',
     'log_retention.table_module_queue' => 'Черга модулів (завершені)',
     'products.pricing' => 'Ціноутворення',
     'products.product_details' => 'Дані продукту',

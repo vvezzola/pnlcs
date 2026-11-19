@@ -51,6 +51,9 @@ class PruneLogsCommand extends Command
             'activity_logs'    => [365, 'retention_activity_logs_days', null],
             // Storefront domain searches (DomainSearchController).
             'whois_logs'       => [90,  'retention_whois_logs_days', null],
+            // Sign-ins with the IP and browser they came from: personal data
+            // kept a year, long enough to look into a suspicious login.
+            'user_logins'      => [365, 'retention_user_logins_days', null],
             'module_queue'     => [30,  'retention_module_queue_days', function ($q) {
                 // Work still waiting to run is never pruned - and neither is a
                 // failed entry. Those are the panel's record of an action that

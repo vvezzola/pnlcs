@@ -2378,6 +2378,7 @@ return [
     'log_retention.table_gateway_events' => 'Webhooki płatności',
     'log_retention.table_activity_logs' => 'Log aktywności',
     'log_retention.table_whois_logs' => 'Wyszukiwania domen',
+    'log_retention.table_user_logins' => 'Logowania (IP i przeglądarka)',
     'log_retention.table_module_queue' => 'Kolejka modułów (zakończone)',
     'products.pricing' => 'Cennik',
     'products.product_details' => 'Szczegóły produktu',

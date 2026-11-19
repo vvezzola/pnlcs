@@ -2281,6 +2281,7 @@ return [
     'log_retention.table_gateway_events' => 'Вебхуки платежей',
     'log_retention.table_activity_logs' => 'Журнал активности',
     'log_retention.table_whois_logs' => 'Поиски доменов',
+    'log_retention.table_user_logins' => 'Входы (IP и браузер)',
     'log_retention.table_module_queue' => 'Очередь модулей (завершённые)',
     'products.pricing' => 'Цены',
     'products.product_details' => 'Данные продукта',

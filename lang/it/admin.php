@@ -2341,6 +2341,7 @@ return [
     'log_retention.table_gateway_events' => 'Webhook di pagamento',
     'log_retention.table_activity_logs' => 'Registro attività',
     'log_retention.table_whois_logs' => 'Ricerche di domini',
+    'log_retention.table_user_logins' => 'Accessi (IP e browser)',
     'log_retention.table_module_queue' => 'Coda dei moduli (terminati)',
     'products.pricing' => 'Prezzi',
     'products.product_details' => 'Dettagli del prodotto',
