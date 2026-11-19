@@ -2,11 +2,13 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ActivityLog;
 use App\Models\Client;
 use App\Models\Domain;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
+use App\Services\DomainMove;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -17,7 +19,10 @@ use Illuminate\Support\Facades\DB;
  *
  * "crea" makes a service or a domain, "aggiorna" brings a service already in
  * PNLCS (made by the Plesk sync page) to the sheet's product, price, cycle
- * and due date, keeping its link to Plesk. Nothing is provisioned, no mail
+ * and due date, keeping its link to Plesk. "sposta" gives a service or a
+ * domain (service_id holds its id) to the client in client_id; "elimina"
+ * deletes the record of a service of client_id and keeps its account on the
+ * server. Every change is printed. Nothing is provisioned, no mail
  * is sent, nothing is invoiced: services and domains at 0 are never
  * invoiced, the others on their due dates. Dry run unless --write; running
  * it again creates nothing twice.
@@ -52,16 +57,19 @@ class ImportAbbonamentiCommand extends Command
         }
 
         $write = (bool) $this->option('write');
-        $done = ['servizi creati' => 0, 'servizi aggiornati' => 0, 'domini creati' => 0, 'già presenti' => 0];
+        $done = ['servizi creati' => 0, 'servizi aggiornati' => 0, 'domini creati' => 0, 'spostati' => 0, 'servizi eliminati' => 0, 'già presenti' => 0];
 
         DB::transaction(function () use ($rows, $write, &$done) {
             foreach ($rows as $row) {
                 $key = match (true) {
+                    $row['azione'] === 'sposta' => $this->move($row, $write),
+                    $row['azione'] === 'elimina' => $this->delete($row, $write),
                     $row['tipo'] === 'dominio' => $this->domain($row, $write),
                     $row['azione'] === 'aggiorna' => $this->update($row, $write),
                     default => $this->service($row, $write),
                 };
                 $done[$key]++;
+                $this->line("  {$key}: {$row['tipo']} ".($row['service_id'] !== '' ? "#{$row['service_id']} " : '')."{$row['oggetto']} (cliente {$row['client_id']})");
             }
         });
 
@@ -106,6 +114,16 @@ class ImportAbbonamentiCommand extends Command
             $line = $i + 2;
             if (! isset($clients[(int) $row['client_id']])) {
                 $problems[] = "riga {$line}: cliente {$row['client_id']} inesistente";
+            }
+            if (in_array($row['azione'], ['sposta', 'elimina'], true)) {
+                $record = $row['tipo'] === 'dominio' ? Domain::find((int) $row['service_id']) : Service::find((int) $row['service_id']);
+                if (! $record && $row['azione'] === 'sposta') {
+                    $problems[] = "riga {$line}: {$row['tipo']} #{$row['service_id']} inesistente";
+                } elseif ($row['azione'] === 'elimina' && ($row['tipo'] !== 'servizio' || ($record && (int) $record->client_id !== (int) $row['client_id']))) {
+                    $problems[] = "riga {$line}: si elimina solo un servizio del cliente indicato, #{$row['service_id']} non lo è";
+                }
+
+                continue;
             }
             if ($row['tipo'] === 'servizio' && ! isset($products[(int) $row['product_id']])) {
                 $problems[] = "riga {$line}: prodotto {$row['product_id']} inesistente";
@@ -194,6 +212,49 @@ class ImportAbbonamentiCommand extends Command
         }
 
         return 'servizi aggiornati';
+    }
+
+    /** @param  array<string, string>  $row */
+    private function move(array $row, bool $write): string
+    {
+        $record = $row['tipo'] === 'dominio' ? Domain::find((int) $row['service_id']) : Service::find((int) $row['service_id']);
+        if ((int) $record->client_id === (int) $row['client_id']) {
+            return 'già presenti';
+        }
+
+        if ($write) {
+            $client = Client::find((int) $row['client_id']);
+            if ($record instanceof Domain) {
+                app(DomainMove::class)->move($record, $client, 'import');
+            } else {
+                $from = $record->client_id;
+                $record->forceFill(['client_id' => $client->id])->saveQuietly();
+                ActivityLog::log("Service #{$record->id} moved to client #{$client->id}", 'import', $from);
+                ActivityLog::log("Service #{$record->id} moved here from client #{$from}", 'import', $client->id);
+            }
+        }
+
+        return 'spostati';
+    }
+
+    /**
+     * The record only: the account on the server is left as it is.
+     *
+     * @param  array<string, string>  $row
+     */
+    private function delete(array $row, bool $write): string
+    {
+        $service = Service::find((int) $row['service_id']);
+        if (! $service) {
+            return 'già presenti';
+        }
+
+        if ($write) {
+            ActivityLog::log("Service #{$service->id} ({$service->domain}) deleted; its account on the server was kept", 'import', $service->client_id);
+            $service->delete();
+        }
+
+        return 'servizi eliminati';
     }
 
     /** @param  array<string, string>  $row */

@@ -72,3 +72,39 @@ test('a wrong id stops the import before anything is written', function () {
     $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain('prodotto 99999 inesistente')->assertFailed();
     expect(Service::count())->toBe(0);
 });
+
+test('a service and a domain move to another client and a duplicate record goes, the server untouched', function () {
+    $from = Client::factory()->create();
+    $to = Client::factory()->create();
+    $service = Service::factory()->create(['client_id' => $from->id, 'domain' => 'rossi.it']);
+    $duplicate = Service::factory()->create(['client_id' => $from->id, 'domain' => 'rossi.it']);
+    $domain = Domain::factory()->create(['client_id' => $from->id, 'domain' => 'rossi.it']);
+    $file = abbonamentiCsv([
+        ['tipo' => 'servizio', 'azione' => 'sposta', 'service_id' => $service->id, 'client_id' => $to->id, 'oggetto' => 'rossi.it'],
+        ['tipo' => 'dominio', 'azione' => 'sposta', 'service_id' => $domain->id, 'client_id' => $to->id, 'oggetto' => 'rossi.it'],
+        ['tipo' => 'servizio', 'azione' => 'elimina', 'service_id' => $duplicate->id, 'client_id' => $from->id, 'oggetto' => 'rossi.it'],
+    ]);
+
+    $this->artisan("esalogica:import-abbonamenti {$file}")->expectsOutputToContain("spostati: servizio #{$service->id} rossi.it")->assertSuccessful();
+    expect($service->fresh()->client_id)->toBe($from->id)->and($duplicate->fresh())->not->toBeNull();
+
+    $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain("servizi eliminati: servizio #{$duplicate->id}")->assertSuccessful();
+
+    expect($service->fresh()->client_id)->toBe($to->id)
+        ->and($domain->fresh()->client_id)->toBe($to->id)
+        ->and($duplicate->fresh())->toBeNull();
+
+    $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain('già presenti')->assertSuccessful();
+});
+
+test('a service of another client is never deleted', function () {
+    $owner = Client::factory()->create();
+    $other = Client::factory()->create();
+    $service = Service::factory()->create(['client_id' => $owner->id]);
+    $file = abbonamentiCsv([
+        ['tipo' => 'servizio', 'azione' => 'elimina', 'service_id' => $service->id, 'client_id' => $other->id],
+    ]);
+
+    $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain('si elimina solo un servizio del cliente indicato')->assertFailed();
+    expect($service->fresh())->not->toBeNull();
+});
