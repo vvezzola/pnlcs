@@ -51,6 +51,10 @@
             <button type="submit" class="btn btn-danger btn-sm" data-action="cancel">{{ __('common.actions.cancel') }}</button>
             <button type="submit" class="btn btn-default btn-sm" data-action="send">{{ __('admin.invoices.send') }}</button>
             <button type="submit" class="btn btn-warning btn-sm" data-action="remind">{{ __('admin.invoices.remind') }}</button>
+            @if(request('status') === 'draft')
+            <button type="submit" class="btn btn-primary btn-sm" data-action="publish" data-confirm="{{ __('admin.invoices.confirm_publish_selected') }}">{{ __('admin.invoices.publish') }}</button>
+            <button type="submit" class="btn btn-danger btn-sm" data-action="delete_draft" data-confirm="{{ __('admin.invoices.confirm_delete_draft') }}">{{ __('admin.invoices.delete_draft') }}</button>
+            @endif
         </div>
         <table class="data-table">
             <thead>
@@ -93,7 +97,7 @@
                 @endphp
                 <tr>
                     <td><input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="row-checkbox"></td>
-                    <td><a href="{{ route("admin.invoices.show", $invoice) }}" style="color:#337ab7;text-decoration:none;font-family:monospace;">#{{ $invoice->invoice_num ?? $invoice->id }}</a></td>
+                    <td><a href="{{ route("admin.invoices.show", $invoice) }}" style="color:#337ab7;text-decoration:none;font-family:monospace;">{{ filled($invoice->invoice_num) ? '#'.$invoice->invoice_num : __('admin.invoices.draft_number') }}</a></td>
                     <td>
                         @if($invoice->client)
                         <a href="{{ route("admin.clients.show", $invoice->client_id) }}" style="color:#337ab7;text-decoration:none;">{{ $invoice->client->full_name }}</a>
@@ -133,6 +137,9 @@ document.querySelectorAll('#bulk-form button[data-action]').forEach(function (bt
             return;
         }
         document.getElementById('bulk-action').value = this.getAttribute('data-action');
+        if (this.dataset.confirm) {
+            return pnConfirm(e, this.dataset.confirm);
+        }
     });
 });
 </script>

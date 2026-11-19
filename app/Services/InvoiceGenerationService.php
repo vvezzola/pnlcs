@@ -923,6 +923,12 @@ class InvoiceGenerationService
             ...($billing?->invoiceOptions() ?? []),
         ];
 
+        // InvoiceGenerateAsDraft: the run prepares drafts to be checked and
+        // issued by staff - numbered, mailed and sent on when issued.
+        if (\App\Models\Setting::get('InvoiceGenerateAsDraft', '0') === '1') {
+            $options['status'] = InvoiceStatus::Draft->value;
+        }
+
         $invoice = $this->invoiceService->createInvoice($client, $items, $options);
 
         // A promotion the operator marked as recurring keeps its promise. The
@@ -943,7 +949,10 @@ class InvoiceGenerationService
                 ->update(['invoice_id' => $invoice->id]);
         }
 
-        if ($domains !== [] && (bool) (int) \App\Models\Setting::get('DomainRenewOnInvoice', 0)) {
+        // A draft is not an invoice yet: a domain is not renewed at the
+        // registrar for one that may still be thrown away.
+        if ($domains !== [] && $invoice->status !== InvoiceStatus::Draft->value
+            && (bool) (int) \App\Models\Setting::get('DomainRenewOnInvoice', 0)) {
             $this->renewDomainsNow($domains);
         }
 
@@ -961,6 +970,23 @@ class InvoiceGenerationService
      *
      * @param  list<Domain>  $domains
      */
+    /**
+     * DomainRenewOnInvoice for a draft as it is issued: what generating it
+     * held back, the domains renewed at the registrar on the day the renewal
+     * is invoiced.
+     */
+    public function renewInvoicedDomains(Invoice $invoice): void
+    {
+        if (! (bool) (int) \App\Models\Setting::get('DomainRenewOnInvoice', 0)) {
+            return;
+        }
+
+        $ids = $invoice->items()->where('type', 'Domain')->pluck('rel_id')->filter()->all();
+        if ($ids !== []) {
+            $this->renewDomainsNow(Domain::whereIn('id', $ids)->get()->all());
+        }
+    }
+
     private function renewDomainsNow(array $domains): void
     {
         $service = app(\App\Services\DomainService::class);

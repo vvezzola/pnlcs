@@ -1,9 +1,9 @@
 @extends('admin.layouts.app')
-@section('title', __($invoice->isProforma() ? 'admin.search.proforma_title' : 'admin.search.invoice_title', ['num' => $invoice->invoice_num]))
+@section('title', __($invoice->isProforma() ? 'admin.search.proforma_title' : 'admin.search.invoice_title', ['num' => $invoice->invoice_num ?: __('admin.invoices.draft_number')]))
 @section('content')
 
 <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;">
-    <h1>{{ __($invoice->isProforma() ? 'admin.search.proforma_title' : 'admin.search.invoice_title', ['num' => $invoice->invoice_num]) }} <span class="badge-{{ strtolower($invoice->status) }}" style="font-size:14px;vertical-align:middle;">{{ invoice_status_label($invoice->status) }}</span></h1>
+    <h1>{{ __($invoice->isProforma() ? 'admin.search.proforma_title' : 'admin.search.invoice_title', ['num' => $invoice->invoice_num ?: __('admin.invoices.draft_number')]) }} <span class="badge-{{ strtolower($invoice->status) }}" style="font-size:14px;vertical-align:middle;">{{ invoice_status_label($invoice->status) }}</span></h1>
     @php $st = strtolower((string) $invoice->status); @endphp
     <div style="display:flex;gap:6px;align-items:center;">
         @if(in_array($st, ['unpaid', 'overdue', 'partially_paid', 'payment_pending']))
@@ -12,16 +12,31 @@
         @if(in_array($st, ['paid', 'partially_paid']))
         <button type="button" class="btn btn-warning btn-sm" onclick="document.getElementById('refund-form').style.display=document.getElementById('refund-form').style.display==='none'?'block':'none'">{{ __('admin.invoices.refund_btn') }}</button>
         @endif
-        @if(!in_array($st, ['paid', 'cancelled', 'refunded']))
+        @if($st === 'draft')
+        <form method="POST" action="{{ route('admin.invoices.publish', $invoice) }}" style="display:inline;" onsubmit="return pnConfirm(event, @js(__('admin.invoices.confirm_publish')))">
+            @csrf
+            <button type="submit" class="btn btn-success btn-sm">{{ __('admin.invoices.publish') }}</button>
+        </form>
+        @if(blank($invoice->invoice_num))
+        <form method="POST" action="{{ route('admin.invoices.destroy-draft', $invoice) }}" style="display:inline;" onsubmit="return pnConfirm(event, @js(__('admin.invoices.confirm_delete_draft')), {danger: true})">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-danger btn-sm">{{ __('admin.invoices.delete_draft') }}</button>
+        </form>
+        @endif
+        @endif
+        @if(!in_array($st, ['paid', 'cancelled', 'refunded', 'draft']))
         <form method="POST" action="{{ route('admin.invoices.cancel', $invoice) }}" style="display:inline;" onsubmit="return pnConfirm(event, @js(__('admin.invoices.confirm_cancel')))">
             @csrf
             <button type="submit" class="btn btn-danger btn-sm">{{ __('common.actions.cancel') }}</button>
         </form>
         @endif
+        @if($st !== 'draft')
         <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" style="display:inline;">
             @csrf
             <button type="submit" class="btn btn-default btn-sm">{{ __('admin.invoices.send') }}</button>
         </form>
+        @endif
         @if(!empty($canChargeNow))
         <form method="POST" action="{{ route('admin.invoices.charge-now', $invoice) }}" style="display:inline;" onsubmit="return pnConfirm(event, @js(__('admin.invoices.charge_now_confirm')))">
             @csrf

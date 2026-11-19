@@ -334,9 +334,41 @@ class InvoiceController extends Controller
     /**
      * Email the invoice to the client.
      */
+    /**
+     * Issue a draft: it is numbered and dated now, mailed to the customer and,
+     * once the SDI delay has passed, sent on.
+     */
+    public function publish(Invoice $invoice): RedirectResponse
+    {
+        if ($invoice->status !== InvoiceStatus::Draft->value) {
+            return back()->with('error', __('admin.invoices.not_a_draft'));
+        }
+
+        $invoice = $this->invoiceService->publishDraft($invoice);
+        ActivityLog::log("Draft #{$invoice->id} issued as {$invoice->invoice_num}", $this->adminName(), $invoice->client_id, $invoice->id);
+
+        return redirect()->route('admin.invoices.show', $invoice)->with('success', __('admin.invoices.draft_published', ['num' => $invoice->invoice_num]));
+    }
+
+    /** Throw a draft away: it was never numbered, mailed or sent. */
+    public function destroyDraft(Invoice $invoice): RedirectResponse
+    {
+        $clientId = $invoice->client_id;
+        if (! $this->invoiceService->deleteDraft($invoice)) {
+            return back()->with('error', __('admin.invoices.not_a_draft'));
+        }
+
+        ActivityLog::log("Draft #{$invoice->id} deleted", $this->adminName(), $clientId);
+
+        return redirect()->route('admin.invoices.index', ['status' => 'draft'])->with('success', __('admin.invoices.draft_deleted'));
+    }
+
     public function sendInvoice(Invoice $invoice): RedirectResponse
     {
         abort_if(! $invoice->client?->billingEmail(), 422, 'Client has no email address.');
+        if ($invoice->status === InvoiceStatus::Draft->value) {
+            return back()->with('error', __('admin.invoices.draft_not_sent'));
+        }
 
         Mail::to($invoice->client->billingEmail())->queue(new InvoiceCreatedMail($invoice));
 

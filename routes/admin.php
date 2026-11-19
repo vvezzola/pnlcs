@@ -200,6 +200,8 @@ Route::middleware(['admin.auth', 'admin.2fa'])->prefix('admin')->name('admin.')-
         Route::post('invoices/{invoice}/charge-now', [InvoiceController::class, 'chargeNow'])->name('invoices.charge-now');
         Route::post('invoices/{invoice}/charge-review/release', [InvoiceController::class, 'releaseChargeReview'])->name('invoices.charge-review.release');
         Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+        Route::post('invoices/{invoice}/publish', [InvoiceController::class, 'publish'])->name('invoices.publish');
+        Route::delete('invoices/{invoice}/draft', [InvoiceController::class, 'destroyDraft'])->name('invoices.destroy-draft');
         Route::post('invoices/{invoice}/refund', [InvoiceController::class, 'refund'])->name('invoices.refund');
         Route::post('invoices/{invoice}/send', [InvoiceController::class, 'sendInvoice'])->name('invoices.send');
         Route::post('invoices/{invoice}/remind', [InvoiceController::class, 'sendReminder'])->name('invoices.remind');

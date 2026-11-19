@@ -101,7 +101,11 @@ class InvoiceService
                 'client_id' => $client->id,
                 // Freeze the buyer alongside the money (issue #7)
                 ...Invoice::buyerSnapshotFrom($client),
-                'invoice_num' => $options['invoice_num'] ?? $this->generateInvoiceNumber($options['type'] ?? $this->defaultType()),
+                // A draft takes its number when it is issued (publishDraft):
+                // numbered here, one thrown away left a hole in the series.
+                'invoice_num' => $options['invoice_num'] ?? (($options['status'] ?? null) === InvoiceStatus::Draft->value
+                    ? null
+                    : $this->generateInvoiceNumber($options['type'] ?? $this->defaultType())),
                 'date' => $options['date'] ?? now()->toDateString(),
                 'due_date' => $options['due_date'] ?? self::defaultDueDate(isset($options['date']) ? \Carbon\Carbon::parse($options['date']) : null, $client),
                 'status' => $options['status'] ?? InvoiceStatus::Unpaid->value,
@@ -146,6 +150,13 @@ class InvoiceService
      * Issue a draft: it becomes unpaid, and what createInvoice() holds back for
      * a draft happens now - the created event (mail, hooks) and the customer's
      * balance applied.
+     *
+     * It takes its number now, in the order drafts are issued, and is dated
+     * today: numbers and dates have to run together, and a draft checked for
+     * a few days before going out would otherwise carry an earlier date than
+     * invoices numbered before it. Its due date moves with it - recomputed
+     * when it was the customer's usual terms (30 days end of month stays end
+     * of month), shifted by the same days when it was set otherwise.
      */
     public function publishDraft(Invoice $invoice): Invoice
     {
@@ -153,11 +164,60 @@ class InvoiceService
             return $invoice;
         }
 
-        $invoice->update(['status' => InvoiceStatus::Unpaid->value]);
+        $got = DB::selectOne('SELECT GET_LOCK(?, ?) AS got', [self::numberLock(), self::$numberLockSeconds]);
+        if ((int) ($got->got ?? 0) !== 1) {
+            throw new \RuntimeException('Could not obtain the invoice numbering lock.');
+        }
+
+        try {
+            $invoice->refresh();
+            if ($invoice->status !== InvoiceStatus::Draft->value) {
+                return $invoice;
+            }
+
+            $today = now()->startOfDay();
+            $updates = ['status' => InvoiceStatus::Unpaid->value, 'date' => $today->toDateString()];
+            if (blank($invoice->invoice_num)) {
+                $updates['invoice_num'] = $this->generateInvoiceNumber($invoice->type ?: $this->defaultType());
+            }
+            if ($invoice->date && $invoice->due_date && ! $invoice->date->isSameDay($today)) {
+                $usual = self::defaultDueDate($invoice->date, $invoice->client);
+                $updates['due_date'] = $invoice->due_date->toDateString() === $usual
+                    ? self::defaultDueDate($today, $invoice->client)
+                    : $invoice->due_date->copy()->addDays((int) $invoice->date->diffInDays($today))->toDateString();
+            }
+
+            $invoice->update($updates);
+        } finally {
+            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [self::numberLock()]);
+        }
+
+        app(InvoiceGenerationService::class)->renewInvoicedDomains($invoice);
         event(new InvoiceCreated($invoice->fresh()));
         $this->applyAvailableCredit($invoice->fresh());
 
         return $invoice->fresh();
+    }
+
+    /**
+     * Throws a draft away. Nothing was issued, numbered, mailed or paid, so
+     * nothing has to be undone but the one-off charges it carried, which go
+     * back to wait for the next invoice. What it billed falls due again: a
+     * renewal comes back on the next run unless the service is changed too.
+     */
+    public function deleteDraft(Invoice $invoice): bool
+    {
+        if ($invoice->status !== InvoiceStatus::Draft->value || ! blank($invoice->invoice_num)) {
+            return false;
+        }
+
+        DB::transaction(function () use ($invoice) {
+            \App\Models\BillableItem::where('invoice_id', $invoice->id)->update(['invoice_id' => null]);
+            $invoice->items()->delete();
+            $invoice->delete();
+        });
+
+        return true;
     }
 
     /**

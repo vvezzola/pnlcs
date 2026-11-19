@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\InvoiceStatus;
 use App\Http\Controllers\Controller;
 use App\Mail\BulkMassMail;
 use App\Mail\InvoiceCreatedMail;
@@ -125,10 +126,12 @@ class BulkActionController extends Controller
         $validated = $request->validate([
             'invoice_ids' => 'required|array|min:1',
             'invoice_ids.*' => 'exists:invoices,id',
-            'action' => 'required|in:paid,cancel,send,remind',
+            'action' => 'required|in:paid,cancel,send,remind,publish,delete_draft',
         ]);
 
-        $invoices = Invoice::with('client')->whereIn('id', $validated['invoice_ids'])->get();
+        // Drafts are issued in the order they were prepared, so the numbers
+        // run with the customers as they were listed.
+        $invoices = Invoice::with('client')->whereIn('id', $validated['invoice_ids'])->orderBy('date')->orderBy('id')->get();
         $action = $validated['action'];
         $processed = 0;
 
@@ -143,8 +146,17 @@ class BulkActionController extends Controller
 
     private function applyInvoiceAction(Invoice $invoice, string $action, InvoiceService $invoiceService): bool
     {
+        // A draft is issued or thrown away, nothing else: not paid, cancelled
+        // or mailed before it has a number.
+        $isDraft = $invoice->status === InvoiceStatus::Draft->value;
+        if ($isDraft !== in_array($action, ['publish', 'delete_draft'], true)) {
+            return false;
+        }
+
         try {
             return match ($action) {
+                'publish' => $invoiceService->publishDraft($invoice)->status !== InvoiceStatus::Draft->value,
+                'delete_draft' => $invoiceService->deleteDraft($invoice),
                 'paid' => $this->bulkPaid($invoice),
                 'cancel' => $this->bulkCancel($invoice, $invoiceService),
                 'send' => $this->bulkSend($invoice),

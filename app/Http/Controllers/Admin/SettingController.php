@@ -84,7 +84,7 @@ class SettingController extends Controller
         'Email', 'EmailFromName', 'MailCopyTo',
         'InvoiceNumberFormat', 'InvoiceNumberYearlyReset', 'InvoiceDueDays', 'InvoiceDaysBeforeDue', 'ConsolidatedBillingDay', 'InvoiceRenewalsSeparately',
         // Whole months on the billing day, due dates at month end, the renewal notice.
-        'ConsolidatedBillingMonths', 'InvoiceDueEndOfMonth', 'RenewalNoticeDay', 'DomainRenewOnInvoice',
+        'ConsolidatedBillingMonths', 'InvoiceDueEndOfMonth', 'RenewalNoticeDay', 'DomainRenewOnInvoice', 'InvoiceGenerateAsDraft',
         // Warn a customer when a service nears its disk space limit.
         'DiskUsageWarningPercent',
         // The invoice document template: the built-in view or an uploaded one.
@@ -179,6 +179,7 @@ class SettingController extends Controller
             'DiskUsageWarningPercent' => 'sometimes|nullable|integer|between:0,99',
             'LegalDocumentsRevised' => 'sometimes|nullable|date_format:Y-m-d',
             'DomainRenewOnInvoice' => 'sometimes|nullable|in:0,1',
+            'InvoiceGenerateAsDraft' => 'sometimes|nullable|in:0,1',
             'AutoSuspensionDays' => 'sometimes|nullable|integer|min:0',
             'AutoTerminationDays' => 'sometimes|nullable|integer|min:1',
             'LateFeeType' => 'sometimes|nullable|in:none,flat,percent',
