@@ -76,6 +76,20 @@ class SSL2BuyModule extends AbstractSslModule
      *
      * @var array<int, array{family: string, path: string, name: string, contact: string, wildcard: bool, methods: array<string, string>}>
      */
+    /**
+     * The contact a renewal is placed with when the order has none: setting
+     * => order column. Each one set replaces the customer's own value, so a
+     * reseller can be the contact, and a customer recorded as a company
+     * alone, with no surname or phone, can still be renewed.
+     */
+    private const RENEWAL_CONTACT = [
+        'contact_first_name' => 'admin_first_name',
+        'contact_last_name' => 'admin_last_name',
+        'contact_email' => 'admin_email',
+        'contact_phone' => 'admin_phone',
+        'contact_org' => 'admin_org',
+    ];
+
     public const PRODUCTS = [
         101 => ['family' => 'globalsign', 'path' => 'orderservice/GlobalSignFullOrder/AlphaSSLFullOrder', 'name' => 'AlphaSSL', 'contact' => 'ContactInfo', 'wildcard' => false, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'DNS', 'HTTP' => 'URL']],
         102 => ['family' => 'globalsign', 'path' => 'orderservice/GlobalSignFullOrder/AlphaSSLWildCardFullOrder', 'name' => 'AlphaSSL Wildcard', 'contact' => 'ContactInfo', 'wildcard' => true, 'methods' => ['EMAIL' => 'EMAIL', 'DNS' => 'DNS']],
@@ -139,6 +153,10 @@ class SSL2BuyModule extends AbstractSslModule
                 'type' => 'text',
             ],
         ];
+
+        foreach (array_keys(self::RENEWAL_CONTACT) as $key) {
+            $fields[$key] = ['label' => __('common.ssl2buy.'.$key), 'type' => 'text'];
+        }
 
         if ($catalogue !== []) {
             $fields['catalogue'] = [
@@ -342,22 +360,39 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         $client = $order->client;
-        if ($client && blank($order->admin_email)) {
-            $digits = (string) preg_replace('/\D+/', '', (string) $client->phone_number);
-            $prefix = ltrim((string) ($client->phone_prefix ?: Countries::phonePrefix($client->country)), '+');
+        if (blank($order->admin_email)) {
+            $digits = (string) preg_replace('/\D+/', '', (string) $client?->phone_number);
+            $prefix = ltrim((string) ($client?->phone_prefix ?: Countries::phonePrefix((string) $client?->country)), '+');
 
-            $order->forceFill([
-                'admin_first_name' => $client->first_name,
-                'admin_last_name' => $client->last_name,
-                'admin_email' => $client->email,
-                'admin_org' => $client->company_name,
+            $contact = [
+                'admin_first_name' => $client?->first_name,
+                'admin_last_name' => $client?->last_name,
+                'admin_email' => $client?->email,
+                'admin_org' => $client?->company_name,
                 'admin_phone' => $digits !== '' && $prefix !== '' ? "+{$prefix}.{$digits}" : $digits,
-                'admin_address' => $client->address1,
-                'admin_city' => $client->city,
-                'admin_state' => $client->state,
-                'admin_zip' => $client->postcode,
-                'admin_country' => strtolower((string) $client->country),
-            ]);
+                'admin_address' => $client?->address1,
+                'admin_city' => $client?->city,
+                'admin_state' => $client?->state,
+                'admin_zip' => $client?->postcode,
+                'admin_country' => strtolower((string) $client?->country),
+            ];
+            foreach (self::RENEWAL_CONTACT as $setting => $column) {
+                $value = trim((string) $this->getSetting($setting, ''));
+                if ($value !== '') {
+                    $contact[$column] = $value;
+                }
+            }
+            $order->forceFill($contact);
+        }
+
+        $missing = array_keys(array_filter([
+            'first name' => $order->admin_first_name,
+            'last name' => $order->admin_last_name,
+            'email' => $order->admin_email,
+            'phone' => $order->admin_phone,
+        ], fn ($value) => blank($value)));
+        if ($missing !== []) {
+            throw new RuntimeException('the contact has no '.implode(', ', $missing).': set the renewal contact in the SSL2BUY settings');
         }
     }
 

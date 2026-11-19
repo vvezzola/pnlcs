@@ -376,5 +376,10 @@ return [
         'col_price' => 'Preis, 1 Jahr',
         'col_extra_domain' => 'Zusätzliche Domain',
         'col_orderable' => 'Im Panel bestellbar',
+        'contact_first_name' => 'Kontakt für Verlängerungen: Vorname (leer: der des Kunden)',
+        'contact_last_name' => 'Kontakt für Verlängerungen: Nachname',
+        'contact_email' => 'Kontakt für Verlängerungen: E-Mail',
+        'contact_phone' => 'Kontakt für Verlängerungen: Telefon (z. B. +49.301234567)',
+        'contact_org' => 'Kontakt für Verlängerungen: Organisation',
     ],
 ];

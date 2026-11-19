@@ -376,5 +376,10 @@ return [
         'col_price' => 'Prezzo, 1 anno',
         'col_extra_domain' => 'Dominio aggiuntivo',
         'col_orderable' => 'Ordinabile dal pannello',
+        'contact_first_name' => 'Contatto per i rinnovi: nome (vuoto: quello del cliente)',
+        'contact_last_name' => 'Contatto per i rinnovi: cognome',
+        'contact_email' => 'Contatto per i rinnovi: email',
+        'contact_phone' => 'Contatto per i rinnovi: telefono (es. +39.0301234567)',
+        'contact_org' => 'Contatto per i rinnovi: organizzazione',
     ],
 ];

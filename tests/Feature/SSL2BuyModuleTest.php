@@ -385,3 +385,27 @@ test('the import does not bring back as an order of its own a certificate alread
     expect($result['imported'])->toBe(0)
         ->and(SslOrder::count())->toBe(1);
 });
+
+test('a customer recorded as a company alone renews with the contact set in the settings', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response(['SSL2BuyOrderNumber' => 3400003, 'StatusCode' => 0])]);
+    $order = ssl2buyOrder(['domain' => '*.example.com', 'status' => 'Completed', 'remote_id' => '3103927', 'cert_type' => 'AlphaSSL Wildcard Certificate',
+        'csr' => null, 'admin_first_name' => null, 'admin_last_name' => null, 'admin_email' => null, 'admin_phone' => null]);
+    $order->client->update(['first_name' => 'Altrad Italia Srl', 'last_name' => '', 'phone_number' => '']);
+    $module = new SSL2BuyModule;
+
+    $refused = $module->renewCertificate($order);
+
+    expect($refused['success'])->toBeFalse()
+        ->and($refused['message'])->toContain('last name, phone');
+    Http::assertNothingSent();
+
+    foreach (['contact_first_name' => 'Laura', 'contact_last_name' => 'Verdi', 'contact_email' => 'ssl@reseller.example', 'contact_phone' => '+39.0307654321'] as $key => $value) {
+        SslModuleSettings::setSetting('ssl2buy', $key, $value);
+    }
+
+    expect((new SSL2BuyModule)->renewCertificate($order->refresh())['success'])->toBeTrue();
+    Http::assertSent(fn (Request $request) => $request['ContactInfo']['FirstName'] === 'Laura'
+        && $request['ContactInfo']['LastName'] === 'Verdi'
+        && $request['ContactInfo']['Email'] === 'ssl@reseller.example'
+        && $request['ContactInfo']['Phone'] === '+39.0307654321');
+});

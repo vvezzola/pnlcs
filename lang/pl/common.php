@@ -376,5 +376,10 @@ return [
         'col_price' => 'Cena, 1 rok',
         'col_extra_domain' => 'Dodatkowa domena',
         'col_orderable' => 'Można zamówić w panelu',
+        'contact_first_name' => 'Kontakt do odnowień: imię (puste: klienta)',
+        'contact_last_name' => 'Kontakt do odnowień: nazwisko',
+        'contact_email' => 'Kontakt do odnowień: e-mail',
+        'contact_phone' => 'Kontakt do odnowień: telefon (np. +48.221234567)',
+        'contact_org' => 'Kontakt do odnowień: organizacja',
     ],
 ];

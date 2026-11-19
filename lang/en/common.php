@@ -376,5 +376,10 @@ return [
         'col_price' => 'Price, 1 year',
         'col_extra_domain' => 'Extra domain',
         'col_orderable' => 'Can be ordered from the panel',
+        'contact_first_name' => 'Renewal contact: first name (empty: the customer’s)',
+        'contact_last_name' => 'Renewal contact: last name',
+        'contact_email' => 'Renewal contact: email',
+        'contact_phone' => 'Renewal contact: phone (e.g. +39.0301234567)',
+        'contact_org' => 'Renewal contact: organisation',
     ],
 ];
