@@ -237,10 +237,18 @@ class SslProvisioningService
         // service.
         usort($orders, fn ($a, $b) => strcmp((string) ($b['valid_till'] ?? ''), (string) ($a['valid_till'] ?? '')));
 
+        // A renewal places a new order at the provider and the old one stays
+        // listed as active until it runs out: it is the certificate an order
+        // here has already moved on from, not one more to import.
+        $replaced = SslOrder::whereNotNull('config_data')->get(['id', 'config_data'])
+            ->flatMap(fn (SslOrder $order) => (array) ($order->config_data['replaced_remote_ids'] ?? []))
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
         foreach ($orders as $remote) {
             $domain = strtolower(trim((string) ($remote['domain'] ?? '')));
             $remoteId = (string) ($remote['remote_id'] ?? '');
-            if ($domain === '' || $remoteId === '') {
+            if ($domain === '' || $remoteId === '' || in_array($remoteId, $replaced, true)) {
                 $result['skipped']++;
 
                 continue;

@@ -3,6 +3,7 @@
 namespace Modules\Ssl\SSL2Buy;
 
 use App\Models\SslOrder;
+use App\Support\Countries;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
@@ -280,10 +281,84 @@ class SSL2BuyModule extends AbstractSslModule
         return $this->placeOrder($order, $years, 'purchaseCertificate', 'Certificate order placed');
     }
 
-    /** A renewal is a new order for the same certificate, with the CSR already on file. */
+    /**
+     * A renewal is a new order for the same certificate. A CSR the customer
+     * brought, whose key only they hold, is sent again; otherwise the panel
+     * makes a fresh key and CSR, so a certificate imported without either, or
+     * one whose key the panel already keeps, renews with nothing to enter.
+     * The order it replaces is remembered, so the import does not bring the
+     * old certificate back as an order of its own while it is still valid.
+     */
     public function renewCertificate(SslOrder $order): array
     {
-        return $this->placeOrder($order, 1, 'renewCertificate', 'Renewal order placed');
+        $previousRemoteId = (string) $order->remote_id;
+
+        try {
+            $this->prepareRenewal($order);
+        } catch (Throwable $e) {
+            $order->refresh();
+            $result = $this->buildResult(false, "SSL2BUY: {$e->getMessage()}");
+            $this->logAction($order, 'renewCertificate', $result);
+
+            return $result;
+        }
+
+        $result = $this->placeOrder($order, 1, 'renewCertificate', 'Renewal order placed');
+
+        if (! $result['success']) {
+            $order->refresh();
+
+            return $result;
+        }
+
+        if ($previousRemoteId !== '' && $previousRemoteId !== (string) $order->remote_id) {
+            $data = (array) ($order->config_data ?? []);
+            $data['replaced_remote_ids'] = array_values(array_unique([...(array) ($data['replaced_remote_ids'] ?? []), $previousRemoteId]));
+            $order->update(['config_data' => $data]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fills what a renewal needs and the order may lack: a key and CSR made
+     * here, the customer's details as the contact, and DNS validation. What
+     * the order already carries is kept. Nothing is saved: the order placed
+     * saves it, a failed one leaves the order as it was.
+     */
+    private function prepareRenewal(SslOrder $order): void
+    {
+        if (empty($order->csr) || ! empty($order->private_key)) {
+            $generated = $this->generateCsr(['domain' => (string) $order->domain]);
+            if (! $generated['success']) {
+                throw new RuntimeException($generated['message']);
+            }
+            $order->csr = $generated['csr'];
+            $order->private_key = $generated['key'];
+        }
+
+        if (blank($order->validation_method)) {
+            $order->validation_method = 'DNS';
+        }
+
+        $client = $order->client;
+        if ($client && blank($order->admin_email)) {
+            $digits = (string) preg_replace('/\D+/', '', (string) $client->phone_number);
+            $prefix = ltrim((string) ($client->phone_prefix ?: Countries::phonePrefix($client->country)), '+');
+
+            $order->forceFill([
+                'admin_first_name' => $client->first_name,
+                'admin_last_name' => $client->last_name,
+                'admin_email' => $client->email,
+                'admin_org' => $client->company_name,
+                'admin_phone' => $digits !== '' && $prefix !== '' ? "+{$prefix}.{$digits}" : $digits,
+                'admin_address' => $client->address1,
+                'admin_city' => $client->city,
+                'admin_state' => $client->state,
+                'admin_zip' => $client->postcode,
+                'admin_country' => strtolower((string) $client->country),
+            ]);
+        }
     }
 
     public function getCertificateStatus(SslOrder $order): array
@@ -665,6 +740,7 @@ class SSL2BuyModule extends AbstractSslModule
         $candidates = [
             $order->config_data['ssl2buy_product'] ?? null,
             $order->cert_type,
+            self::productCodeForName((string) $order->cert_type),
         ];
 
         $productId = $order->service?->product_id;
@@ -701,6 +777,28 @@ class SSL2BuyModule extends AbstractSslModule
         }
 
         return self::familyForName((string) $order->cert_type);
+    }
+
+    /**
+     * The product an imported order was bought as, from the name SSL2BUY
+     * lists it under ("AlphaSSL Wildcard Certificate"), so it renews as the
+     * same one.
+     */
+    public static function productCodeForName(string $productName): ?int
+    {
+        $normalise = fn (string $name) => strtolower((string) preg_replace('/certificate|[^a-z0-9]+/i', '', $name));
+        $key = $normalise($productName);
+        if ($key === '') {
+            return null;
+        }
+
+        foreach (self::PRODUCTS as $code => $product) {
+            if ($normalise($product['name']) === $key) {
+                return $code;
+            }
+        }
+
+        return null;
     }
 
     public static function familyForName(string $productName): ?string

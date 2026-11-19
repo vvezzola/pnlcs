@@ -8,6 +8,7 @@ use App\Models\ProductGroup;
 use App\Models\Service;
 use App\Models\SslModuleSettings;
 use App\Models\SslOrder;
+use App\Services\SslProvisioningService;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\Ssl\SSL2Buy\SSL2BuyModule;
@@ -314,4 +315,73 @@ test('the settings do not call SSL2BUY before the credentials are entered', func
     Http::preventStrayRequests();
 
     expect((new SSL2BuyModule)->catalogue())->toBe([]);
+});
+
+test('an imported wildcard renews with a key and CSR made here, the customer as contact and DNS validation', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response([
+        'SSL2BuyOrderNumber' => 3400001, 'GSOrderNumber' => 'GSXX2', 'DNSText' => '_globalsign-domain-verification=xyz', 'DNSVerificationDomains' => ['example.com'], 'StatusCode' => 0,
+    ])]);
+    $order = ssl2buyOrder([
+        'domain' => '*.example.com', 'status' => 'Completed', 'remote_id' => '3103927', 'cert_type' => 'AlphaSSL Wildcard Certificate',
+        'csr' => null, 'validation_method' => null, 'webserver_type' => null,
+        'admin_first_name' => null, 'admin_last_name' => null, 'admin_email' => null, 'admin_phone' => null,
+        'admin_address' => null, 'admin_city' => null, 'admin_state' => null, 'admin_zip' => null, 'admin_country' => null,
+    ]);
+    $order->client->update(['first_name' => 'Anna', 'last_name' => 'Bianchi', 'email' => 'anna@example.com', 'phone_prefix' => '+39', 'phone_number' => '030 1234567', 'country' => 'IT']);
+
+    $result = (new SSL2BuyModule)->renewCertificate($order);
+
+    expect($result['success'])->toBeTrue();
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://api.ssl2buy.com/orderservice/GlobalSignFullOrder/AlphaSSLWildCardFullOrder'
+        && $request['ApprovalMethod'] === 'DNS'
+        && $request['ContactInfo']['Email'] === 'anna@example.com'
+        && $request['ContactInfo']['Phone'] === '+39.0301234567'
+        && openssl_csr_get_subject($request['CSR'])['CN'] === '*.example.com');
+
+    $order->refresh();
+    $csrKey = openssl_pkey_get_details(openssl_csr_get_public_key($order->csr))['key'];
+    $savedKey = openssl_pkey_get_details(openssl_pkey_get_private($order->private_key))['key'];
+    expect($order->remote_id)->toBe('3400001')
+        ->and($order->status)->toBe('Awaiting Issuance')
+        ->and($savedKey)->toBe($csrKey)
+        ->and($order->config_data['replaced_remote_ids'])->toBe(['3103927'])
+        ->and($order->config_data['dcv']['value'])->toBe('_globalsign-domain-verification=xyz');
+});
+
+test('a renewal sends again the CSR the customer brought, whose key only they hold', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response(['SSL2BuyOrderNumber' => 3400002, 'StatusCode' => 0])]);
+    $order = ssl2buyOrder(['status' => 'Completed', 'remote_id' => '987654']);
+    $csr = $order->csr;
+
+    (new SSL2BuyModule)->renewCertificate($order);
+
+    Http::assertSent(fn (Request $request) => $request['CSR'] === $csr);
+    expect($order->refresh()->private_key)->toBeNull();
+});
+
+test('a renewal SSL2BUY refuses leaves the order as it was', function () {
+    Http::fake(['api.ssl2buy.com/*' => Http::response(['StatusCode' => -1, 'Errors' => ['ErrorMessage' => 'Insufficient balance']])]);
+    $order = ssl2buyOrder(['domain' => '*.example.com', 'status' => 'Completed', 'remote_id' => '3103927', 'cert_type' => 'AlphaSSL Wildcard Certificate', 'csr' => null]);
+
+    $result = (new SSL2BuyModule)->renewCertificate($order);
+
+    $order->refresh();
+    expect($result['success'])->toBeFalse()
+        ->and($order->csr)->toBeNull()
+        ->and($order->private_key)->toBeNull()
+        ->and($order->remote_id)->toBe('3103927');
+});
+
+test('the import does not bring back as an order of its own a certificate already renewed', function () {
+    $this->travelTo('2026-11-19');
+    Http::fake(['api.ssl2buy.com/orderservice/order/getorderlist' => Http::response(['OrderList' => [
+        ['OrderNumber' => 3103927, 'ProductName' => 'AlphaSSL Wildcard Certificate', 'DomainName' => '*.example.com', 'OrderStatus' => 'Active', 'ExpireOn' => '2026-11-28T00:00:00'],
+    ], 'TotalPages' => 1, 'StatusCode' => 0])]);
+    $renewed = ssl2buyOrder(['domain' => '*.example.com', 'status' => 'Awaiting Issuance', 'remote_id' => '3400001', 'config_data' => ['replaced_remote_ids' => ['3103927']]]);
+    Service::factory()->create(['client_id' => $renewed->client_id, 'domain' => 'example.com', 'status' => 'active']);
+
+    $result = app(SslProvisioningService::class)->importRemoteOrders('ssl2buy');
+
+    expect($result['imported'])->toBe(0)
+        ->and(SslOrder::count())->toBe(1);
 });
