@@ -19,7 +19,8 @@ use Illuminate\Support\Facades\DB;
  *
  * "crea" makes a service or a domain, "aggiorna" brings a service already in
  * PNLCS (made by the Plesk sync page) to the sheet's product, price, cycle
- * and due date, keeping its link to Plesk. "sposta" gives a service or a
+ * and due date, keeping its link to Plesk, and a domain to the sheet's
+ * price and due date. "sposta" gives a service or a
  * domain (service_id holds its id) to the client in client_id; "elimina"
  * deletes the record of a service of client_id and keeps its account on the
  * server. Every change is printed. Nothing is provisioned, no mail
@@ -57,13 +58,14 @@ class ImportAbbonamentiCommand extends Command
         }
 
         $write = (bool) $this->option('write');
-        $done = ['servizi creati' => 0, 'servizi aggiornati' => 0, 'domini creati' => 0, 'spostati' => 0, 'servizi eliminati' => 0, 'già presenti' => 0];
+        $done = ['servizi creati' => 0, 'servizi aggiornati' => 0, 'domini creati' => 0, 'domini aggiornati' => 0, 'spostati' => 0, 'servizi eliminati' => 0, 'già presenti' => 0];
 
         DB::transaction(function () use ($rows, $write, &$done) {
             foreach ($rows as $row) {
                 $key = match (true) {
                     $row['azione'] === 'sposta' => $this->move($row, $write),
                     $row['azione'] === 'elimina' => $this->delete($row, $write),
+                    $row['tipo'] === 'dominio' && $row['azione'] === 'aggiorna' => $this->updateDomain($row, $write),
                     $row['tipo'] === 'dominio' => $this->domain($row, $write),
                     $row['azione'] === 'aggiorna' => $this->update($row, $write),
                     default => $this->service($row, $write),
@@ -132,9 +134,9 @@ class ImportAbbonamentiCommand extends Command
                 $problems[] = "riga {$line}: server {$row['server_id']} inesistente";
             }
             if ($row['azione'] === 'aggiorna') {
-                $service = Service::find((int) $row['service_id']);
-                if (! $service || (int) $service->client_id !== (int) $row['client_id']) {
-                    $problems[] = "riga {$line}: il servizio #{$row['service_id']} non c'è o è di un altro cliente";
+                $record = $row['tipo'] === 'dominio' ? Domain::find((int) $row['service_id']) : Service::find((int) $row['service_id']);
+                if (! $record || (int) $record->client_id !== (int) $row['client_id']) {
+                    $problems[] = "riga {$line}: il {$row['tipo']} #{$row['service_id']} non c'è o è di un altro cliente";
                 }
             }
             if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $row['prossima_scadenza'])) {
@@ -255,6 +257,30 @@ class ImportAbbonamentiCommand extends Command
         }
 
         return 'servizi eliminati';
+    }
+
+    /**
+     * The price and the next due date only: the registrar's expiry is the
+     * registrar's to say.
+     *
+     * @param  array<string, string>  $row
+     */
+    private function updateDomain(array $row, bool $write): string
+    {
+        $domain = Domain::find((int) $row['service_id']);
+        $changes = ['recurring_amount' => $row['importo'], 'next_due_date' => $row['prossima_scadenza']];
+        if (number_format((float) $domain->recurring_amount, 2, '.', '') === $changes['recurring_amount']
+            && $domain->next_due_date?->toDateString() === $changes['next_due_date']) {
+            return 'già presenti';
+        }
+
+        if ($write) {
+            $domain->forceFill($changes + [
+                'notes' => trim((string) $domain->notes."\n".$this->note($row)),
+            ])->saveQuietly();
+        }
+
+        return 'domini aggiornati';
     }
 
     /** @param  array<string, string>  $row */

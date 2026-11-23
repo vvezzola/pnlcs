@@ -108,3 +108,23 @@ test('a service of another client is never deleted', function () {
     $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain('si elimina solo un servizio del cliente indicato')->assertFailed();
     expect($service->fresh())->not->toBeNull();
 });
+
+test('a domain billed elsewhere moves on to its next due date, its registrar expiry left alone', function () {
+    $client = Client::factory()->create();
+    $domain = Domain::factory()->create([
+        'client_id' => $client->id, 'domain' => 'rossi.it', 'recurring_amount' => 12, 'next_due_date' => '2026-12-01', 'expiry_date' => '2027-10-13',
+    ]);
+    $file = abbonamentiCsv([
+        ['tipo' => 'dominio', 'azione' => 'aggiorna', 'service_id' => $domain->id, 'client_id' => $client->id, 'oggetto' => 'rossi.it',
+            'importo' => '12.00', 'prossima_scadenza' => '2027-12-01', 'nota' => 'fatturato in SimplyFatt (121/ELH)'],
+    ]);
+
+    $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain("domini aggiornati: dominio #{$domain->id} rossi.it")->assertSuccessful();
+
+    $domain->refresh();
+    expect($domain->next_due_date->toDateString())->toBe('2027-12-01')
+        ->and($domain->expiry_date->toDateString())->toBe('2027-10-13')
+        ->and($domain->notes)->toContain('121/ELH');
+
+    $this->artisan("esalogica:import-abbonamenti {$file} --write")->expectsOutputToContain('già presenti')->assertSuccessful();
+});
