@@ -619,6 +619,8 @@ Rechnungen: :invoices
         'transmitter_id' => 'Steuernummer des Übermittlers',
         'transmitter_id_hint' => 'Leer bedeutet Ihre USt-IdNr. Wer übermittelt (Ihr E-Rechnungsdienst, Ihr Steuerberater), ersetzt sie meist durch die eigene',
         'recipient_field' => 'Kundenfeld mit SDI-Code oder PEC',
+        'pec_field' => 'Kundenfeld mit der PEC',
+        'pec_field_hint' => 'Wird verwendet, wenn der Kunde keinen SDI-Code hat: die Rechnung geht an diese PEC-Adresse.',
         'zero_rate_nature' => 'Natura für Positionen ohne MwSt.',
         'zero_rate_nature_hint' => 'Z. B. N2.2 nicht steuerbar, N4 steuerfrei',
         'zero_rate_reference' => 'Rechtsgrundlage für Positionen ohne MwSt.',

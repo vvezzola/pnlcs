@@ -622,6 +622,8 @@ Apri il gateway e scopri che fine ha fatto ciascuna di esse. Nessun automatismo 
         'transmitter_id' => 'Codice fiscale del trasmittente',
         'transmitter_id_hint' => 'Vuoto = la tua partita IVA. Chi trasmette (il servizio di fatturazione elettronica, il commercialista) di solito lo sostituisce con il proprio',
         'recipient_field' => 'Campo cliente con codice SDI o PEC',
+        'pec_field' => 'Campo cliente con la PEC',
+        'pec_field_hint' => 'Usato quando il cliente non ha un codice SDI: la fattura arriva a questa PEC.',
         'zero_rate_nature' => 'Natura per le righe senza IVA',
         'zero_rate_nature_hint' => 'Es. N2.2 non soggette, N4 esenti',
         'zero_rate_reference' => 'Riferimento normativo per le righe senza IVA',

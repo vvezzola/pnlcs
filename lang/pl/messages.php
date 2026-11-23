@@ -622,6 +622,8 @@ Otwórz bramkę płatniczą i sprawdź, co stało się z każdą z nich. Żaden 
         'transmitter_id' => 'Kod podatkowy nadawcy',
         'transmitter_id_hint' => 'Puste oznacza Twój numer VAT. Ten, kto przesyła (usługa e-fakturowania, księgowy), zwykle zastępuje go własnym',
         'recipient_field' => 'Pole klienta z kodem SDI lub PEC',
+        'pec_field' => 'Pole klienta z adresem PEC',
+        'pec_field_hint' => 'Używane, gdy klient nie ma kodu SDI: faktura trafia na ten adres PEC.',
         'zero_rate_nature' => 'Natura dla pozycji bez VAT',
         'zero_rate_nature_hint' => 'Np. N2.2 niepodlegające, N4 zwolnione',
         'zero_rate_reference' => 'Podstawa prawna dla pozycji bez VAT',

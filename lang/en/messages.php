@@ -622,6 +622,8 @@ Open the gateway and find out what became of each of them. Nothing automatic wil
         'transmitter_id' => 'Transmitter\'s fiscal code',
         'transmitter_id_hint' => 'Empty means your VAT number. Whoever transmits (your e-invoicing service, your accountant) usually replaces it with their own',
         'recipient_field' => 'Client field holding the SDI code or PEC',
+        'pec_field' => 'Client field holding the PEC',
+        'pec_field_hint' => 'Used when the client has no SDI code: the invoice goes to this PEC address.',
         'zero_rate_nature' => 'Nature for lines without VAT',
         'zero_rate_nature_hint' => 'E.g. N2.2 not subject, N4 exempt',
         'zero_rate_reference' => 'Legal reference for lines without VAT',

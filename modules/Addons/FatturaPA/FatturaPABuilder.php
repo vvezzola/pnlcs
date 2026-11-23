@@ -2,6 +2,7 @@
 
 namespace Modules\Addons\FatturaPA;
 
+use App\Models\CustomField;
 use App\Models\Invoice;
 use DOMDocument;
 use Illuminate\Support\Carbon;
@@ -232,6 +233,10 @@ class FatturaPABuilder
      * "0000000" with the buyer's PEC address, or "0000000" alone (the buyer
      * finds it in their tax drawer); "XXXXXXX" for a foreign buyer.
      *
+     * The code comes from the recipient field. The PEC comes from that field
+     * when it holds an address instead of a code, as it did before the two
+     * were kept apart, and otherwise from the PEC field.
+     *
      * @return array{code: string, pec: ?string}
      */
     private function recipient(Invoice $invoice): array
@@ -240,7 +245,8 @@ class FatturaPABuilder
             return ['code' => 'XXXXXXX', 'pec' => null];
         }
 
-        $value = trim((string) ($invoice->buyerCustomFields()[$this->settings()['recipient_field']] ?? ''));
+        $fields = $invoice->buyerCustomFields();
+        $value = trim((string) ($fields[$this->settings()['recipient_field']] ?? ''));
 
         if (str_contains($value, '@')) {
             return ['code' => '0000000', 'pec' => $value];
@@ -249,7 +255,31 @@ class FatturaPABuilder
             return ['code' => strtoupper($value), 'pec' => null];
         }
 
-        return ['code' => '0000000', 'pec' => null];
+        $pec = $this->buyerPec($invoice, $fields);
+
+        return ['code' => '0000000', 'pec' => $pec];
+    }
+
+    /**
+     * The buyer's PEC from the PEC field: as the invoice recorded it, or the
+     * client's own when the field is not one shown on invoices.
+     *
+     * @param  array<string, string>  $fields
+     */
+    private function buyerPec(Invoice $invoice, array $fields): ?string
+    {
+        $name = $this->settings()['pec_field'] ?? FatturaPASettings::DEFAULT_PEC_FIELD;
+        if ($name === '') {
+            return null;
+        }
+
+        $pec = $fields[$name] ?? null;
+        if ($pec === null && $invoice->client_id) {
+            $pec = CustomField::where('type', 'client')->where('field_name', $name)->first()?->valueFor($invoice->client_id);
+        }
+        $pec = strtolower(trim((string) $pec));
+
+        return filter_var($pec, FILTER_VALIDATE_EMAIL) ? $pec : null;
     }
 
     /** @param  array<string, string>  $settings */

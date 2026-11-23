@@ -3,6 +3,8 @@
 use App\Models\AddonSetting;
 use App\Models\Admin;
 use App\Models\AdminRole;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Setting;
@@ -162,4 +164,25 @@ it('exports a period as a zip and lists the invoices it could not build', functi
 
     expect($names)->toBe(['ERRORI.txt', (new FatturaPABuilder(fpaSettings()))->fileName($good)])
         ->and($zip->getFromName('ERRORI.txt'))->toContain('31/ELH');
+});
+
+it('delivers to the PEC kept in its own field when the buyer has no recipient code', function () {
+    $invoice = fpaInvoice(['buyer_custom_fields' => ['Codice destinatario SDI / PEC' => '', 'PEC' => 'Rossi@PEC.it']]);
+
+    $header = fpaXml($invoice)->FatturaElettronicaHeader->DatiTrasmissione;
+    expect((string) $header->CodiceDestinatario)->toBe('0000000')
+        ->and((string) $header->PECDestinatario)->toBe('rossi@pec.it');
+});
+
+it('reads the client\'s PEC when the field is not one printed on invoices, and a code still wins', function () {
+    $invoice = fpaInvoice(['buyer_custom_fields' => ['Codice destinatario SDI / PEC' => '']]);
+    $field = CustomField::create(['type' => 'client', 'rel_id' => 0, 'field_name' => 'PEC', 'field_type' => 'text', 'show_on_invoice' => false]);
+    CustomFieldValue::create(['field_id' => $field->id, 'rel_id' => $invoice->client_id, 'value' => 'rossi@pec.it']);
+
+    expect((string) fpaXml($invoice)->FatturaElettronicaHeader->DatiTrasmissione->PECDestinatario)->toBe('rossi@pec.it');
+
+    $coded = fpaInvoice(['client_id' => $invoice->client_id, 'buyer_custom_fields' => ['Codice destinatario SDI / PEC' => 'M5UXCR1']]);
+    $header = fpaXml($coded)->FatturaElettronicaHeader->DatiTrasmissione;
+    expect((string) $header->CodiceDestinatario)->toBe('M5UXCR1')
+        ->and($header->PECDestinatario->count())->toBe(0);
 });

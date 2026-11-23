@@ -621,6 +621,8 @@ API 访问可能已中断。在无法读取余额期间，也无法发出余额�
         'transmitter_id' => '发送方税号',
         'transmitter_id_hint' => '留空即使用您的增值税号。负责发送的一方（电子发票服务或会计师）通常会换成自己的',
         'recipient_field' => '保存 SDI 代码或 PEC 的客户字段',
+        'pec_field' => '保存 PEC 的客户字段',
+        'pec_field_hint' => '客户没有 SDI 代码时使用：发票发送到此 PEC 地址。',
         'zero_rate_nature' => '无增值税行的 Natura',
         'zero_rate_nature_hint' => '例如 N2.2 不征税，N4 免税',
         'zero_rate_reference' => '无增值税行的法律依据',

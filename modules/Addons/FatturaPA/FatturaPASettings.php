@@ -16,6 +16,9 @@ final class FatturaPASettings
      */
     public const DEFAULT_RECIPIENT_FIELD = 'Codice destinatario SDI / PEC';
 
+    /** The client custom field that holds the buyer's PEC address. */
+    public const DEFAULT_PEC_FIELD = 'PEC';
+
     /**
      * Config fields rendered and saved by the addon skeleton.
      *
@@ -42,6 +45,7 @@ final class FatturaPASettings
             ['name' => 'email', 'label' => 'Email', 'type' => 'text'],
             ['name' => 'transmitter_id', 'label' => $t('transmitter_id'), 'type' => 'text', 'hint' => $t('transmitter_id_hint')],
             ['name' => 'recipient_field', 'label' => $t('recipient_field'), 'type' => 'text', 'default' => self::DEFAULT_RECIPIENT_FIELD],
+            ['name' => 'pec_field', 'label' => $t('pec_field'), 'type' => 'text', 'default' => self::DEFAULT_PEC_FIELD, 'hint' => $t('pec_field_hint')],
             ['name' => 'zero_rate_nature', 'label' => $t('zero_rate_nature'), 'type' => 'text', 'default' => 'N2.2', 'hint' => $t('zero_rate_nature_hint')],
             // The default reference is written into the e-invoice, which is read in Italian.
             ['name' => 'zero_rate_reference', 'label' => $t('zero_rate_reference'), 'type' => 'text', 'default' => 'Operazione non soggetta'],

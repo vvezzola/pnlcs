@@ -626,6 +626,8 @@ Faturalar: :invoices
         'transmitter_id' => 'Gönderenin vergi kimlik kodu',
         'transmitter_id_hint' => 'Boş bırakılırsa KDV numaranız kullanılır. Gönderen taraf (e-fatura hizmetiniz, muhasebeciniz) genellikle kendi koduyla değiştirir',
         'recipient_field' => 'SDI kodunu veya PEC adresini tutan müşteri alanı',
+        'pec_field' => 'PEC adresini tutan müşteri alanı',
+        'pec_field_hint' => 'Müşterinin SDI kodu yoksa kullanılır: fatura bu PEC adresine gider.',
         'zero_rate_nature' => 'KDV\'siz satırlar için Natura',
         'zero_rate_nature_hint' => 'Örn. N2.2 kapsam dışı, N4 muaf',
         'zero_rate_reference' => 'KDV\'siz satırlar için yasal dayanak',
