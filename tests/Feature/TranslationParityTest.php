@@ -186,7 +186,7 @@ function localeValues(string $locale): array
 const UNTRANSLATED_VALUE_BUDGET = [
     // +1 each 2026-10-21: the admin menu entry of the Panelica license module
     // is the product name, "Panelica", in every language.
-    'tr' => 58,
+    'tr' => 59,
     // Measured 2026-09-23: words German writes the same way - Name, Status,
     // Server, Support, Tickets, Logo, Favicon, Downloads, PHP.
     // Raised 2026-09-24 by 25, on a native speaker's review (Dirk Mehmke):
@@ -196,9 +196,11 @@ const UNTRANSLATED_VALUE_BUDGET = [
     // for the apps page's ports.
     // +1 2026-10-29 (#332): the settings page's new "Domains" tab is written
     // "Domains" in German too, as the labels above it already are.
-    'de' => 191,
-    'pl' => 109,
-    'zh' => 39,
+    // +1 each 2026-11-23: "PEC", the Italian certified email, is written so
+    // in every language (OpenAPI Company addon).
+    'de' => 192,
+    'pl' => 110,
+    'zh' => 40,
 ];
 
 test('a complete language is translated, not merely present', function () {
