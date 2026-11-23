@@ -2895,6 +2895,8 @@ return [
     'settings.domain_renew_on_invoice_hint' => 'Wyłączone: domena jest odnawiana po opłaceniu faktury. Włączone: jest odnawiana w dniu wystawienia faktury, więc nie wygaśnie u klienta płacącego 30 dni od końca miesiąca; płatność nie odnawia jej drugi raz.',
     'settings.invoice_generate_as_draft' => 'Przygotowuj faktury odnowień jako szkice, wystawiane przez obsługę',
     'settings.invoice_generate_as_draft_hint' => 'Włączone: przebieg odnowień przygotowuje szkice, bez numeru, niewysyłane do klienta ani do SDI. Sprawdź je w Faktury → Szkice, usuń błędne (popraw też usługę, inaczej następny przebieg przygotuje ją ponownie) i wystaw pozostałe: dopiero wtedy dostają numer i e-mail.',
+    'settings.domain_renewal_reminders' => 'Przypominaj klientom e-mailem przed wygaśnięciem domen i w okresie karencji',
+    'settings.domain_renewal_reminders_hint' => 'Przypomnienia 90, 15 i 1 dzień przed wygaśnięciem u rejestratora oraz 1, 15 i 45 dni po nim, dla każdej domeny. Wyłączone: nie jest wysyłane żadne; faktury i zawiadomienie o odnowieniu nadal wychodzą.',
     'settings.invoice_renewals_separately' => 'Wystawiaj osobną fakturę za każde odnowienie, aby klient mógł odnowić jedną usługę, a inną pozostawić',
     'settings.default_nameservers' => 'Domyślne serwery DNS',
     'settings.default_nameservers_hint' => 'Używane przy rejestracji i transferze domen, gdy nie podano innych serwerów DNS.',

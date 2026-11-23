@@ -606,6 +606,11 @@
             </label>
             <div style="font-size:12px;color:#777;margin:2px 0 0 20px;">{{ __('admin.settings.domain_renew_on_invoice_hint') }}</div>
             <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;">
+                <input type="hidden" name="DomainRenewalReminders" value="0"><input type="checkbox" name="DomainRenewalReminders" value="1" {{ ($settings['DomainRenewalReminders'] ?? '1') !== '0' ? 'checked' : '' }}>
+                {{ __('admin.settings.domain_renewal_reminders') }}
+            </label>
+            <div style="font-size:12px;color:#777;margin:2px 0 0 20px;">{{ __('admin.settings.domain_renewal_reminders_hint') }}</div>
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-top:6px;">
                 <input type="hidden" name="InvoiceGenerateAsDraft" value="0"><input type="checkbox" name="InvoiceGenerateAsDraft" value="1" {{ !empty($settings['InvoiceGenerateAsDraft']) ? 'checked' : '' }}>
                 {{ __('admin.settings.invoice_generate_as_draft') }}
             </label>

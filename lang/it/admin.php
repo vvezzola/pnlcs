@@ -2856,6 +2856,8 @@ return [
     'settings.domain_renew_on_invoice_hint' => 'Spento: il dominio si rinnova quando la sua fattura viene pagata. Acceso: si rinnova il giorno in cui la fattura viene emessa, così un cliente che paga a 30 giorni fine mese non lo lascia scadere; il pagamento non lo rinnova una seconda volta.',
     'settings.invoice_generate_as_draft' => 'Prepara le fatture di rinnovo come bozze, emesse dallo staff',
     'settings.invoice_generate_as_draft_hint' => 'Acceso: il giro dei rinnovi prepara bozze, senza numero, non inviate al cliente né allo SDI. Controllale in Fatture → Bozze, elimina quelle sbagliate (sistema anche il servizio, o il giro successivo la riprepara) ed emetti le altre: solo allora ricevono il numero e partono via email.',
+    'settings.domain_renewal_reminders' => 'Avvisa i clienti via email prima che i loro domini scadano e nel periodo di tolleranza',
+    'settings.domain_renewal_reminders_hint' => 'Promemoria a 90, 15 e 1 giorno prima della scadenza presso il registrar e a 1, 15 e 45 giorni dopo, per ogni dominio. Spento: non ne parte nessuno; fatture e preavviso di rinnovo partono comunque.',
     'settings.invoice_renewals_separately' => 'Fattura ogni rinnovo separatamente, così un cliente può rinnovare un servizio e lasciarne scadere un altro',
     'settings.default_nameservers' => 'Nameserver predefiniti',
     'settings.default_nameservers_hint' => 'Usati nella registrazione o nel trasferimento di domini quando non vengono forniti altri nameserver.',

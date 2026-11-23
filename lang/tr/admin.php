@@ -2859,6 +2859,8 @@ return [
     'settings.domain_renew_on_invoice_hint' => 'Kapalı: alan adı faturası ödendiğinde yenilenir. Açık: fatura kesildiği gün yenilenir, böylece ay sonu 30 gün vadeli ödeyen bir müşteride süresi dolmaz; ödeme onu ikinci kez yenilemez.',
     'settings.invoice_generate_as_draft' => 'Yenileme faturalarını taslak olarak hazırla, personel düzenlesin',
     'settings.invoice_generate_as_draft_hint' => 'Açık: yenileme çalıştırması numarasız, müşteriye ve SDI\'ya gönderilmeyen taslaklar hazırlar. Faturalar → Taslaklar altında kontrol edin, hatalıları silin (hizmeti de düzeltin, yoksa sonraki çalıştırma yeniden hazırlar) ve diğerlerini düzenleyin: numara ve e-posta ancak o zaman verilir.',
+    'settings.domain_renewal_reminders' => 'Alan adlarının süresi dolmadan önce ve ek süre içinde müşterilere e-posta ile hatırlat',
+    'settings.domain_renewal_reminders_hint' => 'Kayıt kuruluşundaki bitiş tarihinden 90, 15 ve 1 gün önce ve 1, 15 ve 45 gün sonra, her alan adı için hatırlatma. Kapalı: hiçbiri gönderilmez; faturalar ve yenileme bildirimi yine gönderilir.',
     'settings.invoice_renewals_separately' => 'Her yenilemeyi ayrı faturala; müşteri bir hizmeti yenileyip diğerini bırakabilsin',
     'settings.default_nameservers' => 'Varsayılan Ad Sunucuları',
     'settings.default_nameservers_hint' => 'Başka ad sunucusu sağlanmadığında alan adları kaydedilirken veya aktarılırken kullanılır.',

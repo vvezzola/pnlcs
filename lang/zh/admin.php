@@ -2895,6 +2895,8 @@ return [
     'settings.domain_renew_on_invoice_hint' => '关闭：域名在其发票付款后续费。开启：在开具发票当天续费，这样按月末30天付款的客户不会让域名过期；付款时不会再次续费。',
     'settings.invoice_generate_as_draft' => '将续费发票准备为草稿，由员工开具',
     'settings.invoice_generate_as_draft_hint' => '开启：续费任务生成草稿，无编号、不发送给客户或 SDI。在 发票 → 草稿 中检查，删除错误的（同时修正服务，否则下次任务会再次生成），开具其余的：开具时才编号并发送邮件。',
+    'settings.domain_renewal_reminders' => '在域名到期前及宽限期内通过邮件提醒客户',
+    'settings.domain_renewal_reminders_hint' => '按注册商到期日前90、15、1天及到期后1、15、45天，为每个域名发送提醒。关闭：不发送任何提醒；发票和续费通知照常发送。',
     'settings.invoice_renewals_separately' => '每项续费单独开具账单，客户可以续费一项服务而让另一项到期',
     'settings.default_nameservers' => '默认域名服务器',
     'settings.default_nameservers_hint' => '在注册或转入域名时，未提供其他域名服务器则使用这些。',

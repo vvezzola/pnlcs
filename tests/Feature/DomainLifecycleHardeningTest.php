@@ -43,6 +43,17 @@ test('the renewal reminder template finally has something that sends it', functi
     Mail::assertQueued(DomainRenewalReminderMail::class);
 });
 
+test('no reminder goes out while the shop has them switched off', function () {
+    Mail::fake();
+    Setting::set('DomainRenewalReminders', '0');
+    $domain = reminderDomain(10);
+
+    $this->artisan('pnlcs:domain-renewal-reminders')->expectsOutputToContain('switched off')->assertSuccessful();
+
+    Mail::assertNothingQueued();
+    expect($domain->fresh()->renewal_reminder_stage)->toBeNull();
+});
+
 test('each stage is sent once, and a skipped week still catches up', function () {
     Mail::fake();
     $domain = reminderDomain(10);

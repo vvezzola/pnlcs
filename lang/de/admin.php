@@ -2895,6 +2895,8 @@ return [
     'settings.domain_renew_on_invoice_hint' => 'Aus: eine Domain wird verlängert, wenn ihre Rechnung bezahlt ist. An: sie wird am Tag der Rechnungserstellung verlängert, damit sie bei einem Kunden mit 30 Tagen Zahlungsziel zum Monatsende nicht abläuft; die Zahlung verlängert sie nicht ein zweites Mal.',
     'settings.invoice_generate_as_draft' => 'Verlängerungsrechnungen als Entwürfe vorbereiten, vom Team ausgestellt',
     'settings.invoice_generate_as_draft_hint' => 'An: der Verlängerungslauf bereitet Entwürfe vor, ohne Nummer, nicht versendet und nicht an SDI übermittelt. Unter Rechnungen → Entwürfe prüfen, falsche löschen (auch den Dienst korrigieren, sonst bereitet der nächste Lauf ihn wieder vor) und die übrigen ausstellen: erst dann erhalten sie Nummer und E-Mail.',
+    'settings.domain_renewal_reminders' => 'Kunden vor Ablauf ihrer Domains und in der Kulanzfrist per E-Mail erinnern',
+    'settings.domain_renewal_reminders_hint' => 'Erinnerungen 90, 15 und 1 Tag vor dem Ablauf beim Registrar und 1, 15 und 45 Tage danach, für jede Domain. Aus: es wird keine gesendet; Rechnungen und die Verlängerungsankündigung gehen weiterhin raus.',
     'settings.invoice_renewals_separately' => 'Jede Verlängerung separat abrechnen, damit ein Kunde einen Dienst verlängern und einen anderen auslaufen lassen kann',
     'settings.default_nameservers' => 'Standard-Nameserver',
     'settings.default_nameservers_hint' => 'Wird bei der Registrierung oder Übertragung von Domains verwendet, wenn keine anderen Nameserver bereitgestellt werden.',

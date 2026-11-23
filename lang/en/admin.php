@@ -2895,6 +2895,8 @@ return [
     'settings.domain_renew_on_invoice_hint' => 'Off: a domain is renewed when its invoice is paid. On: it is renewed the day the invoice is raised, so a customer who pays 30 days end of month does not let it lapse; payment no longer renews it a second time.',
     'settings.invoice_generate_as_draft' => 'Prepare renewal invoices as drafts, issued by staff',
     'settings.invoice_generate_as_draft_hint' => 'On: the renewal run prepares drafts, with no number, not mailed and not sent to the SDI. Check them under Invoices → Drafts, delete the wrong ones (fix the service too, or the next run prepares it again) and issue the rest: they are numbered and mailed then.',
+    'settings.domain_renewal_reminders' => 'Email customers before their domains expire, and in the grace period',
+    'settings.domain_renewal_reminders_hint' => 'Reminders at 90, 15 and 1 day before the expiry at the registrar and 1, 15 and 45 days after it, for every domain. Off: none are sent; invoices and the renewal notice still go out.',
     'settings.invoice_renewals_separately' => 'Invoice each renewal separately, so a customer can renew one service and let another lapse',
     'settings.default_nameservers' => 'Default Nameservers',
     'settings.default_nameservers_hint' => 'Used when registering or transferring domains when no other nameservers are supplied.',

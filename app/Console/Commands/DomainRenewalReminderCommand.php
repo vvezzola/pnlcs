@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Mail\DomainRenewalReminderMail;
 use App\Models\Domain;
 use App\Models\DomainPricing;
+use App\Models\Setting;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -45,6 +46,14 @@ class DomainRenewalReminderCommand extends Command
     public function handle(): int
     {
         $dryRun = (bool) $this->option('dry-run');
+
+        // A shop whose renewals reach the customer another way (the renewal
+        // notice, the invoice) can switch these off.
+        if (Setting::get('DomainRenewalReminders', '1') === '0') {
+            $this->info('Domain renewal reminders are switched off.');
+
+            return Command::SUCCESS;
+        }
 
         $domains = Domain::with('client')
             ->whereNotNull('expiry_date')
