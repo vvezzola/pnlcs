@@ -99,6 +99,7 @@ Route::middleware(['admin.auth', 'admin.2fa'])->prefix('admin')->name('admin.')-
         Route::post('clients/{client}/domains', [ClientController::class, 'storeDomainForClient'])->name('clients.domains.store');
         Route::get('servers/{server}/accounts', [ClientController::class, 'serverAccounts'])->name('clients.server-accounts');
         Route::post('clients/{client}/impersonate', [ClientController::class, 'impersonate'])->name('clients.impersonate');
+        Route::post('clients/{client}/invite-link', [ClientController::class, 'inviteLink'])->middleware('throttle:20,1')->name('clients.invite-link');
         // Staff cannot store a card for the customer; this emails the customer
         // the link to add one themselves.
         Route::post('clients/{client}/card-request', [ClientController::class, 'sendCardRequest'])

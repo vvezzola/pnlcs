@@ -23,6 +23,29 @@ class ClientInviteService
      */
     public function send(Client $client, string $email, array $permissions, int $invitedBy = 0): UserInvite
     {
+        [$invite, $link] = $this->issue($client, $email, $permissions, $invitedBy);
+        $email = $invite->email;
+        $locale = $client->language ?: config('app.locale');
+        $account = trim($client->company_name ?: $client->first_name.' '.$client->last_name);
+        Mail::to($email)->queue(new BulkMassMail(
+            __('client.invite.mail_subject', ['company' => company_name()], $locale),
+            __('client.invite.mail_body', ['account' => $account, 'company' => company_name(), 'link' => $link, 'days' => UserInvite::VALID_DAYS], $locale),
+            $email
+        ));
+
+        return $invite;
+    }
+
+    /**
+     * Stores an invitation and returns it with its link, without mailing it:
+     * staff hand the link over themselves (the first login of an account
+     * brought in from another system, before the panel sends mail).
+     *
+     * @param  list<string>  $permissions  ClientPermissions names
+     * @return array{0: UserInvite, 1: string}
+     */
+    public function issue(Client $client, string $email, array $permissions, int $invitedBy = 0): array
+    {
         $email = strtolower(trim($email));
 
         // A newer invitation replaces an open one for the same address, so
@@ -39,15 +62,6 @@ class ClientInviteService
         ]);
 
         // See MailLink: the request's host must not decide where a mail link points.
-        $link = MailLink::route('client.invite.show', $plain);
-        $locale = $client->language ?: config('app.locale');
-        $account = trim($client->company_name ?: $client->first_name.' '.$client->last_name);
-        Mail::to($email)->queue(new BulkMassMail(
-            __('client.invite.mail_subject', ['company' => company_name()], $locale),
-            __('client.invite.mail_body', ['account' => $account, 'company' => company_name(), 'link' => $link, 'days' => UserInvite::VALID_DAYS], $locale),
-            $email
-        ));
-
-        return $invite;
+        return [$invite, MailLink::route('client.invite.show', $plain)];
     }
 }

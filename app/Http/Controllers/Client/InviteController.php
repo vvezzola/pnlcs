@@ -74,8 +74,11 @@ class InviteController extends Controller
             $user->forceFill(['email_verified_at' => now()])->save();
         }
 
+        // An account's first login, invited by staff, is its owner: it is how
+        // a customer brought in from another system gets into the panel.
+        $owner = $invite->invited_by > 0 && ! $invite->client->users()->exists();
         $user->clients()->syncWithoutDetaching([$invite->client_id => [
-            'owner' => false,
+            'owner' => $owner,
             'permissions' => json_encode($invite->permissions ?? \App\Support\ClientPermissions::ALL),
         ]]);
         $invite->update(['accepted_at' => now()]);

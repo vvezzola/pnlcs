@@ -19,8 +19,10 @@ use App\Models\Server;
 use App\Models\Service;
 use App\Models\Setting;
 use App\Models\User;
+use App\Support\ClientPermissions;
 use App\Enums\DomainStatus;
 use App\Enums\ServiceStatus;
+use App\Services\ClientInviteService;
 use App\Services\Module\ModuleRegistry;
 use App\Services\ProvisioningService;
 use Illuminate\Http\Request;
@@ -808,6 +810,25 @@ class ClientController extends Controller
             ['ID', 'First Name', 'Last Name', 'Email', 'Company', 'Status', 'Country', 'Phone', 'Credit', 'Created At'],
             $rows
         );
+    }
+
+    /**
+     * An invitation link for the account, shown once to staff, who send it to
+     * the customer themselves; nothing is mailed. The link is valid for
+     * UserInvite::VALID_DAYS days.
+     */
+    public function inviteLink(Request $request, Client $client, ClientInviteService $invites)
+    {
+        $email = strtolower(trim((string) $request->validate(['email' => ['required', 'email', 'max:255']])['email']));
+
+        if ($client->users()->where('email', $email)->exists()) {
+            return back()->with('error', __('admin.clients.invite_link_has_login', ['email' => $email]));
+        }
+
+        [, $link] = $invites->issue($client, $email, ClientPermissions::ALL, (int) auth('admin')->id());
+        ActivityLog::log("Invitation link for {$email} created", auth('admin')->user()?->username, $client->id);
+
+        return back()->with('invite_link', ['email' => $email, 'link' => $link]);
     }
 
     /**

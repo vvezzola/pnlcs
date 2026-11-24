@@ -219,6 +219,21 @@ $tabs = ['summary'=>__('admin.clients.tab_summary'),'services'=>__('admin.client
         <div class="panel">
             <div class="panel-heading panel-primary">{{ __('admin.clients.quick_actions') }}</div>
             <div class="panel-body" style="display:flex;flex-direction:column;gap:6px;">
+                @if(session('invite_link'))
+                <div style="border:1px solid #5cb85c;border-radius:4px;padding:8px;font-size:12px;">
+                    <strong>{{ __('admin.clients.invite_link_ready', ['email' => session('invite_link')['email']]) }}</strong>
+                    <input type="text" readonly value="{{ session('invite_link')['link'] }}" class="form-control" style="margin:6px 0;font-size:12px;" onclick="this.select()">
+                    <button type="button" class="btn btn-default btn-sm" onclick="navigator.clipboard.writeText(this.previousElementSibling.value); this.textContent=@js(__('admin.clients.invite_link_copied'))">{{ __('admin.clients.invite_link_copy') }}</button>
+                    <div style="color:#777;margin-top:4px;">{{ __('admin.clients.invite_link_hint', ['days' => \App\Models\UserInvite::VALID_DAYS]) }}</div>
+                </div>
+                @endif
+                @if(auth('admin')->user()?->hasPermission('edit_clients'))
+                <form method="POST" action="{{ route('admin.clients.invite-link', $client) }}" style="display:flex;gap:6px;">
+                    @csrf
+                    <input type="email" name="email" value="{{ $client->email }}" class="form-control" style="font-size:12px;" required aria-label="{{ __('admin.clients.email') }}">
+                    <button type="submit" class="btn btn-default btn-sm" style="white-space:nowrap;" title="{{ __('admin.clients.invite_link_title') }}">{{ __('admin.clients.invite_link') }}</button>
+                </form>
+                @endif
                 <a href="{{ route('admin.clients.show', ['client' => $client, 'tab' => 'notes']) }}" class="btn btn-default btn-sm" style="width:100%;text-align:left;">{{ __('admin.clients.add_note_link') }}</a>
                 <a href="{{ route('admin.tickets.create', ['client' => $client->id]) }}" class="btn btn-default btn-sm" style="width:100%;text-align:left;">{{ __('admin.clients.new_ticket_link') }}</a>
                 <a href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}" class="btn btn-default btn-sm" style="width:100%;text-align:left;">{{ __('admin.clients.new_invoice_link') }}</a>
