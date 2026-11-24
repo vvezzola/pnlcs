@@ -5,6 +5,7 @@ use App\Models\Admin;
 use App\Models\AdminRole;
 use Illuminate\Support\Facades\Http;
 use Modules\Addons\OpenApiCompany\CompanyRegister;
+use Modules\Addons\OpenApiCompany\ItalianCompany;
 use Modules\Addons\OpenApiCompany\OpenApiCompanyCall;
 use Modules\Addons\OpenApiCompany\OpenApiCompanyServiceProvider;
 use Modules\Addons\OpenApiCompany\OpenApiCompanyUnavailable;
@@ -45,7 +46,9 @@ test('a company comes back with its address, SDI code and PEC, and is asked only
     $again = app(CompanyRegister::class)->find(OAC_VAT, 'check');
 
     expect($company->name)->toBe('OPENAPI S.P.A.')
-        ->and($company->address)->toBe('VIALE F TOMMASO MARINETTI 221')
+        ->and($company->name)->toBe('OPENAPI S.P.A.')
+        ->and($company->address)->toBe('Viale F Tommaso Marinetti 221')
+        ->and($company->city)->toBe('Roma')
         ->and($company->postcode)->toBe('00143')
         ->and($company->province)->toBe('RM')
         ->and($company->sdiCode)->toBe('USAL8PV')
@@ -103,3 +106,15 @@ test('staff look a VAT number up from the addon page', function () {
     $this->actingAs($admin, 'admin')->post(route('admin.openapi-company.lookup'), ['vat_code' => '123'])
         ->assertSessionHas('error');
 });
+
+test('the register\'s capitals become an address as people write it', function (string $register, string $written) {
+    expect(ItalianCompany::ordinaryCase($register))->toBe($written);
+})->with([
+    ['VIA DELL\'ARTIGIANATO 4', 'Via dell\'Artigianato 4'],
+    ['PIAZZA DELLE DONNE LAVORATRICI 2', 'Piazza delle Donne Lavoratrici 2'],
+    ['CORSO VITTORIO EMANUELE II 12', 'Corso Vittorio Emanuele II 12'],
+    ['VIA XX SETTEMBRE 10', 'Via XX Settembre 10'],
+    ['PRATO ALLO STELVIO', 'Prato allo Stelvio'],
+    ['SANT\'ANGELO LODIGIANO', 'Sant\'Angelo Lodigiano'],
+    ['Via Roma 1', 'Via Roma 1'],
+]);
