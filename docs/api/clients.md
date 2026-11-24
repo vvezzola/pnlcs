@@ -626,6 +626,7 @@ One of `clientid` or `email` is required.
 |---|---|
 | `result` | `success` |
 | `client` | object: the client with its contacts |
+| `customfields` | array of {id, name, value}: every client custom field, an empty value when the client has none |
 
 **Errors**
 
@@ -805,6 +806,7 @@ Update an existing client's details.
 | `country` | string | no | Two-letter country code. |
 | `phonenumber` | string | no | Phone number. |
 | `status` | string | no | active, inactive or closed. |
+| `customfields` | string | no | Client custom fields to set, keyed by field id or field name: as WHMCS sends it (base64 of a serialised array), JSON, or a form array (customfields[PEC]=...). An empty value removes the field's value. |
 
 **Response**
 
@@ -818,7 +820,7 @@ Update an existing client's details.
 | Status | When |
 |---|---|
 | 404 | No such client. |
-| 422 | The address belongs to another client, or another login already signs in with it; or an unknown status. |
+| 422 | The address belongs to another client, or another login already signs in with it; an unknown status; a custom field that does not exist, or a value its type refuses (then nothing is saved). |
 
 !!! note
     Only the fields you send are changed. A new email address is the account's sign-in address too: the login that signed in with the old address moves to the new one, which is asked to confirm itself, and the old address is told. Other logins on the account keep their own address.

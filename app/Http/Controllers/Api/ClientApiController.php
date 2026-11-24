@@ -8,10 +8,13 @@ use App\Models\Client;
 use App\Models\ClientGroup;
 use App\Models\ClientNote;
 use App\Models\Contact;
+use App\Models\CustomField;
+use App\Models\CustomFieldValue;
 use App\Models\Credit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use App\Services\ClientLoginEmail;
 
 class ClientApiController extends BaseApiController
@@ -63,7 +66,13 @@ class ClientApiController extends BaseApiController
             return $this->error('Client Not Found', 404);
         }
 
-        return $this->success(['client' => $client->toArray()]);
+        // WHMCS GetClientsDetails' customfields: every client field, by id.
+        $values = CustomFieldValue::where('rel_id', $client->id)->pluck('value', 'field_id');
+        $customFields = CustomField::clientFields()->get()
+            ->map(fn (CustomField $field) => ['id' => $field->id, 'name' => $field->field_name, 'value' => (string) ($values[$field->id] ?? '')])
+            ->values()->all();
+
+        return $this->success(['client' => $client->toArray(), 'customfields' => $customFields]);
     }
 
     public function addClient(Request $request)
@@ -132,6 +141,18 @@ class ClientApiController extends BaseApiController
             'taxexempt' => 'sometimes|boolean',
         ]);
 
+        // Custom fields are checked as the admin screen checks them, before
+        // anything is saved: a field this installation does not have, or a
+        // value its type refuses, stops the whole update.
+        [$customFields, $customValues] = $this->customFieldsFrom($request);
+        if ($customFields === null) {
+            return $this->error('Unknown custom field: '.$customValues.'.', 422);
+        }
+        if ($customFields->isNotEmpty()) {
+            [$rules, $names] = CustomField::rulesFor($customFields);
+            Validator::make(['custom_fields' => $customValues], $rules, [], $names)->validate();
+        }
+
         // The login that signs in with the account's address moves with it,
         // as on the admin screen (#210); refused before anything is saved when
         // somebody else already signs in with the new address.
@@ -149,12 +170,54 @@ class ClientApiController extends BaseApiController
             $client->tax_exempt = $request->boolean('taxexempt');
         }
         $client->save();
+        if ($customFields->isNotEmpty()) {
+            CustomField::storeValues($client->id, $customFields, $customValues);
+        }
 
         if ($login) {
             ClientLoginEmail::move($login, (string) $request->email);
         }
 
         return $this->success(['clientid' => $client->id]);
+    }
+
+    /**
+     * The customfields parameter, as WHMCS sends it (base64 of a serialised
+     * array) or as JSON or an ordinary form array; each key is a field id or
+     * a field name. Only plain values are unserialised, never objects.
+     *
+     * @return array{0: \Illuminate\Support\Collection<int, CustomField>|null, 1: array<int, string>|string} the fields and their values by field id, or null and the name that matched no field
+     */
+    private function customFieldsFrom(Request $request): array
+    {
+        $raw = $request->input('customfields');
+        if ($raw === null || $raw === '' || $raw === []) {
+            return [collect(), []];
+        }
+
+        if (is_string($raw)) {
+            $decoded = base64_decode($raw, true);
+            $raw = $decoded !== false && ($array = @unserialize($decoded, ['allowed_classes' => false])) !== false && is_array($array)
+                ? $array
+                : json_decode($raw, true);
+        }
+        if (! is_array($raw)) {
+            return [null, 'customfields is not an array'];
+        }
+
+        $all = CustomField::clientFields()->get();
+        $fields = collect();
+        $values = [];
+        foreach ($raw as $key => $value) {
+            $field = is_int($key) || ctype_digit((string) $key) ? $all->firstWhere('id', (int) $key) : $all->firstWhere('field_name', (string) $key);
+            if (! $field) {
+                return [null, (string) $key];
+            }
+            $fields->put($field->id, $field);
+            $values[$field->id] = is_scalar($value) || $value === null ? trim((string) $value) : $value;
+        }
+
+        return [$fields->values(), $values];
     }
 
     public function deleteClient(Request $request)
