@@ -16,7 +16,8 @@ use Modules\Servers\Esapanel\EsapanelModule;
 /**
  * Esalogica only: the EsaBackup products of the 2027 price list, on the
  * EsaBackup plans of an Esapanel server (the Esapanel module). One product
- * per plan in the group "esabackup", the space and account add-ons as priced
+ * per plan in the group "esabackup" (no free trial: the user's choice, it
+ * invites abuse), the space and account add-ons as priced
  * "addon|..." options of the paid plans. Plans and add-ons are found on the
  * server by their exact names. Shows every change first; writes only with
  * --write, and running it again changes nothing. Nothing is ever deleted.
@@ -32,14 +33,11 @@ class EsabackupProductsCommand extends Command
 
     /**
      * slug => [name, Esapanel plan, monthly, yearly, with the add-on options,
-     * description]. Prices in EUR without VAT; null prices make a free
-     * product (the trial).
+     * description]. Prices in EUR without VAT.
      *
-     * @var array<string, array{0: string, 1: string, 2: ?string, 3: ?string, 4: bool, 5: string}>
+     * @var array<string, array{0: string, 1: string, 2: string, 3: string, 4: bool, 5: string}>
      */
     private const PRODUCTS = [
-        'esabackup-prova' => ['EsaBackup Prova', 'EsaBackup Prova', null, null, false,
-            'Prova gratuita di 30 giorni: 10 GB, 20 GB di traffico al mese, 2 account. Una per cliente.'],
         'esabackup-100' => ['EsaBackup100', 'EsaBackup100', '6.00', '60.00', true,
             '100 GB per la copia fuori sede dei backup di NAS, server e PC. 200 GB di traffico al mese, 3 account, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-500' => ['EsaBackup500', 'EsaBackup500', '18.00', '180.00', true,
@@ -68,9 +66,6 @@ class EsabackupProductsCommand extends Command
             'EsaBackup Account +5' => ['+5 account', '2.00', '20.00'],
         ],
     ];
-
-    /** How long the free trial lasts (the Esapanel module suspends it after). */
-    private const TRIAL_DAYS = 30;
 
     /** The option group, found again by its name. */
     private const OPTION_GROUP = 'EsaBackup extras';
@@ -173,14 +168,13 @@ class EsabackupProductsCommand extends Command
         return $this->write ? ProductGroup::create(['name' => 'EsaBackup', 'slug' => 'esabackup', 'hidden' => false, 'sort_order' => 6]) : null;
     }
 
-    private function product(string $slug, string $name, string $description, ?ProductGroup $group, Currency $currency, int $planId, ?string $monthly, ?string $annually, int $position): ?Product
+    private function product(string $slug, string $name, string $description, ?ProductGroup $group, Currency $currency, int $planId, string $monthly, string $annually, int $position): ?Product
     {
         $visible = (bool) $this->option('visible');
-        $free = $monthly === null;
         $product = Product::where('slug', $slug)->first();
 
         if (! $product) {
-            $this->change("+ prodotto {$name} sul piano #{$planId}".($free ? ', gratuito' : ", {$monthly}/{$annually}").($visible ? '' : ' (nascosto)'));
+            $this->change("+ prodotto {$name} sul piano #{$planId}, {$monthly}/{$annually}".($visible ? '' : ' (nascosto)'));
             if (! $this->write) {
                 return null;
             }
@@ -193,11 +187,11 @@ class EsabackupProductsCommand extends Command
                 'description' => $description,
                 'hidden' => ! $visible,
                 'show_domain_options' => false,
-                'pay_type' => $free ? 'free' : 'recurring',
-                'auto_setup' => $free ? 'order' : 'payment',
+                'pay_type' => 'recurring',
+                'auto_setup' => 'payment',
                 'allow_upgrades' => true,
                 'server_type' => EsapanelModule::NAME,
-                'config_options' => ['package_name' => (string) $planId] + ($free ? ['trial_days' => self::TRIAL_DAYS] : []),
+                'config_options' => ['package_name' => (string) $planId],
                 'tax' => true,
                 'sort_order' => $position,
             ]);
@@ -217,7 +211,7 @@ class EsabackupProductsCommand extends Command
             }
         }
 
-        $this->price('product', $product->id, $currency, $free ? '-1.00' : $monthly, $free ? '-1.00' : $annually, $name);
+        $this->price('product', $product->id, $currency, $monthly, $annually, $name);
 
         return $product;
     }
