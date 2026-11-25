@@ -16,9 +16,9 @@ use Modules\Servers\Esapanel\EsapanelModule;
 /**
  * Esalogica only: the EsaBackup products of the 2027 price list, on the
  * EsaBackup plans of an Esapanel server (the Esapanel module). One product
- * per plan in the group "esabackup", and one more per plan with the remote
- * copy (no free trial: the user's choice, it invites abuse). Each product
- * with add-ons has its own option group of priced "addon|..." options. Plans and add-ons are found on the
+ * per plan in the group "esabackup" (no free trial: the user's choice, it
+ * invites abuse). Each product has its own option group of priced
+ * "addon|..." options, the remote copy among them. Plans and add-ons are found on the
  * server by their exact names. Shows every change first; writes only with
  * --write, and running it again changes nothing. Nothing is ever deleted.
  */
@@ -33,8 +33,8 @@ class EsabackupProductsCommand extends Command
 
     /**
      * slug => [name and Esapanel plan, monthly (null: sold yearly only),
-     * yearly, add-on keys, description]. Prices in EUR without VAT. Each
-     * plan also has a "+ Copia remota" product, see COPY_FACTOR.
+     * yearly, add-on keys, description]. Prices in EUR without VAT. Every
+     * plan also offers the remote copy, see COPY_SHARE.
      *
      * @var array<string, array{0: string, 1: ?string, 2: string, 3: list<string>, 4: string}>
      */
@@ -54,33 +54,31 @@ class EsabackupProductsCommand extends Command
     ];
 
     /**
-     * The add-on options: key => [option label, costs more with the remote
-     * copy, [Esapanel add-on => [choice label, monthly, yearly]]]. Every
-     * option starts with "none".
+     * The add-on options: key => [option label, [Esapanel add-on => [choice
+     * label, monthly, yearly]]]. Every option starts with "none".
      *
-     * @var array<string, array{0: string, 1: bool, 2: array<string, array{0: string, 1: string, 2: string}>}>
+     * @var array<string, array{0: string, 1: array<string, array{0: string, 1: string, 2: string}>}>
      */
     private const ADDONS = [
-        'spazio' => ['Spazio aggiuntivo', true, [
+        'spazio' => ['Spazio aggiuntivo', [
             'EsaBackup Spazio +100 GB' => ['+100 GB', '3.00', '30.00'],
             'EsaBackup Spazio +300 GB' => ['+300 GB', '6.00', '60.00'],
             'EsaBackup Spazio +500 GB' => ['+500 GB', '12.00', '120.00'],
         ]],
-        'account' => ['Account aggiuntivi', false, [
+        'account' => ['Account aggiuntivi', [
             'EsaBackup Account +10' => ['+10 account', '3.00', '30.00'],
         ]],
-        'cartelle' => ['Cartelle condivise aggiuntive', false, [
+        'cartelle' => ['Cartelle condivise aggiuntive', [
             'EsaBackup Cartelle +5' => ['+5 cartelle condivise', '3.00', '30.00'],
         ]],
-        'traffico' => ['Traffico aggiuntivo', true, [
+        'traffico' => ['Traffico aggiuntivo', [
             'EsaBackup Traffico +1 TB' => ['+1 TB al mese', '5.00', '50.00'],
             'EsaBackup Traffico +5 TB' => ['+5 TB al mese', '20.00', '200.00'],
         ]],
     ];
 
     /**
-     * Add-ons a plan does not offer, by plan slug (its remote copy product
-     * too): +500 GB on 500 GB would make 1 TB for less than the 1 TB plan.
+     * Add-ons a plan does not offer, by plan slug: +500 GB on 500 GB would make 1 TB for less than the 1 TB plan.
      *
      * @var array<string, list<string>>
      */
@@ -89,15 +87,20 @@ class EsabackupProductsCommand extends Command
     ];
 
     /**
-     * The remote copy (a second copy on another Esapanel node) costs 70% more,
-     * on the plan and on the space and traffic add-ons. Its products are on
-     * the Esapanel plan named like the plan plus COPY_PLAN.
+     * The remote copy (a second copy on another Esapanel node) is an add-on
+     * of every plan, at 70% of the plan's price; the space and traffic
+     * add-ons cost the same with or without it (the user's choice). A
+     * reseller needs it on its plan to sell it to its customers.
      */
-    private const COPY_FACTOR = 1.7;
+    private const COPY_SHARE = 0.7;
 
-    private const COPY_PLAN = ' Copia remota';
+    private const COPY_OPTION = 'Copia remota';
 
-    private const COPY_DESCRIPTION = ' Con la copia remota: una seconda copia dei dati in un altro datacenter dell\'Unione Europea.';
+    private const COPY_CHOICE = 'Sì, in un secondo datacenter dell\'Unione Europea';
+
+    private const COPY_ADDON = 'EsaBackup Copia remota';
+
+    private const RESELLER_COPY_ADDON = 'EsaBackup Reseller Copia remota';
 
     /** @var list<string> */
     private const UNSOLD_CYCLES = ['quarterly', 'semiannually', 'biennially', 'triennially'];
@@ -135,7 +138,10 @@ class EsabackupProductsCommand extends Command
         $products = $this->products();
         $missing = array_values(array_unique(array_merge(
             array_diff(array_column($products, 'plan'), array_keys($plans)),
-            array_diff(array_merge(...array_map(fn ($addon) => array_keys($addon[2]), array_values(self::ADDONS))), array_keys($addons)),
+            array_diff([
+                ...array_merge(...array_map(fn ($addon) => array_keys($addon[1]), array_values(self::ADDONS))),
+                self::COPY_ADDON, self::RESELLER_COPY_ADDON,
+            ], array_keys($addons)),
         )));
         if ($missing !== []) {
             $this->error('Sul server Esapanel mancano: '.implode(', ', $missing).'. Vanno creati in Esapanel con questi nomi esatti.');
@@ -148,9 +154,7 @@ class EsabackupProductsCommand extends Command
 
         foreach ($products as $position => $item) {
             $product = $this->product($item, $group, $currency, $plans[$item['plan']], $position + 1);
-            if ($item['addons'] !== []) {
-                $this->addonOptions($product, $item, $currency);
-            }
+            $this->addonOptions($product, $item, $currency);
         }
 
         if ($this->changes === 0) {
@@ -194,7 +198,7 @@ class EsabackupProductsCommand extends Command
         return $this->write ? ProductGroup::create(['name' => 'EsaBackup', 'slug' => 'esabackup', 'hidden' => false, 'sort_order' => 6]) : null;
     }
 
-    /** @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, copy: bool, description: string}  $item */
+    /** @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, reseller: bool, description: string}  $item */
     private function product(array $item, ?ProductGroup $group, Currency $currency, int $planId, int $position): ?Product
     {
         ['slug' => $slug, 'name' => $name, 'monthly' => $monthly, 'annually' => $annually, 'description' => $description] = $item;
@@ -245,37 +249,33 @@ class EsabackupProductsCommand extends Command
     }
 
     /**
-     * The products to make: each plan, then the same plan with the remote
-     * copy. A plan sold yearly only has its monthly price at -1 (not sold),
-     * and so have its add-ons.
+     * The products to make, one per plan. A plan sold yearly only has its
+     * monthly price at -1 (not sold), and so have its add-ons.
      *
-     * @return list<array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, copy: bool, description: string}>
+     * @return list<array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, reseller: bool, description: string}>
      */
     private function products(): array
     {
         $products = [];
         foreach (self::PLANS as $slug => [$name, $monthly, $annually, $addons, $description]) {
-            $notOffered = self::NOT_OFFERED[$slug] ?? [];
             $products[] = ['slug' => $slug, 'name' => $name, 'plan' => $name, 'monthly' => $monthly ?? '-1.00',
-                'annually' => $annually, 'addons' => $addons, 'notOffered' => $notOffered, 'copy' => false, 'description' => $description];
-            $products[] = ['slug' => $slug.'-copia', 'name' => $name.' + Copia remota', 'plan' => $name.self::COPY_PLAN,
-                'monthly' => $monthly === null ? '-1.00' : $this->withCopy($monthly), 'annually' => $this->withCopy($annually),
-                'addons' => $addons, 'notOffered' => $notOffered, 'copy' => true, 'description' => $description.self::COPY_DESCRIPTION];
+                'annually' => $annually, 'addons' => $addons, 'notOffered' => self::NOT_OFFERED[$slug] ?? [],
+                'reseller' => str_contains($slug, 'reseller'), 'description' => $description];
         }
 
         return $products;
     }
 
-    private function withCopy(string $price): string
+    private function copyPrice(string $price): string
     {
-        return number_format(round((float) $price * self::COPY_FACTOR, 2), 2, '.', '');
+        return $price === '-1.00' ? $price : number_format(round((float) $price * self::COPY_SHARE, 2), 2, '.', '');
     }
 
     /**
      * The product's own option group ("<product> extras"): its prices
-     * depend on the product (yearly only, remote copy).
+     * depend on the product (yearly only, the remote copy's share).
      *
-     * @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, copy: bool, description: string}  $item
+     * @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, reseller: bool, description: string}  $item
      */
     private function addonOptions(?Product $product, array $item, Currency $currency): void
     {
@@ -295,9 +295,13 @@ class EsabackupProductsCommand extends Command
             }
         }
 
+        $options = array_map(fn (string $key) => self::ADDONS[$key], $item['addons']);
+        $options[] = [self::COPY_OPTION, [($item['reseller'] ? self::RESELLER_COPY_ADDON : self::COPY_ADDON) => [
+            self::COPY_CHOICE, $this->copyPrice($item['monthly']), $this->copyPrice($item['annually']),
+        ]]];
+
         $position = 0;
-        foreach ($item['addons'] as $key) {
-            [$label, $costsMoreWithCopy, $choices] = self::ADDONS[$key];
+        foreach ($options as [$label, $choices]) {
             $optionName = 'addon|'.$label;
             $option = $group ? ConfigOption::where('group_id', $group->id)->where('option_name', $optionName)->first() : null;
             $position++;
@@ -312,9 +316,6 @@ class EsabackupProductsCommand extends Command
             $order = 0;
             $choices = array_diff_key($choices, array_flip($item['notOffered']));
             foreach (['none' => ['Nessuno', '0.00', '0.00']] + $choices as $addon => [$choice, $monthly, $annually]) {
-                if ($item['copy'] && $costsMoreWithCopy) {
-                    [$monthly, $annually] = [$this->withCopy($monthly), $this->withCopy($annually)];
-                }
                 if ($item['monthly'] === '-1.00') {
                     $monthly = '-1.00';
                 }
