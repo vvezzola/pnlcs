@@ -468,6 +468,13 @@ it('shows the customer the space, the connection data and the accounts of WFP', 
 
     $html = (string) (new EsapanelModule)->clientAreaPanel($service)->render();
 
+    expect($html)->not->toContain(e(__('esapanel::messages.wfp.traffic')));
+    $withTraffic = $service->module_data;
+    $withTraffic['wfp'] += ['traffic_mb' => 1100000, 'traffic_limit_mb' => 1048576];
+    $service->update(['module_data' => $withTraffic]);
+    expect((string) (new EsapanelModule)->clientAreaPanel($service->fresh())->render())
+        ->toContain(e(__('esapanel::messages.wfp.traffic')))->toContain('1.074,2 GB / 1.024,0 GB')->toContain(e(__('esapanel::messages.wfp.traffic_over')));
+
     expect($html)->toContain('w7k2-nas')->toContain('porta 2223')->toContain(e(__('esapanel::messages.wfp.read_only')))
         ->toContain(e(__('esapanel::messages.wfp.late')))
         ->toContain(route('client.services.esapanel.wfp.accounts.store', $service))

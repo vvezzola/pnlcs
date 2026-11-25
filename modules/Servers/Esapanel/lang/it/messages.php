@@ -47,6 +47,8 @@ return [
         'space' => 'Spazio',
         'read_only' => 'Lo spazio è pieno: le nuove copie vengono rifiutate finché non si libera o si aggiunge spazio.',
         'not_measured' => 'non ancora misurato',
+        'traffic' => 'Traffico del mese',
+        'traffic_over' => 'Il traffico di questo mese supera quello compreso nel piano. Le copie continuano ad arrivare; ti contatteremo se succede di nuovo.',
         'read_only_short' => 'sola lettura',
         'connect' => 'Come collegarsi',
         'host' => 'Server',

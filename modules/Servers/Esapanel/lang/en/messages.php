@@ -47,6 +47,8 @@ return [
         'space' => 'Space',
         'read_only' => 'The space is full: new copies are refused until space is freed or added.',
         'not_measured' => 'not measured yet',
+        'traffic' => 'Traffic this month',
+        'traffic_over' => 'This month\'s traffic is above what the plan includes. Copies keep arriving; we will get in touch if it happens again.',
         'read_only_short' => 'read only',
         'connect' => 'How to connect',
         'host' => 'Server',

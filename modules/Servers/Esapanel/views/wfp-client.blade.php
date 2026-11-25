@@ -31,6 +31,13 @@
     @if(! empty($wfp['read_only']))
     <span class="ep-late">{{ $t('wfp.read_only') }}</span>
     @endif
+    @if(array_key_exists('traffic_mb', $wfp) && $wfp['traffic_mb'] !== null)
+    <div style="margin-top:8px"><strong>{{ $t('wfp.traffic') }}</strong>: {{ $gb($wfp['traffic_mb']) }} / {{ $gb($wfp['traffic_limit_mb'] ?? null) }}
+    @if(($wfp['traffic_limit_mb'] ?? null) && $wfp['traffic_mb'] > $wfp['traffic_limit_mb'])
+    <br><span class="ep-late">{{ $t('wfp.traffic_over') }}</span>
+    @endif
+    </div>
+    @endif
 </div>
 
 @if($made)

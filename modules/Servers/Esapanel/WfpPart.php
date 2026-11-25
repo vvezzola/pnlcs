@@ -51,6 +51,9 @@ final class WfpPart
             'space_mb' => $storage->data['space_mb'] ?? null,
             'used_mb' => $storage->data['used_mb'] ?? null,
             'measured_at' => $storage->data['measured_at'] ?? null,
+            // The month's traffic, in and out (Esapanel git588 and later; absent before).
+            'traffic_mb' => $storage->data['traffic_mb'] ?? null,
+            'traffic_limit_mb' => $storage->data['traffic_limit_mb'] ?? null,
             'accounts_limit' => $storage->data['accounts_limit'] ?? null,
             'server' => [
                 'host' => $server['host'] ?? null,
