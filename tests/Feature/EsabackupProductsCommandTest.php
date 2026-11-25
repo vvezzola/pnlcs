@@ -24,7 +24,7 @@ function ebServer(array $without = []): Server
 
     $wfp = [['code' => 'wfp.storage']];
     $plans = ['client' => [], 'reseller' => [], 'client_addon' => []];
-    foreach (['EsaBackup100' => 22, 'EsaBackup500' => 23, 'EsaBackup1T' => 24] as $label => $id) {
+    foreach (['EsaBackup25' => 21, 'EsaBackup100' => 22, 'EsaBackup500' => 23, 'EsaBackup1T' => 24] as $label => $id) {
         $plans['client'][] = ['id' => $id, 'label' => $label, 'type' => 'client', 'sells_license' => false, 'services' => $wfp];
     }
     $plans['reseller'][] = ['id' => 25, 'label' => 'EsaBackup Reseller 10 TB', 'type' => 'reseller', 'sells_license' => false, 'services' => $wfp];
@@ -72,9 +72,9 @@ it('makes the products on their plans, hidden, with the add-ons as priced option
 
     $group = ProductGroup::where('slug', 'esabackup')->firstOrFail();
     $products = Product::where('group_id', $group->id)->orderBy('sort_order')->get();
-    expect($products->pluck('name')->all())->toBe(['EsaBackup100', 'EsaBackup500', 'EsaBackup1T', 'EsaBackup Reseller 10 TB'])
+    expect($products->pluck('name')->all())->toBe(['EsaBackup25', 'EsaBackup100', 'EsaBackup500', 'EsaBackup1T', 'EsaBackup Reseller 10 TB'])
         ->and($products->every(fn (Product $product) => $product->hidden && $product->server_type === EsapanelModule::NAME))->toBeTrue()
-        ->and($products->pluck('config_options.package_name')->all())->toBe(['22', '23', '24', '25']);
+        ->and($products->pluck('config_options.package_name')->all())->toBe(['21', '22', '23', '24', '25']);
 
     $oneTb = $products->firstWhere('slug', 'esabackup-1t');
     expect($products->pluck('pay_type')->unique()->all())->toBe(['recurring'])
@@ -83,7 +83,9 @@ it('makes the products on their plans, hidden, with the add-ons as priced option
 
     // The add-ons go with the paid customer plans only.
     expect($oneTb->configOptionGroups()->pluck('name')->all())->toBe(['EsaBackup extras'])
-        ->and($products->firstWhere('slug', 'esabackup-reseller-10tb')->configOptionGroups()->count())->toBe(0);
+        ->and($products->firstWhere('slug', 'esabackup-reseller-10tb')->configOptionGroups()->count())->toBe(0)
+        ->and($products->firstWhere('slug', 'esabackup-25')->configOptionGroups()->count())->toBe(0)
+        ->and(ebPrice('product', $products->firstWhere('slug', 'esabackup-25')->id))->toBe([2.5, 25.0]);
 
     $space = ConfigOption::where('option_name', 'addon|Spazio aggiuntivo')->firstOrFail();
     $subs = ConfigOptionSub::where('config_id', $space->id)->orderBy('sort_order')->get();

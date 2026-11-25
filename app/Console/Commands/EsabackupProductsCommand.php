@@ -38,6 +38,8 @@ class EsabackupProductsCommand extends Command
      * @var array<string, array{0: string, 1: string, 2: string, 3: string, 4: bool, 5: string}>
      */
     private const PRODUCTS = [
+        'esabackup-25' => ['EsaBackup25', 'EsaBackup25', '2.50', '25.00', false,
+            '25 GB per provare la copia fuori sede o per scambiare file grandi con i colleghi. 100 GB di traffico al mese, 3 account, 1 cartella condivisa, sorveglianza delle copie. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-100' => ['EsaBackup100', 'EsaBackup100', '6.00', '60.00', true,
             '100 GB per la copia fuori sede dei backup di NAS, server e PC. 200 GB di traffico al mese, 3 account, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-500' => ['EsaBackup500', 'EsaBackup500', '18.00', '180.00', true,
