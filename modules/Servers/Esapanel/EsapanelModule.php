@@ -438,17 +438,20 @@ class EsapanelModule extends AbstractServerModule
 
     /**
      * The plans sold to customers, for the product form, each named with its
-     * module ("WFP · EsaBackup 500 GB"). The licence plans and the modules
-     * that serve another Esapanel are left out.
+     * module ("WFP · EsaBackup 500 GB"): only the modules the server sells
+     * (sellableModules()), so neither the licence plans nor the modules that
+     * serve another Esapanel.
      *
      * @return list<array{id: string, name: string}>
      */
     public function listPackages(?Server $server = null): array
     {
+        $sellable = $server ? $this->sellableModules($server) : [];
+
         $packages = [];
         foreach ($this->plans($server, 'client') as $plan) {
             $module = self::moduleOf((array) ($plan['services'] ?? []));
-            if (! empty($plan['sells_license']) || $module === null || in_array($module, self::SERVICE_MODULES, true)) {
+            if (! empty($plan['sells_license']) || $module === null || ! in_array($module, $sellable, true)) {
                 continue;
             }
 
@@ -477,22 +480,61 @@ class EsapanelModule extends AbstractServerModule
     }
 
     /**
-     * The modules this server sells to customers, by code, read from its
-     * plans: a plan's services name their module (wfp.storage).
+     * The modules this server sells to customers, by code: those its
+     * license covers, with plans for customers, that the API key may work
+     * on. Licences are the other module's (EsapanelLicense), and the
+     * secondary modules serve another Esapanel. A server without the modules
+     * call (before it came) is read from its plans' services.
      *
      * @return list<string>
      */
     public function sellableModules(Server $server): array
     {
-        $modules = [];
+        $modules = $this->serverModules($server);
+
+        if ($modules !== null) {
+            return array_values(array_map(fn (array $module) => (string) $module['code'], array_filter(
+                $modules,
+                fn (array $module) => ($module['role'] ?? '') === 'customer' && ! empty($module['active'])
+                    && ! empty($module['sellable']) && ! empty($module['api_actions'])
+                    && ! in_array((string) ($module['code'] ?? ''), self::SERVICE_MODULES, true)
+            )));
+        }
+
+        $found = [];
         foreach ($this->plans($server, 'client') as $plan) {
             $module = self::moduleOf((array) ($plan['services'] ?? []));
             if ($module !== null && empty($plan['sells_license']) && ! in_array($module, self::SERVICE_MODULES, true)) {
-                $modules[$module] = true;
+                $found[$module] = true;
             }
         }
 
-        return array_keys($modules);
+        return array_keys($found);
+    }
+
+    /**
+     * The server's modules as it lists them (GET /server/modules): code,
+     * name, role, active, sellable, services, api_actions. Null when the
+     * server has no such call yet.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    public function serverModules(Server $server): ?array
+    {
+        $api = $this->apiFor($server);
+        if (! $api) {
+            throw new \RuntimeException(__('esapanel::messages.error.no_server'));
+        }
+
+        $answer = $api->get('server/modules');
+        if ($answer->status === 404) {
+            return null;
+        }
+        if (! $answer->ok) {
+            throw new \RuntimeException($answer->error);
+        }
+
+        return array_values(array_filter((array) $answer->data, fn ($module) => is_array($module) && ! empty($module['code'])));
     }
 
     public function testConnection(Server $server): bool

@@ -265,6 +265,28 @@ it('offers the plans sold to customers, named with their module, and tells the m
     expect($module->sellableModules($server))->toBe(['wfp', 'ucp']);
 });
 
+it('sells only the modules the server lists as covered, with customer plans the key may work on', function () {
+    $server = epService()->server;
+    epServer([
+        'GET server/modules' => [
+            ['code' => 'wfp', 'role' => 'customer', 'active' => true, 'sellable' => true, 'api_actions' => true, 'services' => ['wfp.storage']],
+            ['code' => 'ucp', 'role' => 'customer', 'active' => false, 'sellable' => true, 'api_actions' => true, 'services' => ['ucp.monitoring']],
+            ['code' => 'drp', 'role' => 'customer', 'active' => true, 'sellable' => true, 'api_actions' => false, 'services' => ['drp.reports']],
+            ['code' => 'lsp', 'role' => 'customer', 'active' => true, 'sellable' => true, 'api_actions' => true, 'services' => ['lsp.license']],
+            ['code' => 'wfph', 'role' => 'secondary', 'active' => true, 'sellable' => false, 'api_actions' => true, 'services' => []],
+        ],
+        'GET plans' => [
+            ['id' => 12, 'label' => 'WFP Base', 'sells_license' => false, 'services' => [['code' => 'wfp.storage']]],
+            ['id' => 20, 'label' => 'Uptime 50', 'sells_license' => false, 'services' => [['code' => 'ucp.monitoring']]],
+            ['id' => 30, 'label' => 'DMARC 10', 'sells_license' => false, 'services' => [['code' => 'drp.reports']]],
+        ],
+    ]);
+    $module = new EsapanelModule;
+
+    expect($module->sellableModules($server))->toBe(['wfp']);
+    expect($module->listPackages($server))->toBe([['id' => '12', 'name' => 'WFP · WFP Base']]);
+});
+
 it('sends the customer to Esapanel\'s sign-in page while the service runs, and never sets their password', function () {
     $module = new EsapanelModule;
 
