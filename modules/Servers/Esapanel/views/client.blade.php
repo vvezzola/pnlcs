@@ -49,6 +49,17 @@
         <div class="ep-note warn">{{ $t('client.suspended') }}</div>
         @endif
 
+        @if($reseller)
+        <div class="ep-note">
+            <strong>{{ $t('reseller.title') }}</strong>
+            <p class="ep-lead" style="margin:6px 0 0">{{ $t('reseller.lead') }}</p>
+            @if($limits)
+            @include('esapanel::reseller')
+            @endif
+            <p class="ep-lead" style="margin:10px 0 0">{{ $t('reseller.connect') }}</p>
+        </div>
+        @endif
+
         @if($wfp)
         @include('esapanel::wfp-client')
         @endif

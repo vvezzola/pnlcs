@@ -30,6 +30,16 @@
         </table>
         @endif
 
+        @if($reseller)
+        <p style="margin:14px 0 0;font-weight:600;font-size:13px;">{{ $t('reseller.title') }}</p>
+        @if($limits)
+        @include('esapanel::reseller')
+        @endif
+        @if(filled($data['limits_error'] ?? null))
+        <p style="margin:8px 0 0;font-size:13px;color:#b45309;">{{ $t('reseller.read_error', ['error' => $data['limits_error']]) }}</p>
+        @endif
+        @endif
+
         @if($wfp)
         @php
             $gb = fn ($mb) => $mb === null ? '∞' : number_format($mb / 1024, 1, ',', '.').' GB';

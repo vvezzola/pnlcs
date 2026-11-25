@@ -42,6 +42,9 @@ class EsapanelModule extends AbstractServerModule
      */
     private const SERVICE_MODULES = ['core', 'lsp', 'lsph', 'csph', 'wfph'];
 
+    /** The plan type that sells a reseller account (Esapanel's PlanType). */
+    private const RESELLER_PLAN = 'reseller';
+
     /** A subscription is read back once a day by the hourly usage run, a few at a time. */
     private const REFRESH_AFTER_HOURS = 20;
 
@@ -118,7 +121,15 @@ class EsapanelModule extends AbstractServerModule
             return $this->failed($service, $addonIds);
         }
 
-        $customer = $this->customerId($api, $service);
+        // A reseller plan is sold to a reseller: the account is made at that
+        // tier, and its owner makes their own customers in Esapanel.
+        $plan = $api->get('plans/'.$planId);
+        if (! $plan->ok || $plan->data === null) {
+            return $this->failed($service, $plan->error !== '' ? $plan->error : __('esapanel::messages.error.no_plan'));
+        }
+        $reseller = ($plan->data['type'] ?? '') === self::RESELLER_PLAN;
+
+        $customer = $reseller ? $this->resellerId($api, $service) : $this->customerId($api, $service);
         if (! is_int($customer)) {
             return $this->failed($service, $customer);
         }
@@ -252,7 +263,10 @@ class EsapanelModule extends AbstractServerModule
         // What the module's own part shows: for WFP, the space and accounts.
         // A new subscription may not have its space on the server yet, so a
         // failed read keeps what was read before and says why beside it.
-        if (self::moduleOf((array) ($subscription->data['services'] ?? [])) === WfpPart::MODULE) {
+        if (($subscription->data['service_plan']['type'] ?? '') === self::RESELLER_PLAN) {
+            $limits = $api->get('subscriptions/'.$data['subscription_id'].'/limits');
+            $this->setModuleData($service, $limits->ok ? ['limits' => self::limits((array) $limits->data), 'limits_error' => null] : ['limits_error' => $limits->error]);
+        } elseif (self::moduleOf((array) ($subscription->data['services'] ?? [])) === WfpPart::MODULE) {
             [$wfp, $error] = (new WfpPart($api))->read((int) $data['subscription_id']);
             $this->setModuleData($service, $wfp !== null ? ['wfp' => $wfp, 'wfp_error' => null] : ['wfp_error' => $error]);
         }
@@ -272,7 +286,8 @@ class EsapanelModule extends AbstractServerModule
         $data = $this->getModuleData($service);
         $api = $this->api($service);
 
-        if (empty($data['subscription_id']) || ! empty($data['ended']) || ($data['module'] ?? '') !== WfpPart::MODULE || ! $api) {
+        if (empty($data['subscription_id']) || ! empty($data['ended']) || ($data['module'] ?? '') !== WfpPart::MODULE
+            || ($data['plan_type'] ?? '') === self::RESELLER_PLAN || ! $api) {
             return $this->buildResult(false, __('esapanel::messages.error.no_subscription'));
         }
 
@@ -428,7 +443,9 @@ class EsapanelModule extends AbstractServerModule
             'data' => $data,
             'module' => (string) ($data['module'] ?? ''),
             'panelUrl' => $state === 'ended' ? null : $this->panelUrl($service),
-            'wfp' => ($data['module'] ?? '') === WfpPart::MODULE && is_array($data['wfp'] ?? null) ? $data['wfp'] : null,
+            'reseller' => ($data['plan_type'] ?? '') === self::RESELLER_PLAN,
+            'limits' => is_array($data['limits'] ?? null) ? $data['limits'] : [],
+            'wfp' => ($data['module'] ?? '') === WfpPart::MODULE && ($data['plan_type'] ?? '') !== self::RESELLER_PLAN && is_array($data['wfp'] ?? null) ? $data['wfp'] : null,
         ];
     }
 
@@ -458,6 +475,20 @@ class EsapanelModule extends AbstractServerModule
             $packages[] = ['id' => (string) $plan['id'], 'name' => strtoupper($module).' · '.($plan['label'] ?? $plan['id'])];
         }
 
+        // The reseller plans, which only the admin's key sells: another key
+        // is refused them, and then simply has none to offer.
+        try {
+            $resellerPlans = $this->plans($server, self::RESELLER_PLAN);
+        } catch (\RuntimeException) {
+            $resellerPlans = [];
+        }
+        foreach ($resellerPlans as $plan) {
+            $module = self::moduleOf((array) ($plan['services'] ?? []));
+            if (($plan['type'] ?? '') === self::RESELLER_PLAN && $module !== null && in_array($module, $sellable, true)) {
+                $packages[] = ['id' => (string) $plan['id'], 'name' => strtoupper($module).' · Reseller · '.($plan['label'] ?? $plan['id'])];
+            }
+        }
+
         return $packages;
     }
 
@@ -471,6 +502,17 @@ class EsapanelModule extends AbstractServerModule
     {
         $addons = [];
         foreach ($this->plans($server, 'client_addon') as $plan) {
+            if (($plan['label'] ?? '') !== '') {
+                $addons[(string) $plan['label']] = (int) $plan['id'];
+            }
+        }
+
+        try {
+            $resellerAddons = $this->plans($server, 'reseller_addon');
+        } catch (\RuntimeException) {
+            $resellerAddons = [];
+        }
+        foreach ($resellerAddons as $plan) {
             if (($plan['label'] ?? '') !== '') {
                 $addons[(string) $plan['label']] = (int) $plan['id'];
             }
@@ -719,14 +761,22 @@ class EsapanelModule extends AbstractServerModule
             }
 
             if ($byName === null) {
-                $plans = $api->get('plans', ['type' => 'client_addon', 'per_page' => 100]);
-                if (! $plans->ok) {
-                    return $plans->error;
-                }
                 $byName = [];
-                foreach ((array) $plans->data as $plan) {
-                    if (is_array($plan) && ! empty($plan['id'])) {
-                        $byName[self::addonKey((string) ($plan['label'] ?? ''))] = (int) $plan['id'];
+                // A reseller's add-ons are of their own type: a reseller key
+                // is refused that list, and then sells only the other.
+                foreach (['client_addon', 'reseller_addon'] as $type) {
+                    $plans = $api->get('plans', ['type' => $type, 'per_page' => 100]);
+                    if (! $plans->ok) {
+                        if ($type === 'client_addon') {
+                            return $plans->error;
+                        }
+
+                        continue;
+                    }
+                    foreach ((array) $plans->data as $plan) {
+                        if (is_array($plan) && ! empty($plan['id'])) {
+                            $byName[self::addonKey((string) ($plan['label'] ?? ''))] = (int) $plan['id'];
+                        }
                     }
                 }
             }
@@ -842,19 +892,59 @@ class EsapanelModule extends AbstractServerModule
      */
     private function customerId(EsapanelClient $api, Service $service): int|string
     {
+        return $this->accountId($api, $service, 'customers');
+    }
+
+    /**
+     * The reseller's id on the server, found or made as a customer's is. A
+     * client who is already a customer there (another service, the same
+     * owner's email) is not made a reseller beside it: the owner's email is
+     * unique among Esapanel's users, so staff settle that one there.
+     *
+     * @return int|string the id, or why there is none
+     */
+    private function resellerId(EsapanelClient $api, Service $service): int|string
+    {
+        $found = $this->accountId($api, $service, 'resellers', create: false);
+        if ($found !== null) {
+            return $found;
+        }
+
+        $customer = $this->accountId($api, $service, 'customers', create: false);
+        if (is_string($customer)) {
+            return $customer;
+        }
+        if ($customer !== null) {
+            return __('esapanel::messages.error.already_customer', ['id' => $customer]);
+        }
+
+        return $this->accountId($api, $service, 'resellers');
+    }
+
+    /**
+     * Find, and unless told not to make, the client's account at one tier
+     * ("customers" or "resellers"). Null when not found and not to be made.
+     *
+     * @return int|string|null the id, or why there is none
+     */
+    private function accountId(EsapanelClient $api, Service $service, string $area, bool $create = true): int|string|null
+    {
         $client = $service->client;
         if (! $client instanceof Client) {
             return __('esapanel::messages.error.no_client');
         }
 
+        $reseller = $area === 'resellers';
+        $ref = $reseller ? self::resellerRef($client) : self::clientRef($client);
+
         $searches = array_filter([
-            ['external_ref', self::clientRef($client)],
+            ['external_ref', $ref],
             ['vat_number', trim((string) $client->tax_id)],
             ['email', trim((string) $client->email)],
         ], fn (array $search) => $search[1] !== '');
 
         foreach ($searches as [$field, $value]) {
-            $found = $api->get('customers', [$field => $value, 'per_page' => 1]);
+            $found = $api->get($area, [$field => $value, 'per_page' => 1]);
             if (! $found->ok) {
                 return $found->error;
             }
@@ -863,11 +953,15 @@ class EsapanelModule extends AbstractServerModule
             }
         }
 
+        if (! $create) {
+            return null;
+        }
+
         $person = trim($client->first_name.' '.$client->last_name);
         $name = trim((string) $client->company_name) ?: $person;
-        $username = self::ownerUsername($client);
+        $username = self::ownerUsername($client, $reseller);
 
-        $created = $api->post('customers', array_filter([
+        $created = $api->post($area, array_filter([
             'name' => $name,
             'company_name' => trim((string) $client->company_name),
             'vat_number' => trim((string) $client->tax_id),
@@ -886,8 +980,8 @@ class EsapanelModule extends AbstractServerModule
             'owner_email' => (string) $client->email,
             'password_mode' => 'link',
             'notes' => 'PNLCS client #'.$client->id,
-            'external_ref' => self::clientRef($client),
-        ], fn ($value) => $value !== ''), 'pnlcs-'.self::site().'-client-'.$client->id.'-create');
+            'external_ref' => $ref,
+        ], fn ($value) => $value !== ''), 'pnlcs-'.self::site().'-'.($reseller ? 'reseller' : 'client').'-'.$client->id.'-create');
 
         if (! $created->ok || empty($created->data['id'])) {
             return $created->error !== '' ? $created->error : __('esapanel::messages.error.no_client');
@@ -941,13 +1035,37 @@ class EsapanelModule extends AbstractServerModule
         return 'pnlcs:'.self::site().':client:'.$client->id;
     }
 
-    /**
-     * The customer's username on the server: unique there across every
-     * seller, so it carries a mark of this site (c-1a2b3c-5).
-     */
-    private static function ownerUsername(Client $client): string
+    /** A client's reseller account: a ref of its own, since refs are unique. */
+    private static function resellerRef(Client $client): string
     {
-        return 'c-'.substr(hash('sha256', self::site()), 0, 6).'-'.$client->id;
+        return 'pnlcs:'.self::site().':reseller:'.$client->id;
+    }
+
+    /**
+     * The owner's username on the server: unique there across every seller,
+     * so it carries a mark of this site (c-1a2b3c-5, r-1a2b3c-5 for a
+     * reseller).
+     */
+    private static function ownerUsername(Client $client, bool $reseller = false): string
+    {
+        return ($reseller ? 'r-' : 'c-').substr(hash('sha256', self::site()), 0, 6).'-'.$client->id;
+    }
+
+    /**
+     * A reseller plan's limits as the screens keep them.
+     *
+     * @param  list<mixed>  $limits
+     * @return list<array{code: string, value: mixed, unlimited: bool, unit: ?string, usage: mixed}>
+     */
+    private static function limits(array $limits): array
+    {
+        return array_values(array_map(fn (array $limit) => [
+            'code' => (string) ($limit['code'] ?? ''),
+            'value' => $limit['value'] ?? null,
+            'unlimited' => (bool) ($limit['is_unlimited'] ?? false),
+            'unit' => $limit['unit'] ?? null,
+            'usage' => $limit['current_usage'] ?? null,
+        ], array_filter($limits, fn ($limit) => is_array($limit) && ! empty($limit['code']))));
     }
 
     private static function site(): string
@@ -973,6 +1091,7 @@ class EsapanelModule extends AbstractServerModule
             'customer_id' => $subscription['customer_id'] ?? null,
             'plan_id' => $subscription['service_plan']['id'] ?? null,
             'plan_label' => $subscription['service_plan']['label'] ?? null,
+            'plan_type' => $subscription['service_plan']['type'] ?? null,
             'subscription_status' => $subscription['status'] ?? null,
             'suspension_reason' => $subscription['suspension_reason'] ?? null,
             'sync_status' => $subscription['sync_status'] ?? null,

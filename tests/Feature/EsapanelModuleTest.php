@@ -33,6 +33,12 @@ function epSubscription(array $over = []): array
     ], $over);
 }
 
+/** @return array<string, mixed> a plan as Esapanel answers it */
+function epPlan(array $over = []): array
+{
+    return array_merge(['id' => 12, 'label' => 'WFP Base', 'type' => 'client', 'sells_license' => false, 'services' => [['code' => 'wfp.storage']]], $over);
+}
+
 /**
  * A fake Esapanel server: answers by "METHOD path", and remembers every call.
  *
@@ -108,6 +114,7 @@ it('creates the customer, who signs in to Esapanel, and the subscription for a n
     $service = epService();
     $calls = epServer([
         'GET subscriptions' => [],
+        'GET plans/12' => epPlan(),
         'GET customers' => [],
         'POST customers' => ['id' => 57],
         'POST subscriptions' => epSubscription(),
@@ -118,10 +125,10 @@ it('creates the customer, who signs in to Esapanel, and the subscription for a n
 
     expect($result['success'])->toBeTrue();
     expect(epPaths($calls))->toBe([
-        'GET subscriptions', 'GET customers', 'GET customers', 'GET customers', 'POST customers', 'POST subscriptions', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage',
+        'GET subscriptions', 'GET plans/12', 'GET customers', 'GET customers', 'GET customers', 'POST customers', 'POST subscriptions', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage',
     ]);
 
-    $customer = $calls[4];
+    $customer = $calls[5];
     expect($customer['body'])->toMatchArray([
         'name' => 'Rossi Srl', 'vat_number' => 'IT01234567890', 'email' => 'mario@rossi.test', 'country' => 'IT',
         'owner_email' => 'mario@rossi.test', 'password_mode' => 'link',
@@ -131,10 +138,10 @@ it('creates the customer, who signs in to Esapanel, and the subscription for a n
     expect($customer['body'])->not->toHaveKey('password');
     expect($customer['key'])->not->toBeNull();
 
-    expect($calls[5]['body'])->toMatchArray([
+    expect($calls[6]['body'])->toMatchArray([
         'customer_id' => 57, 'service_plan_id' => 12, 'external_ref' => 'pnlcs:'.epSite().':service:'.$service->id,
     ]);
-    expect($calls[5]['key'])->toContain('svc-'.$service->id.'-create');
+    expect($calls[6]['key'])->toContain('svc-'.$service->id.'-create');
 
     expect($service->fresh()->module_data)->toMatchArray([
         'subscription_id' => 310, 'customer_id' => 57, 'plan_id' => 12, 'module' => 'wfp',
@@ -147,6 +154,7 @@ it('uses the customer Esapanel already has for the client instead of creating on
     $service = epService();
     $calls = epServer([
         'GET subscriptions' => [],
+        'GET plans/12' => epPlan(),
         'GET customers' => [['id' => 91]],
         'POST subscriptions' => epSubscription(['customer_id' => 91]),
         'GET subscriptions/310' => epSubscription(['customer_id' => 91]),
@@ -154,9 +162,9 @@ it('uses the customer Esapanel already has for the client instead of creating on
 
     expect((new EsapanelModule)->create($service)['success'])->toBeTrue();
 
-    expect(epPaths($calls))->toBe(['GET subscriptions', 'GET customers', 'POST subscriptions', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage']);
-    expect($calls[1]['query'])->toMatchArray(['external_ref' => 'pnlcs:'.epSite().':client:'.$service->client_id]);
-    expect($calls[2]['body'])->toMatchArray(['customer_id' => 91]);
+    expect(epPaths($calls))->toBe(['GET subscriptions', 'GET plans/12', 'GET customers', 'POST subscriptions', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage']);
+    expect($calls[2]['query'])->toMatchArray(['external_ref' => 'pnlcs:'.epSite().':client:'.$service->client_id]);
+    expect($calls[3]['body'])->toMatchArray(['customer_id' => 91]);
     expect($service->fresh()->module_data)->not->toHaveKey('owner_username');
 });
 
@@ -183,6 +191,7 @@ it('adds the add-on the options sell, found by its name on the server', function
     $calls = epServer([
         'GET subscriptions' => [],
         'GET plans' => [['id' => 40, 'label' => 'Extra 500 GB']],
+        'GET plans/12' => epPlan(),
         'GET customers' => [['id' => 57]],
         'POST subscriptions' => epSubscription(),
         'GET subscriptions/310' => epSubscription(),
@@ -462,4 +471,76 @@ it('shows the customer the space, the connection data and the accounts of WFP', 
         ->toContain(route('client.services.esapanel.wfp.accounts.act', [$service, 801, 'password']));
 
     $this->actingAs(epCustomer($service))->get(route('client.services.show', $service))->assertOk()->assertSee('w7k2-nas');
+});
+
+it('sells a reseller plan to a reseller account, made at that tier with its own ref and username', function () {
+    $service = epService();
+    $resellerSubscription = epSubscription(['service_plan' => ['id' => 12, 'label' => 'WFP Reseller', 'type' => 'reseller']]);
+    $calls = epServer([
+        'GET subscriptions' => [],
+        'GET plans/12' => epPlan(['label' => 'WFP Reseller', 'type' => 'reseller']),
+        'GET resellers' => [],
+        'GET customers' => [],
+        'POST resellers' => ['id' => 66],
+        'POST subscriptions' => $resellerSubscription,
+        'GET subscriptions/310' => $resellerSubscription,
+        'GET subscriptions/310/limits' => [
+            ['code' => 'wfp.storage.disk_space', 'value' => '2097152', 'is_unlimited' => false, 'unit' => 'MB', 'current_usage' => 1024],
+            ['code' => 'core.customers', 'value' => null, 'is_unlimited' => true, 'unit' => null, 'current_usage' => 3],
+        ],
+    ]);
+
+    expect((new EsapanelModule)->create($service)['success'])->toBeTrue();
+
+    $made = collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'resellers');
+    expect($made['body'])->toMatchArray([
+        'owner_username' => 'r-'.substr(hash('sha256', epSite()), 0, 6).'-'.$service->client_id,
+        'external_ref' => 'pnlcs:'.epSite().':reseller:'.$service->client_id, 'password_mode' => 'link',
+    ]);
+    expect(collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'subscriptions')['body'])->toMatchArray(['customer_id' => 66]);
+    expect(epPaths($calls))->not->toContain('POST customers')->not->toContain('GET subscriptions/310/wfp/storage');
+
+    $data = $service->fresh()->module_data;
+    expect($data)->toMatchArray(['plan_type' => 'reseller', 'customer_id' => 57])
+        ->and($data['limits'][0])->toMatchArray(['code' => 'wfp.storage.disk_space', 'usage' => 1024]);
+
+    app()->setLocale('it');
+    expect((string) (new EsapanelModule)->clientAreaPanel($service->fresh())->render())
+        ->toContain(e(__('esapanel::messages.reseller.lead')))->toContain('2.048,0 GB')->toContain('illimitato')
+        ->not->toContain(route('client.services.esapanel.wfp.accounts.store', $service));
+});
+
+it('does not make a reseller beside the customer the client already is, and says why', function () {
+    $service = epService();
+    $calls = epServer([
+        'GET subscriptions' => [],
+        'GET plans/12' => epPlan(['type' => 'reseller']),
+        'GET resellers' => [],
+        'GET customers' => [['id' => 91]],
+    ]);
+
+    $result = (new EsapanelModule)->create($service);
+
+    expect($result['success'])->toBeFalse()->and($result['message'])->toContain('#91');
+    expect(epPaths($calls))->not->toContain('POST resellers')->not->toContain('POST subscriptions');
+});
+
+it('offers the reseller plans beside the customer plans when the key may sell them', function () {
+    $server = epService()->server;
+    Http::preventStrayRequests();
+    Http::fake([EP_API.'*' => function (Request $request) {
+        $type = $request->data()['type'] ?? null;
+
+        return match (true) {
+            str_contains($request->url(), 'server/modules') => Http::response([], 404),
+            $type === 'client' => Http::response(['data' => [epPlan()]]),
+            $type === 'reseller' => Http::response(['data' => [epPlan(['id' => 9, 'label' => 'WFP Reseller', 'type' => 'reseller'])]]),
+            default => Http::response(['message' => 'Not found'], 404),
+        };
+    }]);
+
+    expect((new EsapanelModule)->listPackages($server))->toBe([
+        ['id' => '12', 'name' => 'WFP · WFP Base'],
+        ['id' => '9', 'name' => 'WFP · Reseller · WFP Reseller'],
+    ]);
 });
