@@ -1,0 +1,1 @@
+{"name": "esapanel", "type": "server", "version": "0.1.0", "description": "Esapanel services (WFP, UCP, DRP, CSP) sold as subscriptions on an Esapanel server", "author": {"name": "Esalogica"}, "class": "Modules\\Servers\\Esapanel\\EsapanelModule"}

@@ -95,14 +95,14 @@ test('the built-in manifests register nothing on their own', function () {
     $registry = freshRegistry();
 
     // Esalogica's own modules are the ones of this tree that are found by
-    // their manifest (EsapanelLicense and ArubaBusiness, local only).
+    // their manifest (EsapanelLicense, Esapanel and ArubaBusiness, local only).
     foreach (['server', 'gateway', 'registrar', 'ssl'] as $type) {
         foreach (array_keys($registry->classesOf($type)) as $key) {
-            expect($registry->isDiscovered($type, $key))->toBe(in_array($key, ['esapanellicense', 'arubabusiness'], true));
+            expect($registry->isDiscovered($type, $key))->toBe(in_array($key, ['esapanellicense', 'esapanel', 'arubabusiness'], true));
         }
     }
 
-    expect($registry->getServerModules())->toEqualCanonicalizing(['custom', 'panelica', 'cpanel', 'plesk', 'directadmin', 'proxmox', 'hestiacp', 'aapanel', 'vultr', 'panelicalicense', 'esapanellicense', 'arubabusiness'])
+    expect($registry->getServerModules())->toEqualCanonicalizing(['custom', 'panelica', 'cpanel', 'plesk', 'directadmin', 'proxmox', 'hestiacp', 'aapanel', 'vultr', 'panelicalicense', 'esapanellicense', 'esapanel', 'arubabusiness'])
         ->and($registry->getGatewayModules())->toEqualCanonicalizing(['banktransfer', 'stripe', 'paypal', 'authorize', 'mollie', 'razorpay', 'tpay', 'iyzico'])
         ->and($registry->getRegistrarModules())->toEqualCanonicalizing(['namecheap', 'resellerclub', 'openprovider', 'internetbs', 'enom', 'manual', 'hrd', 'domainnameapi', 'ovh'])
         ->and($registry->getSslModules())->toEqual(['gogetssl', 'ssl2buy']);
