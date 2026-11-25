@@ -102,7 +102,8 @@ final class EsapanelClient
 
         $message = match ($response->status()) {
             401 => __('esapanel::messages.error.key_refused'),
-            403 => __('esapanel::messages.error.not_allowed'),
+            // Also a panel without a valid licence: its words tell which.
+            403 => trim(__('esapanel::messages.error.not_allowed').' '.self::words($json)),
             429 => __('esapanel::messages.error.too_many'),
             default => self::words($json),
         };

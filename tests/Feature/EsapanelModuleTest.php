@@ -243,6 +243,17 @@ it('suspends, reactivates and disables the subscription, and a disabled one is n
     expect($calls)->toHaveCount(3);
 });
 
+it('says why Esapanel forbids an action, not only that it does', function () {
+    $service = epService(['subscription_id' => 310]);
+    epServer(['PUT subscriptions/310/status' => [403, ['message' => 'The panel has no valid license.']]]);
+
+    $result = (new EsapanelModule)->suspend($service);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['message'])->toContain('(403)')
+        ->and($result['message'])->toContain('The panel has no valid license.');
+});
+
 it('moves the subscription to the new product\'s plan, and says why when Esapanel refuses', function () {
     $service = epService(['subscription_id' => 310, 'plan_id' => 12]);
     $calls = epServer([
