@@ -9,6 +9,7 @@ use App\Models\Server;
 use App\Models\Service;
 use App\Models\ServiceConfigOption;
 use App\Models\User;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\Servers\Esapanel\EsapanelModule;
@@ -48,6 +49,8 @@ function epPlan(array $over = []): array
 function epServer(array $answers): ArrayObject
 {
     $calls = new ArrayObject;
+    // A second call in the same test answers alone, not behind the first.
+    Http::swap(new Factory);
     Http::preventStrayRequests();
     Http::fake([EP_API.'*' => function (Request $request) use ($answers, $calls) {
         $path = explode('?', substr($request->url(), strlen(EP_API)))[0];
@@ -254,7 +257,7 @@ it('moves the subscription to the new product\'s plan, and says why when Esapane
 
     $calls = epServer(['GET subscriptions/310' => epSubscription()]);
     expect($module->changePackage($service->fresh(), ['config_options' => ['package_name' => '12']])['success'])->toBeTrue();
-    expect(epPaths($calls))->toBe(['GET subscriptions/310']);
+    expect(epPaths($calls))->toBe(['GET subscriptions/310', 'GET subscriptions/310/wfp/storage']);
 });
 
 it('offers the plans sold to customers, named with their module, and tells the modules apart', function () {
@@ -565,4 +568,39 @@ it('offers the reseller plans beside the customer plans when the key may sell th
         ['id' => '12', 'name' => 'WFP · WFP Base'],
         ['id' => '9', 'name' => 'WFP · Reseller · WFP Reseller'],
     ]);
+});
+
+it('suspends a trial on Esapanel once its days are over, and a move to a paid plan wakes it', function () {
+    $over = epService(['subscription_id' => 310, 'subscription_status' => 'active', 'plan_id' => 12, 'module' => 'wfp'], ['registration_date' => now()->subDays(31)->toDateString()]);
+    $over->product->update(['pay_type' => 'free', 'config_options' => ['package_name' => '12', 'trial_days' => 30]]);
+    $running = epService(['subscription_id' => 311, 'subscription_status' => 'active', 'module' => 'wfp'], ['registration_date' => now()->subDays(10)->toDateString()]);
+    $running->product->update(['pay_type' => 'free', 'config_options' => ['package_name' => '12', 'trial_days' => 30]]);
+    $running->update(['server_id' => $over->server_id]);
+
+    $calls = epServer([
+        'PUT subscriptions/310/status' => epSubscription(['status' => 'suspended']),
+        'GET subscriptions/310' => epSubscription(['status' => 'suspended']),
+        'GET subscriptions/311' => epSubscription(['id' => 311]),
+    ]);
+    $module = new EsapanelModule;
+
+    $module->usageUpdate($over->server);
+
+    expect(collect($calls)->where('method', 'PUT')->pluck('path')->all())->toBe(['subscriptions/310/status'])
+        ->and(collect($calls)->firstWhere('method', 'PUT')['body'])->toBe(['status' => 'suspended'])
+        ->and($over->fresh()->module_data['trial_ended'])->toBeTrue()
+        ->and($running->fresh()->module_data)->not->toHaveKey('trial_ended');
+
+    app()->setLocale('it');
+    expect((string) $module->clientAreaPanel($over->fresh())->render())->toContain(e(__('esapanel::messages.client.trial_ended')));
+    expect((string) $module->clientAreaPanel($running->fresh())->render())->toContain(e(__('esapanel::messages.client.trial', ['date' => $module->trialEnds($running->fresh())->format(date_fmt())])));
+
+    $calls = epServer([
+        'PUT subscriptions/310/plan' => epSubscription(),
+        'PUT subscriptions/310/status' => epSubscription(),
+        'GET subscriptions/310' => epSubscription(),
+    ]);
+    expect($module->changePackage($over->fresh(), ['config_options' => ['package_name' => '22']])['success'])->toBeTrue();
+    expect(collect($calls)->where('method', 'PUT')->pluck('path')->all())->toBe(['subscriptions/310/plan', 'subscriptions/310/status'])
+        ->and($over->fresh()->module_data['trial_ended'])->toBeFalse();
 });

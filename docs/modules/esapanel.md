@@ -29,6 +29,10 @@ Make one product for each plan you want to sell. In the product's module setting
 
 You set the price in the product, as for any other service.
 
+### A free trial with an end
+
+A free product with `"trial_days": 30` in its module configuration is a trial: that many days after it starts, the module suspends the subscription on Esapanel. The copies stay, and the customer sees that the trial is over. If you move the service to a paid product, the subscription is active again with its copies. A free product can be ordered once per customer.
+
 ### Add-ons as options
 
 Esapanel's add-ons, for example more space or more accounts, are sold with the product's **configurable options**:

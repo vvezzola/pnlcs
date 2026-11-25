@@ -29,6 +29,10 @@ Crea un prodotto per ogni piano che vuoi vendere. Nel modulo del prodotto scegli
 
 Il prezzo lo decidi tu, nel prodotto, come per qualunque altro servizio.
 
+### Una prova gratuita a tempo
+
+Un prodotto gratuito con `"trial_days": 30` nella configurazione del modulo è una prova: dopo quei giorni dall'attivazione il modulo sospende la subscription su Esapanel. Le copie restano, e il cliente vede che la prova è finita. Se sposti il servizio su un prodotto a pagamento, la subscription torna attiva con le sue copie. Un prodotto gratuito si ordina una volta sola per cliente.
+
 ### Gli addon come opzioni
 
 Gli addon di Esapanel, per esempio altro spazio o altri account, si vendono con le **opzioni configurabili** del prodotto:

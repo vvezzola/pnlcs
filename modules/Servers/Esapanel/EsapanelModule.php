@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\Server;
 use App\Models\Service;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Modules\Servers\AbstractServerModule;
 
@@ -235,6 +236,15 @@ class EsapanelModule extends AbstractServerModule
             return $this->failed($service, __('esapanel::messages.error.addons', ['error' => $synced]));
         }
 
+        // A trial moved to a paid plan goes on with its copies.
+        if (! empty($data['trial_ended'])) {
+            $active = $api->put('subscriptions/'.$data['subscription_id'].'/status', ['status' => 'active']);
+            if (! $active->ok) {
+                return $this->failed($service, $active->error);
+            }
+            $this->setModuleData($service, ['trial_ended' => false]);
+        }
+
         $this->refreshSubscription($service);
 
         $result = $this->buildResult(true, __('esapanel::messages.result.plan_changed'));
@@ -337,6 +347,8 @@ class EsapanelModule extends AbstractServerModule
      */
     public function usageUpdate(Server $server): array
     {
+        $this->endTrials($server);
+
         $stale = now()->subHours(self::REFRESH_AFTER_HOURS)->toIso8601String();
 
         $services = Service::with('product', 'server')
@@ -354,6 +366,46 @@ class EsapanelModule extends AbstractServerModule
         }
 
         return $done;
+    }
+
+    /**
+     * The last day of a trial: a product with "trial_days" in its
+     * configuration (the free EsaBackup Prova) lasts that many days from the
+     * service's start. Null for any other product.
+     */
+    public function trialEnds(Service $service): ?Carbon
+    {
+        $days = (int) ($service->product?->config_options['trial_days'] ?? 0);
+        $start = $service->registration_date ?? $service->created_at;
+
+        return $days > 0 && $start ? Carbon::parse($start)->startOfDay()->addDays($days) : null;
+    }
+
+    /**
+     * Suspend on Esapanel the trials whose days are over. The copies stay;
+     * the customer moves on by ordering a plan, and staff can move the trial
+     * service itself to a paid product, which makes it active again.
+     */
+    private function endTrials(Server $server): void
+    {
+        $services = Service::with('product', 'server')
+            ->where('server_id', $server->id)
+            ->where('status', 'active')
+            ->whereNotNull('module_data->subscription_id')
+            ->whereHas('product', fn ($q) => $q->whereNotNull('config_options->trial_days'))
+            ->get();
+
+        foreach ($services as $service) {
+            $data = $this->getModuleData($service);
+            $ends = $this->trialEnds($service);
+            if (! empty($data['trial_ended']) || ! empty($data['ended']) || $ends === null || $ends->isFuture()) {
+                continue;
+            }
+
+            if ($this->setStatus($service, 'suspended', 'trial ended', __('esapanel::messages.result.trial_ended'))['success']) {
+                $this->setModuleData($service, ['trial_ended' => true]);
+            }
+        }
     }
 
     // ------------------------------------------------------------------
@@ -443,6 +495,8 @@ class EsapanelModule extends AbstractServerModule
             'data' => $data,
             'module' => (string) ($data['module'] ?? ''),
             'panelUrl' => $state === 'ended' ? null : $this->panelUrl($service),
+            'trialEnds' => $this->trialEnds($service),
+            'trialEnded' => ! empty($data['trial_ended']),
             'reseller' => ($data['plan_type'] ?? '') === self::RESELLER_PLAN,
             'limits' => is_array($data['limits'] ?? null) ? $data['limits'] : [],
             'wfp' => ($data['module'] ?? '') === WfpPart::MODULE && ($data['plan_type'] ?? '') !== self::RESELLER_PLAN && is_array($data['wfp'] ?? null) ? $data['wfp'] : null,

@@ -31,6 +31,8 @@ return [
         'open_panel' => 'Open Esapanel',
     ],
     'client' => [
+        'trial' => 'This is a free trial, until :date. To keep going, order an EsaBackup plan.',
+        'trial_ended' => 'The free trial is over and the service is suspended: no new copies are received. Order an EsaBackup plan to go on; write to us if you want to keep the copies of the trial.',
         'preparing' => 'Your service is being set up.',
         'suspended' => 'The service is suspended. Your data is kept.',
         'ended' => 'This service has ended.',
@@ -80,6 +82,7 @@ return [
         'read_error' => 'The limits could not be read: :error',
     ],
     'result' => [
+        'trial_ended' => 'Trial over: subscription suspended. The copies stay.',
         'already_created' => 'The service already has its subscription.',
         'created' => 'Subscription created.',
         'reactivated' => 'Subscription taken back and active.',

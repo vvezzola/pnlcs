@@ -45,8 +45,12 @@
     </ul>
 
     <div class="ep-body" style="padding-top:0">
-        @if($state === 'suspended')
+        @if($trialEnded)
+        <div class="ep-note warn">{{ $t('client.trial_ended') }}</div>
+        @elseif($state === 'suspended')
         <div class="ep-note warn">{{ $t('client.suspended') }}</div>
+        @elseif($trialEnds)
+        <div class="ep-note">{{ $t('client.trial', ['date' => $trialEnds->format(date_fmt())]) }}</div>
         @endif
 
         @if($reseller)

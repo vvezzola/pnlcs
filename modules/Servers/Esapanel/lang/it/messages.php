@@ -31,6 +31,8 @@ return [
         'open_panel' => 'Apri Esapanel',
     ],
     'client' => [
+        'trial' => 'Questa è una prova gratuita, fino al :date. Per continuare, ordina un piano EsaBackup.',
+        'trial_ended' => 'La prova gratuita è finita e il servizio è sospeso: le nuove copie non vengono ricevute. Ordina un piano EsaBackup per continuare; scrivici se vuoi tenere le copie della prova.',
         'preparing' => 'Il tuo servizio è in preparazione.',
         'suspended' => 'Il servizio è sospeso. I tuoi dati restano conservati.',
         'ended' => 'Questo servizio è cessato.',
@@ -80,6 +82,7 @@ return [
         'read_error' => 'Non è stato possibile leggere i limiti: :error',
     ],
     'result' => [
+        'trial_ended' => 'Prova finita: subscription sospesa. Le copie restano.',
         'already_created' => 'Il servizio ha già la sua subscription.',
         'created' => 'Subscription creata.',
         'reactivated' => 'Subscription ripresa e attiva.',
