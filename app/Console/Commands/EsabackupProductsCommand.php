@@ -16,9 +16,9 @@ use Modules\Servers\Esapanel\EsapanelModule;
 /**
  * Esalogica only: the EsaBackup products of the 2027 price list, on the
  * EsaBackup plans of an Esapanel server (the Esapanel module). One product
- * per plan in the group "esabackup" (no free trial: the user's choice, it
- * invites abuse), the space and account add-ons as priced
- * "addon|..." options of the paid plans. Plans and add-ons are found on the
+ * per plan in the group "esabackup", and one more per plan with the remote
+ * copy (no free trial: the user's choice, it invites abuse). Each product
+ * with add-ons has its own option group of priced "addon|..." options. Plans and add-ons are found on the
  * server by their exact names. Shows every change first; writes only with
  * --write, and running it again changes nothing. Nothing is ever deleted.
  */
@@ -32,45 +32,62 @@ class EsabackupProductsCommand extends Command
     protected $description = 'Esalogica: EsaBackup products of the 2027 price list (dry run unless --write)';
 
     /**
-     * slug => [name, Esapanel plan, monthly, yearly, with the add-on options,
-     * description]. Prices in EUR without VAT.
+     * slug => [name and Esapanel plan, monthly (null: sold yearly only),
+     * yearly, add-on keys, description]. Prices in EUR without VAT. Each
+     * plan also has a "+ Copia remota" product, see COPY_FACTOR.
      *
-     * @var array<string, array{0: string, 1: string, 2: string, 3: string, 4: bool, 5: string}>
+     * @var array<string, array{0: string, 1: ?string, 2: string, 3: list<string>, 4: string}>
      */
-    private const PRODUCTS = [
-        'esabackup-25' => ['EsaBackup25', 'EsaBackup25', '2.50', '25.00', false,
+    private const PLANS = [
+        'esabackup-25' => ['EsaBackup25', null, '25.00', [],
             '25 GB per provare la copia fuori sede o per scambiare file grandi con i colleghi. 100 GB di traffico al mese, 3 account, 1 cartella condivisa, sorveglianza delle copie. Datacenter nell\'Unione Europea (Amsterdam).'],
-        'esabackup-100' => ['EsaBackup100', 'EsaBackup100', '6.00', '60.00', true,
-            '100 GB per la copia fuori sede dei backup di NAS, server e PC. 200 GB di traffico al mese, 3 account, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
-        'esabackup-500' => ['EsaBackup500', 'EsaBackup500', '18.00', '180.00', true,
-            '500 GB per la copia fuori sede dei backup di NAS, server e PC. 1 TB di traffico al mese, 10 account, 5 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
-        'esabackup-1t' => ['EsaBackup1T', 'EsaBackup1T', '29.00', '290.00', true,
-            '1 TB per la copia fuori sede dei backup di NAS, server e PC. 2 TB di traffico al mese, 50 account, 20 cartelle condivise, storico di 2 anni, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
-        'esabackup-reseller-10tb' => ['EsaBackup Reseller 10 TB', 'EsaBackup Reseller 10 TB', '180.00', '1800.00', false,
-            'Per rivendere EsaBackup con il proprio marchio: 10 TB e 15 TB di traffico al mese da distribuire fino a 50 clienti, nel pannello Esapanel e dal proprio PNLCS.'],
+        'esabackup-100' => ['EsaBackup100', null, '60.00', ['account', 'cartelle', 'traffico'],
+            '100 GB per la copia fuori sede dei backup di NAS, server e PC. 200 GB di traffico al mese, 10 account, 3 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
+        'esabackup-500' => ['EsaBackup500', '24.00', '240.00', ['spazio', 'account', 'cartelle', 'traffico'],
+            '500 GB per la copia fuori sede dei backup di NAS, server e PC. 1 TB di traffico al mese, 50 account, 10 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
+        'esabackup-1t' => ['EsaBackup1T', '45.00', '450.00', ['spazio', 'cartelle', 'traffico'],
+            '1 TB per la copia fuori sede dei backup di NAS, server e PC. 2 TB di traffico al mese, account illimitati, 30 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
+        'esabackup-reseller-3tb' => ['EsaBackup Reseller 3 TB', '120.00', '1200.00', [],
+            'Per rivendere EsaBackup con il proprio marchio e un indirizzo IP dedicato: 3 TB e 10 TB di traffico al mese da distribuire ai propri clienti, nel pannello Esapanel e dal proprio PNLCS.'],
+        'esabackup-reseller-10tb' => ['EsaBackup Reseller 10 TB', '260.00', '2600.00', [],
+            'Per rivendere EsaBackup con il proprio marchio e un indirizzo IP dedicato: 10 TB e 30 TB di traffico al mese da distribuire ai propri clienti, nel pannello Esapanel e dal proprio PNLCS.'],
     ];
 
     /**
-     * The add-on options of the paid plans: option label => [Esapanel add-on
-     * => [choice label, monthly, yearly]]. Every option starts with "none".
+     * The add-on options: key => [option label, costs more with the remote
+     * copy, [Esapanel add-on => [choice label, monthly, yearly]]]. Every
+     * option starts with "none".
      *
-     * @var array<string, array<string, array{0: string, 1: string, 2: string}>>
+     * @var array<string, array{0: string, 1: bool, 2: array<string, array{0: string, 1: string, 2: string}>}>
      */
-    private const OPTIONS = [
-        'Spazio aggiuntivo' => [
+    private const ADDONS = [
+        'spazio' => ['Spazio aggiuntivo', true, [
             'EsaBackup Spazio +100 GB' => ['+100 GB', '3.00', '30.00'],
-            'EsaBackup Spazio +200 GB' => ['+200 GB', '6.00', '60.00'],
+            'EsaBackup Spazio +300 GB' => ['+300 GB', '6.00', '60.00'],
             'EsaBackup Spazio +500 GB' => ['+500 GB', '12.00', '120.00'],
-            'EsaBackup Spazio +1 TB' => ['+1 TB', '18.00', '180.00'],
-            'EsaBackup Spazio +2 TB' => ['+2 TB', '34.00', '340.00'],
-        ],
-        'Account aggiuntivi' => [
-            'EsaBackup Account +5' => ['+5 account', '2.00', '20.00'],
-        ],
+        ]],
+        'account' => ['Account aggiuntivi', false, [
+            'EsaBackup Account +10' => ['+10 account', '3.00', '30.00'],
+        ]],
+        'cartelle' => ['Cartelle condivise aggiuntive', false, [
+            'EsaBackup Cartelle +5' => ['+5 cartelle condivise', '3.00', '30.00'],
+        ]],
+        'traffico' => ['Traffico aggiuntivo', true, [
+            'EsaBackup Traffico +1 TB' => ['+1 TB al mese', '5.00', '50.00'],
+            'EsaBackup Traffico +5 TB' => ['+5 TB al mese', '20.00', '200.00'],
+        ]],
     ];
 
-    /** The option group, found again by its name. */
-    private const OPTION_GROUP = 'EsaBackup extras';
+    /**
+     * The remote copy (a second copy on another Esapanel node) costs 70% more,
+     * on the plan and on the space and traffic add-ons. Its products are on
+     * the Esapanel plan named like the plan plus COPY_PLAN.
+     */
+    private const COPY_FACTOR = 1.7;
+
+    private const COPY_PLAN = ' Copia remota';
+
+    private const COPY_DESCRIPTION = ' Con la copia remota: una seconda copia dei dati in un altro datacenter dell\'Unione Europea.';
 
     /** @var list<string> */
     private const UNSOLD_CYCLES = ['quarterly', 'semiannually', 'biennially', 'triennially'];
@@ -105,10 +122,11 @@ class EsabackupProductsCommand extends Command
             return self::FAILURE;
         }
 
-        $missing = array_values(array_merge(
-            array_diff(array_column(self::PRODUCTS, 1), array_keys($plans)),
-            array_diff(array_merge(...array_map('array_keys', array_values(self::OPTIONS))), array_keys($addons)),
-        ));
+        $products = $this->products();
+        $missing = array_values(array_unique(array_merge(
+            array_diff(array_column($products, 'plan'), array_keys($plans)),
+            array_diff(array_merge(...array_map(fn ($addon) => array_keys($addon[2]), array_values(self::ADDONS))), array_keys($addons)),
+        )));
         if ($missing !== []) {
             $this->error('Sul server Esapanel mancano: '.implode(', ', $missing).'. Vanno creati in Esapanel con questi nomi esatti.');
 
@@ -118,16 +136,12 @@ class EsabackupProductsCommand extends Command
         $this->line("Server Esapanel: {$server->name} (#{$server->id})");
         $group = $this->group();
 
-        $paid = [];
-        $position = 0;
-        foreach (self::PRODUCTS as $slug => [$name, $plan, $monthly, $annually, $withOptions, $description]) {
-            $product = $this->product($slug, $name, $description, $group, $currency, $plans[$plan], $monthly, $annually, ++$position);
-            if ($withOptions) {
-                $paid[] = $product;
+        foreach ($products as $position => $item) {
+            $product = $this->product($item, $group, $currency, $plans[$item['plan']], $position + 1);
+            if ($item['addons'] !== []) {
+                $this->addonOptions($product, $item, $currency);
             }
         }
-
-        $this->addonOptions($paid, $currency);
 
         if ($this->changes === 0) {
             $this->info('Niente da cambiare.');
@@ -170,8 +184,10 @@ class EsabackupProductsCommand extends Command
         return $this->write ? ProductGroup::create(['name' => 'EsaBackup', 'slug' => 'esabackup', 'hidden' => false, 'sort_order' => 6]) : null;
     }
 
-    private function product(string $slug, string $name, string $description, ?ProductGroup $group, Currency $currency, int $planId, string $monthly, string $annually, int $position): ?Product
+    /** @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, copy: bool, description: string}  $item */
+    private function product(array $item, ?ProductGroup $group, Currency $currency, int $planId, int $position): ?Product
     {
+        ['slug' => $slug, 'name' => $name, 'monthly' => $monthly, 'annually' => $annually, 'description' => $description] = $item;
         $visible = (bool) $this->option('visible');
         $product = Product::where('slug', $slug)->first();
 
@@ -218,52 +234,90 @@ class EsabackupProductsCommand extends Command
         return $product;
     }
 
-    /** @param  list<?Product>  $products */
-    private function addonOptions(array $products, Currency $currency): void
+    /**
+     * The products to make: each plan, then the same plan with the remote
+     * copy. A plan sold yearly only has its monthly price at -1 (not sold),
+     * and so have its add-ons.
+     *
+     * @return list<array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, copy: bool, description: string}>
+     */
+    private function products(): array
     {
-        $group = ConfigOptionGroup::where('name', self::OPTION_GROUP)->first();
+        $products = [];
+        foreach (self::PLANS as $slug => [$name, $monthly, $annually, $addons, $description]) {
+            $products[] = ['slug' => $slug, 'name' => $name, 'plan' => $name, 'monthly' => $monthly ?? '-1.00',
+                'annually' => $annually, 'addons' => $addons, 'copy' => false, 'description' => $description];
+            $products[] = ['slug' => $slug.'-copia', 'name' => $name.' + Copia remota', 'plan' => $name.self::COPY_PLAN,
+                'monthly' => $monthly === null ? '-1.00' : $this->withCopy($monthly), 'annually' => $this->withCopy($annually),
+                'addons' => $addons, 'copy' => true, 'description' => $description.self::COPY_DESCRIPTION];
+        }
+
+        return $products;
+    }
+
+    private function withCopy(string $price): string
+    {
+        return number_format(round((float) $price * self::COPY_FACTOR, 2), 2, '.', '');
+    }
+
+    /**
+     * The product's own option group ("<product> extras"): its prices
+     * depend on the product (yearly only, remote copy).
+     *
+     * @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, copy: bool, description: string}  $item
+     */
+    private function addonOptions(?Product $product, array $item, Currency $currency): void
+    {
+        $groupName = $item['name'].' extras';
+        $group = ConfigOptionGroup::where('name', $groupName)->first();
         if (! $group) {
-            $this->change('+ gruppo di opzioni '.self::OPTION_GROUP);
+            $this->change('+ gruppo di opzioni '.$groupName);
             if ($this->write) {
-                $group = ConfigOptionGroup::create(['name' => self::OPTION_GROUP, 'description' => 'Spazio e account aggiuntivi']);
+                $group = ConfigOptionGroup::create(['name' => $groupName, 'description' => 'Add-on di '.$item['name']]);
             }
         }
 
-        foreach ($products as $product) {
-            if ($group && $product && ! $product->configOptionGroups()->whereKey($group->id)->exists()) {
-                $this->change("  opzioni collegate a {$product->name}");
-                if ($this->write) {
-                    $product->configOptionGroups()->attach($group->id);
-                }
+        if ($group && $product && ! $product->configOptionGroups()->whereKey($group->id)->exists()) {
+            $this->change("  opzioni collegate a {$product->name}");
+            if ($this->write) {
+                $product->configOptionGroups()->attach($group->id);
             }
         }
 
         $position = 0;
-        foreach (self::OPTIONS as $label => $choices) {
+        foreach ($item['addons'] as $key) {
+            [$label, $costsMoreWithCopy, $choices] = self::ADDONS[$key];
             $optionName = 'addon|'.$label;
             $option = $group ? ConfigOption::where('group_id', $group->id)->where('option_name', $optionName)->first() : null;
+            $position++;
             if (! $option) {
-                $this->change("+ opzione {$label}");
+                $this->change("  {$item['name']}: + opzione {$label}");
                 if (! $this->write) {
                     continue;
                 }
-                $option = ConfigOption::create(['group_id' => $group->id, 'option_name' => $optionName, 'option_type' => 'dropdown', 'sort_order' => ++$position, 'hidden' => false]);
+                $option = ConfigOption::create(['group_id' => $group->id, 'option_name' => $optionName, 'option_type' => 'dropdown', 'sort_order' => $position, 'hidden' => false]);
             }
 
             $order = 0;
             foreach (['none' => ['Nessuno', '0.00', '0.00']] + $choices as $addon => [$choice, $monthly, $annually]) {
+                if ($item['copy'] && $costsMoreWithCopy) {
+                    [$monthly, $annually] = [$this->withCopy($monthly), $this->withCopy($annually)];
+                }
+                if ($item['monthly'] === '-1.00') {
+                    $monthly = '-1.00';
+                }
                 // By the add-on it sells, not by its label.
                 $sub = ConfigOptionSub::where('config_id', $option->id)
                     ->where('option_name', 'like', str_replace(['%', '_'], ['\\%', '\\_'], $addon).'|%')->first();
                 if (! $sub) {
-                    $this->change("  {$label}: + {$choice}");
+                    $this->change("  {$item['name']}, {$label}: + {$choice}");
                     if (! $this->write) {
                         continue;
                     }
                     $sub = ConfigOptionSub::create(['config_id' => $option->id, 'option_name' => $addon.'|'.$choice, 'sort_order' => $order, 'hidden' => false]);
                 }
                 $order++;
-                $this->price(ConfigOptionSub::PRICING_TYPE, $sub->id, $currency, $monthly, $annually, "{$label} {$choice}");
+                $this->price(ConfigOptionSub::PRICING_TYPE, $sub->id, $currency, $monthly, $annually, "{$item['name']}, {$label} {$choice}");
             }
         }
     }

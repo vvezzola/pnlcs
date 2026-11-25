@@ -24,11 +24,16 @@ function ebServer(array $without = []): Server
 
     $wfp = [['code' => 'wfp.storage']];
     $plans = ['client' => [], 'reseller' => [], 'client_addon' => []];
-    foreach (['EsaBackup25' => 21, 'EsaBackup100' => 22, 'EsaBackup500' => 23, 'EsaBackup1T' => 24] as $label => $id) {
-        $plans['client'][] = ['id' => $id, 'label' => $label, 'type' => 'client', 'sells_license' => false, 'services' => $wfp];
+    $id = 20;
+    foreach (['EsaBackup25', 'EsaBackup100', 'EsaBackup500', 'EsaBackup1T'] as $label) {
+        foreach ([$label, $label.' Copia remota'] as $plan) {
+            $plans['client'][] = ['id' => ++$id, 'label' => $plan, 'type' => 'client', 'sells_license' => false, 'services' => $wfp];
+        }
     }
-    $plans['reseller'][] = ['id' => 25, 'label' => 'EsaBackup Reseller 10 TB', 'type' => 'reseller', 'sells_license' => false, 'services' => $wfp];
-    foreach (['EsaBackup Spazio +100 GB', 'EsaBackup Spazio +200 GB', 'EsaBackup Spazio +500 GB', 'EsaBackup Spazio +1 TB', 'EsaBackup Spazio +2 TB', 'EsaBackup Account +5'] as $i => $label) {
+    foreach (['EsaBackup Reseller 3 TB', 'EsaBackup Reseller 3 TB Copia remota', 'EsaBackup Reseller 10 TB', 'EsaBackup Reseller 10 TB Copia remota'] as $plan) {
+        $plans['reseller'][] = ['id' => ++$id, 'label' => $plan, 'type' => 'reseller', 'sells_license' => false, 'services' => $wfp];
+    }
+    foreach (['EsaBackup Spazio +100 GB', 'EsaBackup Spazio +300 GB', 'EsaBackup Spazio +500 GB', 'EsaBackup Account +10', 'EsaBackup Cartelle +5', 'EsaBackup Traffico +1 TB', 'EsaBackup Traffico +5 TB'] as $i => $label) {
         $plans['client_addon'][] = ['id' => 30 + $i, 'label' => $label, 'type' => 'client_addon', 'services' => $wfp];
     }
     foreach ($plans as $type => $list) {
@@ -58,7 +63,7 @@ it('shows what it would make without writing anything', function () {
     ebServer();
 
     $this->artisan('esalogica:esabackup-products')
-        ->expectsOutputToContain('+ prodotto EsaBackup1T sul piano #24, 29.00/290.00 (nascosto)')
+        ->expectsOutputToContain('+ prodotto EsaBackup1T sul piano #27, 45.00/450.00 (nascosto)')
         ->expectsOutputToContain('Prova: nulla è stato scritto')
         ->assertSuccessful();
 
@@ -71,26 +76,38 @@ it('makes the products on their plans, hidden, with the add-ons as priced option
     $this->artisan('esalogica:esabackup-products', ['--write' => true])->assertSuccessful();
 
     $group = ProductGroup::where('slug', 'esabackup')->firstOrFail();
-    $products = Product::where('group_id', $group->id)->orderBy('sort_order')->get();
-    expect($products->pluck('name')->all())->toBe(['EsaBackup25', 'EsaBackup100', 'EsaBackup500', 'EsaBackup1T', 'EsaBackup Reseller 10 TB'])
+    $products = Product::where('group_id', $group->id)->orderBy('sort_order')->get()->keyBy('slug');
+    expect($products->pluck('name')->take(4)->all())->toBe(['EsaBackup25', 'EsaBackup25 + Copia remota', 'EsaBackup100', 'EsaBackup100 + Copia remota'])
+        ->and($products)->toHaveCount(12)
         ->and($products->every(fn (Product $product) => $product->hidden && $product->server_type === EsapanelModule::NAME))->toBeTrue()
-        ->and($products->pluck('config_options.package_name')->all())->toBe(['21', '22', '23', '24', '25']);
+        ->and($products['esabackup-1t']->config_options['package_name'])->toBe('27')
+        ->and($products['esabackup-1t-copia']->config_options['package_name'])->toBe('28');
 
-    $oneTb = $products->firstWhere('slug', 'esabackup-1t');
-    expect($products->pluck('pay_type')->unique()->all())->toBe(['recurring'])
-        ->and(ebPrice('product', $oneTb->id))->toBe([29.0, 290.0])
-        ->and(ebPrice('product', $products->firstWhere('slug', 'esabackup-reseller-10tb')->id))->toBe([180.0, 1800.0]);
+    // Yearly only up to 100 GB; the remote copy costs 70% more.
+    expect(ebPrice('product', $products['esabackup-100']->id))->toBe([-1.0, 60.0])
+        ->and(ebPrice('product', $products['esabackup-1t']->id))->toBe([45.0, 450.0])
+        ->and(ebPrice('product', $products['esabackup-1t-copia']->id))->toBe([76.5, 765.0])
+        ->and(ebPrice('product', $products['esabackup-reseller-10tb']->id))->toBe([260.0, 2600.0]);
 
-    // The add-ons go with the paid customer plans only.
-    expect($oneTb->configOptionGroups()->pluck('name')->all())->toBe(['EsaBackup extras'])
-        ->and($products->firstWhere('slug', 'esabackup-reseller-10tb')->configOptionGroups()->count())->toBe(0)
-        ->and($products->firstWhere('slug', 'esabackup-25')->configOptionGroups()->count())->toBe(0)
-        ->and(ebPrice('product', $products->firstWhere('slug', 'esabackup-25')->id))->toBe([2.5, 25.0]);
+    // Each product its own add-ons: none on 25 GB and the reseller plans,
+    // no extra space on 100 GB, no extra accounts on 1 TB.
+    $options = fn (string $slug) => ConfigOption::whereIn('group_id', $products[$slug]->configOptionGroups()->pluck('config_option_groups.id'))
+        ->orderBy('sort_order')->pluck('option_name')->all();
+    expect($products['esabackup-25']->configOptionGroups()->count())->toBe(0)
+        ->and($products['esabackup-reseller-3tb']->configOptionGroups()->count())->toBe(0)
+        ->and($options('esabackup-100'))->toBe(['addon|Account aggiuntivi', 'addon|Cartelle condivise aggiuntive', 'addon|Traffico aggiuntivo'])
+        ->and($options('esabackup-1t'))->toBe(['addon|Spazio aggiuntivo', 'addon|Cartelle condivise aggiuntive', 'addon|Traffico aggiuntivo']);
 
-    $space = ConfigOption::where('option_name', 'addon|Spazio aggiuntivo')->firstOrFail();
-    $subs = ConfigOptionSub::where('config_id', $space->id)->orderBy('sort_order')->get();
-    expect($subs->pluck('option_name')->all())->toBe(['none|Nessuno', 'EsaBackup Spazio +100 GB|+100 GB', 'EsaBackup Spazio +200 GB|+200 GB', 'EsaBackup Spazio +500 GB|+500 GB', 'EsaBackup Spazio +1 TB|+1 TB', 'EsaBackup Spazio +2 TB|+2 TB'])
-        ->and(ebPrice(ConfigOptionSub::PRICING_TYPE, $subs[4]->id))->toBe([18.0, 180.0]);
+    $choice = function (string $slug, string $option, string $addon) use ($products) {
+        $optionId = ConfigOption::whereIn('group_id', $products[$slug]->configOptionGroups()->pluck('config_option_groups.id'))
+            ->where('option_name', $option)->value('id');
+
+        return ebPrice(ConfigOptionSub::PRICING_TYPE, ConfigOptionSub::where('config_id', $optionId)->where('option_name', 'like', $addon.'|%')->value('id'));
+    };
+    expect($choice('esabackup-500', 'addon|Spazio aggiuntivo', 'EsaBackup Spazio +300 GB'))->toBe([6.0, 60.0])
+        ->and($choice('esabackup-500-copia', 'addon|Spazio aggiuntivo', 'EsaBackup Spazio +300 GB'))->toBe([10.2, 102.0])
+        ->and($choice('esabackup-500-copia', 'addon|Account aggiuntivi', 'EsaBackup Account +10'))->toBe([3.0, 30.0])
+        ->and($choice('esabackup-100', 'addon|Traffico aggiuntivo', 'EsaBackup Traffico +1 TB'))->toBe([-1.0, 50.0]);
 
     $this->artisan('esalogica:esabackup-products', ['--write' => true])
         ->expectsOutputToContain('Niente da cambiare.')
@@ -98,10 +115,10 @@ it('makes the products on their plans, hidden, with the add-ons as priced option
 });
 
 it('stops before writing when a plan or an add-on is missing on the server', function () {
-    ebServer(['EsaBackup500', 'EsaBackup Spazio +2 TB']);
+    ebServer(['EsaBackup500 Copia remota', 'EsaBackup Cartelle +5']);
 
     $this->artisan('esalogica:esabackup-products', ['--write' => true])
-        ->expectsOutputToContain('Sul server Esapanel mancano: EsaBackup500, EsaBackup Spazio +2 TB')
+        ->expectsOutputToContain('Sul server Esapanel mancano: EsaBackup500 Copia remota, EsaBackup Cartelle +5')
         ->assertFailed();
 
     expect(Product::where('slug', 'like', 'esabackup-%')->count())->toBe(0)
