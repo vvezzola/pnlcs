@@ -59,6 +59,20 @@ class SendClientInvitesCommand extends Command
             ->get();
 
         $done = ['sent' => 0, 'skipped' => 0, 'failed' => 0];
+
+        // Accounts asked for by id that the query left out: say why, rather
+        // than finish on "sent 0, skipped 0" with no word about them.
+        foreach (array_diff(array_map('intval', $this->option('client')), $clients->pluck('id')->all()) as $id) {
+            $asked = Client::withCount('users')->find($id);
+            $reason = match (true) {
+                $asked === null => 'no such client',
+                $asked->users_count > 0 => 'it already has a login',
+                default => 'it is not active',
+            };
+            $this->line("  #{$id}: skipped, {$reason}");
+            $done['skipped']++;
+        }
+
         foreach ($clients as $client) {
             $name = "#{$client->id} ".trim($client->company_name ?: $client->first_name.' '.$client->last_name);
             $email = $this->address($client);

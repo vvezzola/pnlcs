@@ -125,3 +125,18 @@ test('a reworded template carries the link, and the mail is never copied to anyo
         ->and($message->getBcc())->toBe([])
         ->and($message->getCc())->toBe([]);
 });
+
+test('an account asked for by id that cannot be invited is reported with the reason', function () {
+    $withLogin = Client::factory()->create();
+    $withLogin->users()->attach(User::factory()->create()->id, ['owner' => true, 'permissions' => json_encode([])]);
+    $closed = Client::factory()->inactive()->create();
+
+    $this->artisan('pnlcs:send-client-invites', ['--admin' => 'desk', '--client' => [$withLogin->id, $closed->id, 999999], '--send' => true])
+        ->expectsOutputToContain("#{$withLogin->id}: skipped, it already has a login")
+        ->expectsOutputToContain("#{$closed->id}: skipped, it is not active")
+        ->expectsOutputToContain('#999999: skipped, no such client')
+        ->expectsOutputToContain('Sent 0, skipped 3, failed 0.')
+        ->assertSuccessful();
+
+    Mail::assertNothingSent();
+});
