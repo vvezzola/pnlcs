@@ -26,7 +26,7 @@
 </style>
 
 <div class="ep-note">
-    <strong>{{ $t('wfp.space') }}</strong>: {{ $gb($used) }} / {{ $gb($space) }}
+    <strong>{{ $t('wfp.space') }}</strong>: {{ ($wfp['used_mb'] ?? null) === null ? $t('wfp.not_measured') : $gb($used) }} / {{ $gb($space) }}
     <div class="ep-bar {{ $percent >= 95 || ! empty($wfp['read_only']) ? 'full' : '' }}"><span style="width:{{ $percent }}%"></span></div>
     @if(! empty($wfp['read_only']))
     <span class="ep-late">{{ $t('wfp.read_only') }}</span>

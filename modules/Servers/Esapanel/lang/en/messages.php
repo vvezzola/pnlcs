@@ -44,6 +44,7 @@ return [
     'wfp' => [
         'space' => 'Space',
         'read_only' => 'The space is full: new copies are refused until space is freed or added.',
+        'not_measured' => 'not measured yet',
         'read_only_short' => 'read only',
         'connect' => 'How to connect',
         'host' => 'Server',

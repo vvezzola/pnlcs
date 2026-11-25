@@ -44,6 +44,7 @@ return [
     'wfp' => [
         'space' => 'Spazio',
         'read_only' => 'Lo spazio è pieno: le nuove copie vengono rifiutate finché non si libera o si aggiunge spazio.',
+        'not_measured' => 'non ancora misurato',
         'read_only_short' => 'sola lettura',
         'connect' => 'Come collegarsi',
         'host' => 'Server',
