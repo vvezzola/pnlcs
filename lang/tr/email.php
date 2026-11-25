@@ -128,6 +128,16 @@ return [
         'what_to_do' => 'Çalışmaya devam etmesi için biraz yer açın (örneğin eski e-postaları bilgisayarınızda arşivleyerek) ya da daha büyük bir pakete geçin.',
         'button' => 'Daha büyük bir paket seçin',
     ],
+    'account_invitation' => [
+        'subject' => ':company müşteri alanınız hazır',
+        'intro' => ':company hesabınızın artık bir müşteri alanı var: hizmetleriniz ve yenileme tarihleri, faturalarınız ve ödemeleriniz tek bir yerde.',
+        'set_password' => 'İlk kez giriş yapmak için aşağıdaki düğmeyle şifrenizi belirleyin.',
+        'button' => 'Şifrenizi belirleyin',
+        'valid' => 'Bağlantı :days gün geçerlidir ve yalnızca bir kez kullanılabilir. Süresi dolduysa bu e-postayı yanıtlayın, size yenisini gönderelim.',
+        'check_details' => 'İlk girişte fatura bilgilerinizi kontrol edin: şirket adı, adres ve vergi numaraları. Her faturada yer alırlar ve bilgileri yanlış bir fatura reddedilebilir.',
+        'notice' => 'Her ay :notice_day. gün, bir sonraki ayın :billing_day. günü faturalayacağımız kalemlerin listesini size gönderiyoruz; böylece artık istemediğiniz bir şeyi zamanında bize bildirebilirsiniz.',
+        'questions' => 'Sorularınız için bu e-postayı yanıtlamanız yeterli.',
+    ],
     'renewal_notice' => [
         'subject' => ':date tarihinde faturalayacağımız yenilemeler - :company',
         'intro' => 'Bu hizmetlerin ve alan adlarının yenileme zamanı yaklaşıyor. Bunları :date tarihinde faturalayacağız.',

@@ -125,4 +125,8 @@ return [
         'subject' => "Odnowienia, które zafakturujemy {billing_date} - {CompanyName}",
         'message' => "Szanowny {client_name},\n\nte usługi i domeny zbliżają się do odnowienia. Zafakturujemy je {billing_date}.\n\n{renewal_list}\n\nJeśli nie chcesz już którejś z nich, daj nam znać do {cancel_by}: w panelu klienta pod adresem {whmcs_url} użyj „Poproś o anulowanie” przy usłudze albo wyłącz automatyczne odnawianie domeny. Jeśli chcesz zachować wszystko, nie musisz nic robić.\n\n{CompanyName}",
     ],
+    'Account Invitation' => [
+        'subject' => "Twój panel klienta w {CompanyName} jest gotowy",
+        'message' => "Szanowny {client_name},\n\nTwoje konto w {CompanyName} ma teraz panel klienta: usługi z datami odnowienia, faktury i płatności w jednym miejscu.\n\nAby zalogować się po raz pierwszy, ustaw hasło tutaj:\n{invite_url}\n\nLink jest ważny przez {invite_days} dni i działa tylko raz. Jeśli wygasł, odpowiedz na tę wiadomość, a wyślemy nowy.\n\nPrzy pierwszym logowaniu sprawdź dane do faktury: nazwę firmy, adres i numery podatkowe. Trafiają na każdą fakturę, a faktura z błędnymi danymi może zostać odrzucona.\n\nW razie pytań po prostu odpowiedz na tę wiadomość.\n\n{CompanyName}",
+    ],
 ];

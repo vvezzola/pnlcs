@@ -152,4 +152,8 @@ return [
         'subject' => "Rinnovi che fattureremo il {billing_date} - {CompanyName}",
         'message' => "Gentile {client_name},\n\nquesti servizi e domini sono in scadenza. Li fattureremo il {billing_date}.\n\n{renewal_list}\n\nSe non vuoi più rinnovarne qualcuno, comunicacelo entro il {cancel_by}: nella tua area clienti su {whmcs_url} usa \"Richiedi cancellazione\" sul servizio, oppure disattiva il rinnovo automatico del dominio. Se vuoi mantenere tutto, non devi fare nulla.\n\nCordiali saluti,\n{CompanyName}",
     ],
+    'Account Invitation' => [
+        'subject' => "La tua area clienti {CompanyName} è pronta",
+        'message' => "Gentile {client_name},\n\nil tuo account presso {CompanyName} ha ora un'area clienti: in un unico posto trovi i tuoi servizi con le scadenze, le fatture e i pagamenti.\n\nPer entrare la prima volta, imposta la tua password da qui:\n{invite_url}\n\nIl link vale {invite_days} giorni e si può usare una sola volta. Se è scaduto, rispondi a questa email e te ne mandiamo uno nuovo.\n\nAl primo accesso controlla i tuoi dati di fatturazione, in particolare partita IVA, codice fiscale e codice destinatario SDI o PEC: li usiamo per la fattura elettronica, e con dati sbagliati la fattura viene scartata.\n\nPer qualsiasi domanda rispondi pure a questa email.\n\nCordiali saluti,\n{CompanyName}",
+    ],
 ];

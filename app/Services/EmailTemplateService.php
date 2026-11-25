@@ -27,6 +27,7 @@ class EmailTemplateService
      * operator has just written, and a template would overwrite both.
      */
     private const MAP = [
+        'AccountInvitationMail' => 'Account Invitation',
         'AccountSignupMail' => 'Account Signup Email',
         'AffiliateWelcomeMail' => 'Affiliate Welcome Email',
         'AutoChargeActionRequiredMail' => 'Automatic Payment Authentication Required',
@@ -291,6 +292,10 @@ class EmailTemplateService
             'diskUsed' => 'disk_used',
             'diskLimit' => 'disk_limit',
             'upgradeUrl' => 'upgrade_url',
+            // The first login invitation: the link that sets the password, and
+            // how many days it works for.
+            'inviteUrl' => 'invite_url',
+            'validDays' => 'invite_days',
         ] as $property => $name) {
             $value = $data[$property] ?? null;
 

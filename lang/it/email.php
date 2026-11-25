@@ -122,6 +122,16 @@ return [
         'what_to_do' => 'Per continuare a usarlo libera un po\' di spazio (per esempio archiviando la posta vecchia sul tuo computer) oppure passa a un piano più grande.',
         'button' => 'Scegli un piano più grande',
     ],
+    'account_invitation' => [
+        'subject' => 'La tua area clienti :company è pronta',
+        'intro' => 'Il tuo account presso :company ha ora un\'area clienti: in un unico posto trovi i tuoi servizi con le scadenze, le fatture e i pagamenti.',
+        'set_password' => 'Per entrare la prima volta, imposta la tua password con il pulsante qui sotto.',
+        'button' => 'Imposta la password',
+        'valid' => 'Il link vale :days giorni e si può usare una sola volta. Se è scaduto, rispondi a questa email e te ne mandiamo uno nuovo.',
+        'check_details' => 'Al primo accesso controlla i tuoi dati di fatturazione, in particolare partita IVA, codice fiscale e codice destinatario SDI o PEC: li usiamo per la fattura elettronica, e con dati sbagliati la fattura viene scartata.',
+        'notice' => 'Ogni mese, intorno al giorno :notice_day, ti mandiamo l\'elenco di quello che fattureremo il giorno :billing_day del mese successivo, così puoi dirci in tempo se qualcosa non ti serve più.',
+        'questions' => 'Per qualsiasi domanda rispondi pure a questa email.',
+    ],
     'renewal_notice' => [
         'subject' => 'Rinnovi che fattureremo il :date - :company',
         'intro' => 'Questi servizi e domini sono in scadenza. Li fattureremo il :date.',

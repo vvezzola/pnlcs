@@ -153,4 +153,8 @@ return [
         'subject' => "Verlängerungen, die wir am {billing_date} in Rechnung stellen – {CompanyName}",
         'message' => "Guten Tag {client_name},\n\ndiese Dienste und Domains stehen zur Verlängerung an. Wir stellen sie am {billing_date} in Rechnung.\n\n{renewal_list}\n\nWenn Sie etwas davon nicht mehr möchten, teilen Sie es uns bis zum {cancel_by} mit: Nutzen Sie im Kundenbereich unter {whmcs_url} bei einem Dienst „Kündigung beantragen“ oder schalten Sie bei einer Domain die automatische Verlängerung aus. Wenn Sie alles behalten möchten, müssen Sie nichts tun.\n\nMit freundlichen Grüßen\nIhr {CompanyName}-Team",
     ],
+    'Account Invitation' => [
+        'subject' => "Ihr Kundenbereich bei {CompanyName} ist bereit",
+        'message' => "Guten Tag {client_name},\n\nIhr Konto bei {CompanyName} hat jetzt einen Kundenbereich: Ihre Dienste mit ihren Verlängerungsterminen, Ihre Rechnungen und Ihre Zahlungen an einem Ort.\n\nUm sich zum ersten Mal anzumelden, legen Sie hier Ihr Passwort fest:\n{invite_url}\n\nDer Link gilt {invite_days} Tage und nur einmal. Ist er abgelaufen, antworten Sie auf diese E-Mail, und wir senden Ihnen einen neuen.\n\nPrüfen Sie bei der ersten Anmeldung Ihre Rechnungsdaten: Firmenname, Anschrift und Steuernummern. Sie stehen auf jeder Rechnung, und eine Rechnung mit falschen Daten kann abgelehnt werden.\n\nBei Fragen antworten Sie einfach auf diese E-Mail.\n\n{CompanyName}",
+    ],
 ];

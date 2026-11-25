@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\AccountInvitationMail;
 use App\Models\ActivityLog;
 use App\Models\Admin;
 use App\Models\Client;
@@ -19,9 +20,10 @@ use Throwable;
  * placeholder that cannot receive mail. The invitation is staff's (--admin),
  * so the first login accepted becomes the account's owner.
  *
- * Accounts with an invitation still open are left alone unless --resend, so
- * running it again only reaches the ones still missing. Mail is sent at once,
- * not queued, so the result printed is the result. Dry run unless --send.
+ * The mail is AccountInvitationMail (template "Account Invitation"). Accounts
+ * with an invitation still open are left alone unless --resend, so running it
+ * again only reaches the ones still missing. Mail is sent at once, not queued,
+ * so the result printed is the result. Dry run unless --send.
  */
 class SendClientInvitesCommand extends Command
 {
@@ -84,7 +86,7 @@ class SendClientInvitesCommand extends Command
 
             try {
                 [$invite, $link] = $invites->issue($client, $email, ClientPermissions::ALL, $admin->id);
-                Mail::to($invite->email)->sendNow($invites->mail($client, $invite, $link));
+                Mail::to($invite->email)->send(new AccountInvitationMail($client, $link));
                 ActivityLog::log("Invitation for {$invite->email} sent", $admin->username, $client->id);
                 $this->line("  {$name}: invited {$invite->email}");
                 $done['sent']++;

@@ -28,6 +28,8 @@ class ApplyEmailTemplate
         // Carries an app's generated passwords in the clear, on the account
         // owner's own request - for their eyes only.
         'ContainerAccessDetailsMail',
+        // Its link sets the password of the account's first login.
+        'AccountInvitationMail',
     ];
 
     /**

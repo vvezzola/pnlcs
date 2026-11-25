@@ -128,6 +128,16 @@ return [
         'what_to_do' => 'Damit er weiter funktioniert, geben Sie Speicherplatz frei (zum Beispiel indem Sie alte E-Mails auf Ihrem Computer archivieren) oder wechseln Sie zu einem größeren Tarif.',
         'button' => 'Größeren Tarif wählen',
     ],
+    'account_invitation' => [
+        'subject' => 'Ihr Kundenbereich bei :company ist bereit',
+        'intro' => 'Ihr Konto bei :company hat jetzt einen Kundenbereich: Ihre Dienste mit ihren Verlängerungsterminen, Ihre Rechnungen und Ihre Zahlungen an einem Ort.',
+        'set_password' => 'Um sich zum ersten Mal anzumelden, legen Sie mit der Schaltfläche unten Ihr Passwort fest.',
+        'button' => 'Passwort festlegen',
+        'valid' => 'Der Link gilt :days Tage und nur einmal. Ist er abgelaufen, antworten Sie auf diese E-Mail, und wir senden Ihnen einen neuen.',
+        'check_details' => 'Prüfen Sie bei der ersten Anmeldung Ihre Rechnungsdaten: Firmenname, Anschrift und Steuernummern. Sie stehen auf jeder Rechnung, und eine Rechnung mit falschen Daten kann abgelehnt werden.',
+        'notice' => 'Jeden Monat am Tag :notice_day senden wir Ihnen die Liste dessen, was wir am Tag :billing_day des Folgemonats in Rechnung stellen, damit Sie uns rechtzeitig sagen können, was Sie nicht mehr brauchen.',
+        'questions' => 'Bei Fragen antworten Sie einfach auf diese E-Mail.',
+    ],
     'renewal_notice' => [
         'subject' => 'Verlängerungen, die wir am :date in Rechnung stellen - :company',
         'intro' => 'Diese Dienste und Domains stehen zur Verlängerung an. Wir stellen sie am :date in Rechnung.',

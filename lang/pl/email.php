@@ -129,6 +129,16 @@ return [
         'what_to_do' => 'Aby działała dalej, zwolnij trochę miejsca (na przykład archiwizując starą pocztę na komputerze) albo przejdź na większy plan.',
         'button' => 'Wybierz większy plan',
     ],
+    'account_invitation' => [
+        'subject' => 'Twój panel klienta w :company jest gotowy',
+        'intro' => 'Twoje konto w :company ma teraz panel klienta: usługi z datami odnowienia, faktury i płatności w jednym miejscu.',
+        'set_password' => 'Aby zalogować się po raz pierwszy, ustaw hasło za pomocą przycisku poniżej.',
+        'button' => 'Ustaw hasło',
+        'valid' => 'Link jest ważny przez :days dni i działa tylko raz. Jeśli wygasł, odpowiedz na tę wiadomość, a wyślemy nowy.',
+        'check_details' => 'Przy pierwszym logowaniu sprawdź dane do faktury: nazwę firmy, adres i numery podatkowe. Trafiają na każdą fakturę, a faktura z błędnymi danymi może zostać odrzucona.',
+        'notice' => 'Co miesiąc, w dniu :notice_day, wysyłamy Ci listę tego, co zafakturujemy w dniu :billing_day następnego miesiąca, abyś mógł na czas powiedzieć nam, czego już nie potrzebujesz.',
+        'questions' => 'W razie pytań po prostu odpowiedz na tę wiadomość.',
+    ],
     'renewal_notice' => [
         'subject' => 'Odnowienia, które zafakturujemy :date - :company',
         'intro' => 'Te usługi i domeny zbliżają się do odnowienia. Zafakturujemy je :date.',

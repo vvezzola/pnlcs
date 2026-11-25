@@ -129,6 +129,16 @@ return [
         'what_to_do' => 'To keep it working, free some space (for example by archiving old mail on your computer) or move to a larger plan.',
         'button' => 'Choose a larger plan',
     ],
+    'account_invitation' => [
+        'subject' => 'Your client area at :company is ready',
+        'intro' => 'Your account at :company now has a client area: your services and their renewal dates, your invoices and your payments, all in one place.',
+        'set_password' => 'To sign in for the first time, set your password with the button below.',
+        'button' => 'Set your password',
+        'valid' => 'The link works for :days days and only once. If it has run out, reply to this email and we will send you a new one.',
+        'check_details' => 'When you first sign in, check your billing details: company name, address and tax numbers. They go on every invoice, and an invoice with wrong details can be rejected.',
+        'notice' => 'Each month, on day :notice_day, we email you the list of what we will invoice on day :billing_day of the following month, so you can tell us in time about anything you no longer want.',
+        'questions' => 'If you have any questions, just reply to this email.',
+    ],
     'renewal_notice' => [
         'subject' => 'Renewals we will invoice on :date - :company',
         'intro' => 'These services and domains are coming up for renewal. We will invoice them on :date.',
