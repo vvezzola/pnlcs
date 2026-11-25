@@ -24,16 +24,22 @@ class ClientInviteService
     public function send(Client $client, string $email, array $permissions, int $invitedBy = 0): UserInvite
     {
         [$invite, $link] = $this->issue($client, $email, $permissions, $invitedBy);
-        $email = $invite->email;
-        $locale = $client->language ?: config('app.locale');
-        $account = trim($client->company_name ?: $client->first_name.' '.$client->last_name);
-        Mail::to($email)->queue(new BulkMassMail(
-            __('client.invite.mail_subject', ['company' => company_name()], $locale),
-            __('client.invite.mail_body', ['account' => $account, 'company' => company_name(), 'link' => $link, 'days' => UserInvite::VALID_DAYS], $locale),
-            $email
-        ));
+        Mail::to($invite->email)->queue($this->mail($client, $invite, $link));
 
         return $invite;
+    }
+
+    /** The invitation mail, in the customer's language. */
+    public function mail(Client $client, UserInvite $invite, string $link): BulkMassMail
+    {
+        $locale = $client->language ?: config('app.locale');
+        $account = trim($client->company_name ?: $client->first_name.' '.$client->last_name);
+
+        return new BulkMassMail(
+            __('client.invite.mail_subject', ['company' => company_name()], $locale),
+            __('client.invite.mail_body', ['account' => $account, 'company' => company_name(), 'link' => $link, 'days' => UserInvite::VALID_DAYS], $locale),
+            $invite->email
+        );
     }
 
     /**
