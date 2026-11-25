@@ -30,6 +30,28 @@
         </table>
         @endif
 
+        @if($wfp)
+        @php
+            $gb = fn ($mb) => $mb === null ? '∞' : number_format($mb / 1024, 1, ',', '.').' GB';
+        @endphp
+        <p style="margin:14px 0 6px;font-weight:600;font-size:13px;">{{ $t('wfp.space') }}: {{ $gb($wfp['used_mb'] ?? 0) }} / {{ $gb($wfp['space_mb'] ?? null) }}@if(! empty($wfp['read_only'])) · <span style="color:#c43c35;">{{ $t('wfp.read_only_short') }}</span>@endif</p>
+        <table style="width:100%;font-size:12.5px;border-collapse:collapse;">
+            @forelse($wfp['accounts'] ?? [] as $account)
+            <tr>
+                <td style="padding:3px 10px 3px 0;">{{ $account['username'] }}</td>
+                <td style="padding:3px 10px 3px 0;color:var(--pn-muted);">{{ $t('wfp.kind.'.($account['kind'] ?? 'device')) }} · {{ strtoupper(implode(', ', $account['protocols'] ?? [])) }}</td>
+                <td style="padding:3px 10px 3px 0;">{{ $account['status'] ?? '' }}</td>
+                <td style="padding:3px 0;{{ ! empty($account['late']) ? 'color:#c43c35;' : '' }}">{{ $time($account['last_upload_at'] ?? null) }}</td>
+            </tr>
+            @empty
+            <tr><td style="color:var(--pn-muted);">{{ $t('wfp.no_accounts') }}</td></tr>
+            @endforelse
+        </table>
+        @endif
+        @if(filled($data['wfp_error'] ?? null))
+        <p style="margin:12px 0 0;font-size:13px;color:#b45309;">{{ $t('wfp.read_error', ['error' => $data['wfp_error']]) }}</p>
+        @endif
+
         @if(filled($data['last_error'] ?? null))
         <p style="margin:12px 0 0;font-size:13px;color:#c43c35;">{{ $t('admin.last_error', ['time' => $time($data['last_error_at'] ?? null), 'error' => $data['last_error']]) }}</p>
         @endif

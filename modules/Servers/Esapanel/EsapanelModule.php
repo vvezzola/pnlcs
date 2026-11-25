@@ -249,7 +249,71 @@ class EsapanelModule extends AbstractServerModule
 
         $this->storeSubscription($service, $subscription->data);
 
+        // What the module's own part shows: for WFP, the space and accounts.
+        // A new subscription may not have its space on the server yet, so a
+        // failed read keeps what was read before and says why beside it.
+        if (self::moduleOf((array) ($subscription->data['services'] ?? [])) === WfpPart::MODULE) {
+            [$wfp, $error] = (new WfpPart($api))->read((int) $data['subscription_id']);
+            $this->setModuleData($service, $wfp !== null ? ['wfp' => $wfp, 'wfp_error' => null] : ['wfp_error' => $error]);
+        }
+
         return $this->buildResult(true, __('esapanel::messages.result.refreshed'));
+    }
+
+    /**
+     * Something the customer does to the accounts of a WFP subscription:
+     * "create" (name, kind, protocols, description), "password", "suspend"
+     * or "resume" (account). A password made is in the result's data, once.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function wfpAction(Service $service, string $action, array $input = []): array
+    {
+        $data = $this->getModuleData($service);
+        $api = $this->api($service);
+
+        if (empty($data['subscription_id']) || ! empty($data['ended']) || ($data['module'] ?? '') !== WfpPart::MODULE || ! $api) {
+            return $this->buildResult(false, __('esapanel::messages.error.no_subscription'));
+        }
+
+        $subscription = (int) $data['subscription_id'];
+        $wfp = new WfpPart($api);
+        $account = (int) ($input['account'] ?? 0);
+
+        if ($action !== 'create' && ($account < 1 || ! $wfp->belongs($subscription, $account))) {
+            return $this->buildResult(false, __('esapanel::messages.wfp.no_account'));
+        }
+
+        $answer = match ($action) {
+            'create' => $wfp->createAccount($subscription, [
+                'name' => (string) ($input['name'] ?? ''),
+                'kind' => (string) ($input['kind'] ?? ''),
+                'protocols' => array_values((array) ($input['protocols'] ?? [])),
+                'description' => $input['description'] ?? null,
+            ]),
+            'password' => $wfp->newPassword($account),
+            'suspend' => $wfp->suspend($account),
+            'resume' => $wfp->resume($account),
+            default => null,
+        };
+
+        if ($answer === null) {
+            return $this->buildResult(false, __('esapanel::messages.error.no_subscription'));
+        }
+
+        if (! $answer->ok) {
+            return $this->buildResult(false, $answer->error);
+        }
+
+        $this->refreshSubscription($service);
+
+        $result = $this->buildResult(true, __('esapanel::messages.wfp.done.'.$action), array_filter([
+            'username' => $answer->data['username'] ?? null,
+            'password' => $answer->data['password'] ?? null,
+        ]));
+        $this->logAction($service, 'wfp '.$action, ['success' => true, 'message' => $result['message']]);
+
+        return $result;
     }
 
     /**
@@ -364,6 +428,7 @@ class EsapanelModule extends AbstractServerModule
             'data' => $data,
             'module' => (string) ($data['module'] ?? ''),
             'panelUrl' => $state === 'ended' ? null : $this->panelUrl($service),
+            'wfp' => ($data['module'] ?? '') === WfpPart::MODULE && is_array($data['wfp'] ?? null) ? $data['wfp'] : null,
         ];
     }
 

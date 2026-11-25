@@ -49,6 +49,10 @@
         <div class="ep-note warn">{{ $t('client.suspended') }}</div>
         @endif
 
+        @if($wfp)
+        @include('esapanel::wfp-client')
+        @endif
+
         <p class="ep-lead" style="margin-top:12px">{{ ! empty($data['owner_username']) ? $t('client.panel_lead') : $t('client.panel_existing') }}</p>
 
         @if($serviceActive && $panelUrl)

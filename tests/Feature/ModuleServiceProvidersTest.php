@@ -78,8 +78,8 @@ test('a module brings its own routes and migrations through the provider its man
 
     $registry = bootModuleProviders();
 
-    // Esalogica's own module of this tree (local only) brings its provider too.
-    $own = ['server esapanellicense' => 'Modules\\Servers\\EsapanelLicense\\EsapanelLicenseServiceProvider'];
+    // Esalogica's own modules of this tree (local only) bring their providers too.
+    $own = ['server esapanellicense' => 'Modules\\Servers\\EsapanelLicense\\EsapanelLicenseServiceProvider', 'server esapanel' => 'Modules\\Servers\\Esapanel\\EsapanelServiceProvider'];
 
     expect(array_diff_key($registry->discoveredProviders(), $own))->toBe(['gateway zzownpay' => 'Modules\\Gateways\\ZzOwnPay\\ZzOwnPayServiceProvider'])
         ->and(app('migrator')->paths())->toContain(base_path('modules/Gateways/ZzOwnPay').'/migrations');
@@ -96,8 +96,8 @@ test('a module without a provider, and one the core shadows, bring none', functi
 
     $registry = bootModuleProviders();
 
-    // Esalogica's own module of this tree (local only) brings its provider too.
-    expect(array_diff_key($registry->discoveredProviders(), ['server esapanellicense' => true]))->toBe([])
+    // Esalogica's own modules of this tree (local only) bring their providers too.
+    expect(array_diff_key($registry->discoveredProviders(), ['server esapanellicense' => true, 'server esapanel' => true]))->toBe([])
         ->and(app('router')->has('zz-stripe-again'))->toBeFalse();
     $this->get('/zz-stripe-again')->assertNotFound();
 });

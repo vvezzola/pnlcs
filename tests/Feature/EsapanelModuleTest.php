@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
 use App\Models\ServiceConfigOption;
+use App\Models\User;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\Servers\Esapanel\EsapanelModule;
@@ -117,7 +118,7 @@ it('creates the customer, who signs in to Esapanel, and the subscription for a n
 
     expect($result['success'])->toBeTrue();
     expect(epPaths($calls))->toBe([
-        'GET subscriptions', 'GET customers', 'GET customers', 'GET customers', 'POST customers', 'POST subscriptions', 'GET subscriptions/310',
+        'GET subscriptions', 'GET customers', 'GET customers', 'GET customers', 'POST customers', 'POST subscriptions', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage',
     ]);
 
     $customer = $calls[4];
@@ -153,7 +154,7 @@ it('uses the customer Esapanel already has for the client instead of creating on
 
     expect((new EsapanelModule)->create($service)['success'])->toBeTrue();
 
-    expect(epPaths($calls))->toBe(['GET subscriptions', 'GET customers', 'POST subscriptions', 'GET subscriptions/310']);
+    expect(epPaths($calls))->toBe(['GET subscriptions', 'GET customers', 'POST subscriptions', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage']);
     expect($calls[1]['query'])->toMatchArray(['external_ref' => 'pnlcs:'.epSite().':client:'.$service->client_id]);
     expect($calls[2]['body'])->toMatchArray(['customer_id' => 91]);
     expect($service->fresh()->module_data)->not->toHaveKey('owner_username');
@@ -170,7 +171,7 @@ it('takes back the subscription the service already has, active again on the pro
     $result = (new EsapanelModule)->create($service);
 
     expect($result['success'])->toBeTrue();
-    expect(epPaths($calls))->toBe(['GET subscriptions/310', 'PUT subscriptions/310/status', 'PUT subscriptions/310/plan', 'GET subscriptions/310']);
+    expect(epPaths($calls))->toBe(['GET subscriptions/310', 'PUT subscriptions/310/status', 'PUT subscriptions/310/plan', 'GET subscriptions/310', 'GET subscriptions/310/wfp/storage']);
     expect($calls[1]['body'])->toBe(['status' => 'active']);
     expect($calls[2]['body'])->toBe(['service_plan_id' => 12]);
     expect($service->fresh()->module_data['ended'])->toBeFalse();
@@ -294,4 +295,149 @@ it('shows the customer their plan, username and the way into Esapanel, and staff
 
     $ended = epService(['subscription_id' => 311, 'ended' => true, 'module' => 'wfp']);
     expect((string) $module->clientAreaPanel($ended)->render())->not->toContain(route('client.services.login', $ended));
+});
+
+/** @return array<string, mixed> a WFP space as Esapanel answers it */
+function epStorage(array $over = []): array
+{
+    return array_merge([
+        'subscription_id' => 310, 'code' => 'w7k2', 'status' => 'active', 'read_only' => false,
+        'space_mb' => 512000, 'used_mb' => 128000, 'measured_at' => '2026-11-25T09:00:00Z',
+        'accounts' => 1, 'accounts_limit' => 10, 'shared_folders' => 0, 'shared_folders_limit' => 2,
+        'server' => ['host' => 'wfp.test', 'ftps_port' => 21, 'passive_ports' => '40000-40100', 'sftp_port' => 2222, 'rsync_port' => 2223, 'webdav_port' => 8443],
+    ], $over);
+}
+
+/** @return array<string, mixed> a WFP account as Esapanel answers it */
+function epAccount(array $over = []): array
+{
+    return array_merge([
+        'id' => 801, 'subscription_id' => 310, 'name' => 'nas', 'username' => 'w7k2-nas', 'description' => 'Synology',
+        'kind' => 'device', 'program' => null, 'protocols' => ['rsync'], 'public_keys' => [], 'status' => 'active',
+        'last_error' => null, 'path' => '/', 'last_access_at' => null, 'last_upload_at' => '2026-11-25T02:00:00Z',
+        'upload_alert_minutes' => 1500, 'small_upload_alert' => true, 'late' => false,
+    ], $over);
+}
+
+function epWfpService(): Service
+{
+    return epService(['subscription_id' => 310, 'module' => 'wfp', 'subscription_status' => 'active', 'plan_label' => 'EsaBackup 500 GB']);
+}
+
+function epCustomer(Service $service): User
+{
+    $user = User::factory()->create();
+    $user->clients()->attach($service->client_id, ['owner' => true, 'permissions' => json_encode([])]);
+
+    return $user;
+}
+
+it('reads the space and the accounts of a WFP subscription with the subscription', function () {
+    $service = epWfpService();
+    epServer([
+        'GET subscriptions/310' => epSubscription(),
+        'GET subscriptions/310/wfp/storage' => epStorage(),
+        'GET subscriptions/310/wfp/accounts' => [epAccount(['late' => true])],
+    ]);
+
+    expect((new EsapanelModule)->refreshSubscription($service)['success'])->toBeTrue();
+
+    $wfp = $service->fresh()->module_data['wfp'];
+    expect($wfp)->toMatchArray(['space_mb' => 512000, 'used_mb' => 128000, 'read_only' => false])
+        ->and($wfp['server'])->toMatchArray(['host' => 'wfp.test', 'rsync_port' => 2223])
+        ->and($wfp['accounts'][0])->toMatchArray(['id' => 801, 'username' => 'w7k2-nas', 'late' => true]);
+});
+
+it('keeps the space it read before when the server cannot tell it now', function () {
+    $service = epService(['subscription_id' => 310, 'module' => 'wfp', 'wfp' => ['used_mb' => 5, 'accounts' => []]]);
+    epServer(['GET subscriptions/310' => epSubscription(), 'GET subscriptions/310/wfp/storage' => [409, ['message' => 'WFP is not installed on this server.']]]);
+
+    expect((new EsapanelModule)->refreshSubscription($service)['success'])->toBeTrue();
+
+    expect($service->fresh()->module_data)->toMatchArray(['wfp' => ['used_mb' => 5, 'accounts' => []], 'wfp_error' => 'WFP is not installed on this server.']);
+});
+
+it('lets the customer make an account and shows its password once', function () {
+    $service = epWfpService();
+    $calls = epServer([
+        'POST subscriptions/310/wfp/accounts' => [201, ['data' => epAccount(['name' => 'ufficio', 'username' => 'w7k2-ufficio', 'password' => 'S3cret-once'])]],
+        'GET subscriptions/310' => epSubscription(),
+        'GET subscriptions/310/wfp/storage' => epStorage(),
+        'GET subscriptions/310/wfp/accounts' => [epAccount(), epAccount(['id' => 802, 'name' => 'ufficio', 'username' => 'w7k2-ufficio'])],
+    ]);
+
+    $this->actingAs(epCustomer($service))
+        ->post(route('client.services.esapanel.wfp.accounts.store', $service), ['name' => 'Ufficio', 'kind' => 'person', 'protocols' => ['sftp', 'webdav']])
+        ->assertRedirect()
+        ->assertSessionHas('esapanel_password', ['username' => 'w7k2-ufficio', 'password' => 'S3cret-once']);
+
+    expect($calls[0]['body'])->toBe(['name' => 'ufficio', 'kind' => 'person', 'protocols' => ['sftp', 'webdav']]);
+    expect(json_encode($service->fresh()->module_data))->not->toContain('S3cret-once');
+});
+
+it('refuses an account name Esapanel would refuse, without asking it', function () {
+    $service = epWfpService();
+    $calls = epServer([]);
+
+    $this->actingAs(epCustomer($service))
+        ->post(route('client.services.esapanel.wfp.accounts.store', $service), ['name' => '-nas_1', 'kind' => 'device', 'protocols' => ['rsync']])
+        ->assertSessionHasErrors('name');
+
+    expect($calls)->toHaveCount(0);
+});
+
+it('acts only on the accounts of the customer\'s own subscription', function () {
+    $service = epWfpService();
+    $calls = epServer(['GET wfp/accounts/900' => epAccount(['id' => 900, 'subscription_id' => 999])]);
+    $customer = epCustomer($service);
+
+    $this->actingAs($customer)
+        ->post(route('client.services.esapanel.wfp.accounts.act', [$service, 900, 'password']))
+        ->assertSessionHas('error', __('esapanel::messages.wfp.no_account'));
+    expect(epPaths($calls))->toBe(['GET wfp/accounts/900']);
+
+    $other = epWfpService();
+    $this->actingAs($customer)
+        ->post(route('client.services.esapanel.wfp.accounts.act', [$other, 801, 'suspend']))
+        ->assertForbidden();
+    expect($calls)->toHaveCount(1);
+});
+
+it('suspends an account of the subscription and gives a new password once', function () {
+    $service = epWfpService();
+    $calls = epServer([
+        'GET wfp/accounts/801' => epAccount(),
+        'POST wfp/accounts/801/suspend' => epAccount(['status' => 'suspended']),
+        'POST wfp/accounts/801/password' => epAccount(['password' => 'N3w-once']),
+        'GET subscriptions/310' => epSubscription(),
+        'GET subscriptions/310/wfp/storage' => epStorage(),
+        'GET subscriptions/310/wfp/accounts' => [epAccount()],
+    ]);
+    $customer = epCustomer($service);
+
+    $this->actingAs($customer)->post(route('client.services.esapanel.wfp.accounts.act', [$service, 801, 'suspend']))
+        ->assertSessionHas('success', __('esapanel::messages.wfp.done.suspend'));
+    $this->actingAs($customer)->post(route('client.services.esapanel.wfp.accounts.act', [$service, 801, 'password']))
+        ->assertSessionHas('esapanel_password', ['username' => 'w7k2-nas', 'password' => 'N3w-once']);
+
+    expect(epPaths($calls))->toContain('POST wfp/accounts/801/suspend', 'POST wfp/accounts/801/password');
+});
+
+it('shows the customer the space, the connection data and the accounts of WFP', function () {
+    $service = epService([
+        'subscription_id' => 310, 'module' => 'wfp', 'subscription_status' => 'active', 'plan_label' => 'EsaBackup 500 GB',
+        'wfp' => ['read_only' => true, 'space_mb' => 512000, 'used_mb' => 512000, 'accounts_limit' => 10,
+            'server' => ['host' => 'wfp.test', 'rsync_port' => 2223, 'sftp_port' => 2222],
+            'accounts' => [['id' => 801, 'username' => 'w7k2-nas', 'kind' => 'device', 'protocols' => ['rsync'], 'status' => 'active', 'late' => true, 'last_upload_at' => '2026-11-20T02:00:00Z']]],
+    ]);
+    app()->setLocale('it');
+
+    $html = (string) (new EsapanelModule)->clientAreaPanel($service)->render();
+
+    expect($html)->toContain('w7k2-nas')->toContain('porta 2223')->toContain(e(__('esapanel::messages.wfp.read_only')))
+        ->toContain(e(__('esapanel::messages.wfp.late')))
+        ->toContain(route('client.services.esapanel.wfp.accounts.store', $service))
+        ->toContain(route('client.services.esapanel.wfp.accounts.act', [$service, 801, 'password']));
+
+    $this->actingAs(epCustomer($service))->get(route('client.services.show', $service))->assertOk()->assertSee('w7k2-nas');
 });
