@@ -104,6 +104,12 @@ it('makes the products on their plans, hidden, with the add-ons as priced option
 
         return ebPrice(ConfigOptionSub::PRICING_TYPE, ConfigOptionSub::where('config_id', $optionId)->where('option_name', 'like', $addon.'|%')->value('id'));
     };
+    // No +500 GB on 500 GB: it would make 1 TB for less than the 1 TB plan.
+    $spaceChoices = fn (string $slug) => ConfigOptionSub::whereIn('config_id', ConfigOption::whereIn('group_id', $products[$slug]->configOptionGroups()->pluck('config_option_groups.id'))
+        ->where('option_name', 'addon|Spazio aggiuntivo')->pluck('id'))->orderBy('sort_order')->pluck('option_name')->all();
+    expect($spaceChoices('esabackup-500-copia'))->toBe(['none|Nessuno', 'EsaBackup Spazio +100 GB|+100 GB', 'EsaBackup Spazio +300 GB|+300 GB'])
+        ->and($spaceChoices('esabackup-1t'))->toContain('EsaBackup Spazio +500 GB|+500 GB');
+
     expect($choice('esabackup-500', 'addon|Spazio aggiuntivo', 'EsaBackup Spazio +300 GB'))->toBe([6.0, 60.0])
         ->and($choice('esabackup-500-copia', 'addon|Spazio aggiuntivo', 'EsaBackup Spazio +300 GB'))->toBe([10.2, 102.0])
         ->and($choice('esabackup-500-copia', 'addon|Account aggiuntivi', 'EsaBackup Account +10'))->toBe([3.0, 30.0])

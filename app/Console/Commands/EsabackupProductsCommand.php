@@ -79,6 +79,16 @@ class EsabackupProductsCommand extends Command
     ];
 
     /**
+     * Add-ons a plan does not offer, by plan slug (its remote copy product
+     * too): +500 GB on 500 GB would make 1 TB for less than the 1 TB plan.
+     *
+     * @var array<string, list<string>>
+     */
+    private const NOT_OFFERED = [
+        'esabackup-500' => ['EsaBackup Spazio +500 GB'],
+    ];
+
+    /**
      * The remote copy (a second copy on another Esapanel node) costs 70% more,
      * on the plan and on the space and traffic add-ons. Its products are on
      * the Esapanel plan named like the plan plus COPY_PLAN.
@@ -184,7 +194,7 @@ class EsabackupProductsCommand extends Command
         return $this->write ? ProductGroup::create(['name' => 'EsaBackup', 'slug' => 'esabackup', 'hidden' => false, 'sort_order' => 6]) : null;
     }
 
-    /** @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, copy: bool, description: string}  $item */
+    /** @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, copy: bool, description: string}  $item */
     private function product(array $item, ?ProductGroup $group, Currency $currency, int $planId, int $position): ?Product
     {
         ['slug' => $slug, 'name' => $name, 'monthly' => $monthly, 'annually' => $annually, 'description' => $description] = $item;
@@ -239,17 +249,18 @@ class EsabackupProductsCommand extends Command
      * copy. A plan sold yearly only has its monthly price at -1 (not sold),
      * and so have its add-ons.
      *
-     * @return list<array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, copy: bool, description: string}>
+     * @return list<array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, copy: bool, description: string}>
      */
     private function products(): array
     {
         $products = [];
         foreach (self::PLANS as $slug => [$name, $monthly, $annually, $addons, $description]) {
+            $notOffered = self::NOT_OFFERED[$slug] ?? [];
             $products[] = ['slug' => $slug, 'name' => $name, 'plan' => $name, 'monthly' => $monthly ?? '-1.00',
-                'annually' => $annually, 'addons' => $addons, 'copy' => false, 'description' => $description];
+                'annually' => $annually, 'addons' => $addons, 'notOffered' => $notOffered, 'copy' => false, 'description' => $description];
             $products[] = ['slug' => $slug.'-copia', 'name' => $name.' + Copia remota', 'plan' => $name.self::COPY_PLAN,
                 'monthly' => $monthly === null ? '-1.00' : $this->withCopy($monthly), 'annually' => $this->withCopy($annually),
-                'addons' => $addons, 'copy' => true, 'description' => $description.self::COPY_DESCRIPTION];
+                'addons' => $addons, 'notOffered' => $notOffered, 'copy' => true, 'description' => $description.self::COPY_DESCRIPTION];
         }
 
         return $products;
@@ -264,7 +275,7 @@ class EsabackupProductsCommand extends Command
      * The product's own option group ("<product> extras"): its prices
      * depend on the product (yearly only, remote copy).
      *
-     * @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, copy: bool, description: string}  $item
+     * @param  array{slug: string, name: string, plan: string, monthly: string, annually: string, addons: list<string>, notOffered: list<string>, copy: bool, description: string}  $item
      */
     private function addonOptions(?Product $product, array $item, Currency $currency): void
     {
@@ -299,6 +310,7 @@ class EsabackupProductsCommand extends Command
             }
 
             $order = 0;
+            $choices = array_diff_key($choices, array_flip($item['notOffered']));
             foreach (['none' => ['Nessuno', '0.00', '0.00']] + $choices as $addon => [$choice, $monthly, $annually]) {
                 if ($item['copy'] && $costsMoreWithCopy) {
                     [$monthly, $annually] = [$this->withCopy($monthly), $this->withCopy($annually)];
