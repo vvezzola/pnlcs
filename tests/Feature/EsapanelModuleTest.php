@@ -510,19 +510,41 @@ it('sells a reseller plan to a reseller account, made at that tier with its own 
         ->not->toContain(route('client.services.esapanel.wfp.accounts.store', $service));
 });
 
-it('does not make a reseller beside the customer the client already is, and says why', function () {
+it('makes the customer the client already is a reseller instead of a second account', function () {
+    $service = epService();
+    $resellerSubscription = epSubscription(['customer_id' => 91, 'service_plan' => ['id' => 12, 'label' => 'WFP Reseller', 'type' => 'reseller']]);
+    $calls = epServer([
+        'GET subscriptions' => [],
+        'GET plans/12' => epPlan(['type' => 'reseller']),
+        'GET resellers' => [],
+        'GET customers' => [['id' => 91]],
+        'POST customers/91/convert' => ['id' => 91, 'tier' => 'reseller'],
+        'POST subscriptions' => $resellerSubscription,
+        'GET subscriptions/310' => $resellerSubscription,
+        'GET subscriptions/310/limits' => [],
+    ]);
+
+    expect((new EsapanelModule)->create($service)['success'])->toBeTrue();
+
+    expect(epPaths($calls))->toContain('POST customers/91/convert')->not->toContain('POST resellers');
+    expect(collect($calls)->first(fn ($call) => $call['path'] === 'customers/91/convert')['key'])->not->toBeNull();
+    expect(collect($calls)->first(fn ($call) => $call['method'] === 'POST' && $call['path'] === 'subscriptions')['body'])->toMatchArray(['customer_id' => 91]);
+});
+
+it('creates nothing when Esapanel refuses to make the customer a reseller', function () {
     $service = epService();
     $calls = epServer([
         'GET subscriptions' => [],
         'GET plans/12' => epPlan(['type' => 'reseller']),
         'GET resellers' => [],
         'GET customers' => [['id' => 91]],
+        'POST customers/91/convert' => [422, ['message' => 'The customer has a reseller above it.']],
     ]);
 
     $result = (new EsapanelModule)->create($service);
 
-    expect($result['success'])->toBeFalse()->and($result['message'])->toContain('#91');
-    expect(epPaths($calls))->not->toContain('POST resellers')->not->toContain('POST subscriptions');
+    expect($result['success'])->toBeFalse()->and($result['message'])->toContain('#91')->toContain('The customer has a reseller above it.');
+    expect(epPaths($calls))->not->toContain('POST subscriptions');
 });
 
 it('offers the reseller plans beside the customer plans when the key may sell them', function () {

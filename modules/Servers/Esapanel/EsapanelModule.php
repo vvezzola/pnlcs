@@ -898,8 +898,9 @@ class EsapanelModule extends AbstractServerModule
     /**
      * The reseller's id on the server, found or made as a customer's is. A
      * client who is already a customer there (another service, the same
-     * owner's email) is not made a reseller beside it: the owner's email is
-     * unique among Esapanel's users, so staff settle that one there.
+     * owner's email) is converted into a reseller: the owner's email is
+     * unique among Esapanel's users, so a reseller cannot be made beside it.
+     * Its customer subscriptions stay its own and keep working.
      *
      * @return int|string the id, or why there is none
      */
@@ -914,8 +915,14 @@ class EsapanelModule extends AbstractServerModule
         if (is_string($customer)) {
             return $customer;
         }
+
         if ($customer !== null) {
-            return __('esapanel::messages.error.already_customer', ['id' => $customer]);
+            $converted = $api->post('customers/'.$customer.'/convert', [], 'pnlcs-'.self::site().'-customer-'.$customer.'-convert');
+            if (! $converted->ok) {
+                return __('esapanel::messages.error.convert', ['id' => $customer, 'error' => $converted->error]);
+            }
+
+            return $customer;
         }
 
         return $this->accountId($api, $service, 'resellers');

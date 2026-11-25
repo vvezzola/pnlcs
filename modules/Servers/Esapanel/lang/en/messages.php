@@ -103,7 +103,7 @@ return [
         'not_allowed' => 'The Esapanel server does not allow this to the API account (403).',
         'too_many' => 'Too many requests to the Esapanel server; it will be tried again.',
         'plan_change' => 'The plan was not changed: :error',
-        'already_customer' => 'The client is already a customer on Esapanel (#:id) with the same email or VAT number: a reseller cannot be made beside it. Settle it on Esapanel (convert the customer, or use another email), then Create again.',
+        'convert' => 'The client\'s customer account on Esapanel (#:id) could not be made a reseller: :error',
         'addon_unknown' => 'The Esapanel server has no add-on named :addon.',
         'addons' => 'The add-ons were not updated: :error',
     ],
