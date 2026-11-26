@@ -111,12 +111,35 @@ class EsabackupProductsCommand extends Command
 
     private const RESELLER_COPY_ADDON = 'EsaBackup Reseller Copia remota';
 
+    /**
+     * The daily qualified timestamp (one mark a day per subscription, paid
+     * by the admin's OpenAPI account): an add-on per subscription for a
+     * customer; a reseller buys packs of customer subscriptions at 20% off
+     * (the user's choice, 2026-11-26). Optional on the server: without
+     * these add-ons the option is left out, with a warning.
+     */
+    private const TIMESTAMP_OPTION = 'Marca temporale giornaliera';
+
+    /** @var array<string, array{0: string, 1: string, 2: string}> */
+    private const TIMESTAMP_ADDONS = [
+        'EsaBackup Marca temporale' => ['Sì, una marca al giorno', '6.00', '60.00'],
+    ];
+
+    /** @var array<string, array{0: string, 1: string, 2: string}> */
+    private const RESELLER_TIMESTAMP_ADDONS = [
+        'EsaBackup Reseller Marca temporale +10' => ['Per 10 subscription dei clienti', '48.00', '480.00'],
+        'EsaBackup Reseller Marca temporale +25' => ['Per 25 subscription dei clienti', '120.00', '1200.00'],
+        'EsaBackup Reseller Marca temporale +50' => ['Per 50 subscription dei clienti', '240.00', '2400.00'],
+    ];
+
     /** @var list<string> */
     private const UNSOLD_CYCLES = ['quarterly', 'semiannually', 'biennially', 'triennially'];
 
     private int $changes = 0;
 
     private bool $write = false;
+
+    private bool $timestamps = false;
 
     public function handle(): int
     {
@@ -159,6 +182,11 @@ class EsabackupProductsCommand extends Command
         }
 
         $this->line("Server Esapanel: {$server->name} (#{$server->id})");
+        $missingTimestamps = array_diff(array_keys(self::TIMESTAMP_ADDONS + self::RESELLER_TIMESTAMP_ADDONS), array_keys($addons));
+        $this->timestamps = $missingTimestamps === [];
+        if (! $this->timestamps) {
+            $this->warn('Marca temporale non in vendita: sul server mancano '.implode(', ', $missingTimestamps).'.');
+        }
         $group = $this->group();
 
         foreach ($products as $position => $item) {
@@ -315,6 +343,9 @@ class EsabackupProductsCommand extends Command
         $options[] = [self::COPY_OPTION, [($item['reseller'] ? self::RESELLER_COPY_ADDON : self::COPY_ADDON) => [
             self::COPY_CHOICE, $this->copyPrice($item['monthly']), $this->copyPrice($item['annually']),
         ]]];
+        if ($this->timestamps) {
+            $options[] = [self::TIMESTAMP_OPTION, $item['reseller'] ? self::RESELLER_TIMESTAMP_ADDONS : self::TIMESTAMP_ADDONS];
+        }
 
         $position = 0;
         foreach ($options as [$label, $choices]) {
