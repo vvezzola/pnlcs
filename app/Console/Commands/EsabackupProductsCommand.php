@@ -87,6 +87,15 @@ class EsabackupProductsCommand extends Command
     ];
 
     /**
+     * Products staff set up by hand after the order (auto_setup "manual"):
+     * the big plans, while the first server has little room (the user's
+     * choice, 2026-11-26). The others are set up when paid.
+     *
+     * @var list<string>
+     */
+    private const MANUAL_SETUP = ['esabackup-1t', 'esabackup-reseller-3tb', 'esabackup-reseller-10tb'];
+
+    /**
      * The remote copy (a second copy on another Esapanel node) is an add-on
      * of every plan, at 70% of the plan's price; the space and traffic
      * add-ons cost the same with or without it (the user's choice). A
@@ -203,10 +212,11 @@ class EsabackupProductsCommand extends Command
     {
         ['slug' => $slug, 'name' => $name, 'monthly' => $monthly, 'annually' => $annually, 'description' => $description] = $item;
         $visible = (bool) $this->option('visible');
+        $setup = in_array($slug, self::MANUAL_SETUP, true) ? 'manual' : 'payment';
         $product = Product::where('slug', $slug)->first();
 
         if (! $product) {
-            $this->change("+ prodotto {$name} sul piano #{$planId}, {$monthly}/{$annually}".($visible ? '' : ' (nascosto)'));
+            $this->change("+ prodotto {$name} sul piano #{$planId}, {$monthly}/{$annually}".($visible ? '' : ' (nascosto)').($setup === 'manual' ? ', attivazione a mano' : ''));
             if (! $this->write) {
                 return null;
             }
@@ -220,7 +230,7 @@ class EsabackupProductsCommand extends Command
                 'hidden' => ! $visible,
                 'show_domain_options' => false,
                 'pay_type' => 'recurring',
-                'auto_setup' => 'payment',
+                'auto_setup' => $setup,
                 'allow_upgrades' => true,
                 'server_type' => EsapanelModule::NAME,
                 'config_options' => ['package_name' => (string) $planId],
@@ -234,6 +244,12 @@ class EsabackupProductsCommand extends Command
             $this->change("  {$name}: piano #{$planId}");
             if ($this->write) {
                 $product->update(['config_options' => array_merge($config, ['package_name' => (string) $planId])]);
+            }
+        }
+        if ($product->auto_setup !== $setup) {
+            $this->change("  {$name}: attivazione ".($setup === 'manual' ? 'a mano' : 'al pagamento'));
+            if ($this->write) {
+                $product->update(['auto_setup' => $setup]);
             }
         }
         if ($visible && $product->hidden) {

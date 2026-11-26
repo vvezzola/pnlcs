@@ -62,7 +62,7 @@ it('shows what it would make without writing anything', function () {
     ebServer();
 
     $this->artisan('esalogica:esabackup-products')
-        ->expectsOutputToContain('+ prodotto EsaBackup1T sul piano #24, 45.00/450.00 (nascosto)')
+        ->expectsOutputToContain('+ prodotto EsaBackup1T sul piano #24, 45.00/450.00 (nascosto), attivazione a mano')
         ->expectsOutputToContain('Prova: nulla è stato scritto')
         ->assertSuccessful();
 
@@ -79,6 +79,12 @@ it('makes the products on their plans, hidden, with the add-ons as priced option
     expect($products->pluck('name')->all())->toBe(['EsaBackup25', 'EsaBackup100', 'EsaBackup500', 'EsaBackup1T', 'EsaBackup Reseller 3 TB', 'EsaBackup Reseller 10 TB'])
         ->and($products->every(fn (Product $product) => $product->hidden && $product->server_type === EsapanelModule::NAME))->toBeTrue()
         ->and($products->pluck('config_options.package_name')->all())->toBe(['21', '22', '23', '24', '25', '26']);
+
+    // The big plans wait for staff: the first server has little room.
+    expect($products->pluck('auto_setup', 'slug')->all())->toBe([
+        'esabackup-25' => 'payment', 'esabackup-100' => 'payment', 'esabackup-500' => 'payment',
+        'esabackup-1t' => 'manual', 'esabackup-reseller-3tb' => 'manual', 'esabackup-reseller-10tb' => 'manual',
+    ]);
 
     // Yearly only up to 100 GB.
     expect(ebPrice('product', $products['esabackup-100']->id))->toBe([-1.0, 60.0])
