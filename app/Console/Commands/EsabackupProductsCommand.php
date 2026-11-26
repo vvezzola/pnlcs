@@ -40,17 +40,17 @@ class EsabackupProductsCommand extends Command
      */
     private const PLANS = [
         'esabackup-25' => ['EsaBackup25', null, '25.00', [],
-            '25 GB per provare la copia fuori sede o per scambiare file grandi con i colleghi. 100 GB di traffico al mese, 3 account, 1 cartella condivisa, sorveglianza delle copie. Datacenter nell\'Unione Europea (Amsterdam).'],
+            '25 GB per provare la copia fuori sede o per scambiare file grandi con i colleghi. 100 GB di traffico al mese, 3 account, 1 cartella condivisa, istantanee immutabili contro ransomware e cancellazioni, sorveglianza delle copie. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-100' => ['EsaBackup100', null, '60.00', ['account', 'cartelle', 'traffico'],
-            '100 GB per la copia fuori sede dei backup di NAS, server e PC. 200 GB di traffico al mese, 10 account, 3 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
+            '100 GB per la copia fuori sede dei backup di NAS, server e PC. 200 GB di traffico al mese, 10 account, 3 cartelle condivise, istantanee immutabili contro ransomware e cancellazioni, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-500' => ['EsaBackup500', '24.00', '240.00', ['spazio', 'account', 'cartelle', 'traffico'],
-            '500 GB per la copia fuori sede dei backup di NAS, server e PC. 1 TB di traffico al mese, 50 account, 10 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
+            '500 GB per la copia fuori sede dei backup di NAS, server e PC. 1 TB di traffico al mese, 50 account, 10 cartelle condivise, istantanee immutabili contro ransomware e cancellazioni, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-1t' => ['EsaBackup1T', '45.00', '450.00', ['spazio', 'cartelle', 'traffico'],
-            '1 TB per la copia fuori sede dei backup di NAS, server e PC. 2 TB di traffico al mese, account illimitati, 30 cartelle condivise, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
+            '1 TB per la copia fuori sede dei backup di NAS, server e PC. 2 TB di traffico al mese, account illimitati, 30 cartelle condivise, istantanee immutabili contro ransomware e cancellazioni, sorveglianza delle copie e report. Datacenter nell\'Unione Europea (Amsterdam).'],
         'esabackup-reseller-3tb' => ['EsaBackup Reseller 3 TB', '120.00', '1200.00', [],
-            'Per rivendere EsaBackup con il proprio marchio e un indirizzo IP dedicato: 3 TB e 10 TB di traffico al mese da distribuire ai propri clienti, nel pannello Esapanel e dal proprio PNLCS.'],
+            'Per rivendere EsaBackup con il proprio marchio e un indirizzo IP dedicato: 3 TB e 10 TB di traffico al mese da distribuire ai propri clienti, nel pannello Esapanel e dal proprio PNLCS. Istantanee immutabili incluse per tutti i clienti.'],
         'esabackup-reseller-10tb' => ['EsaBackup Reseller 10 TB', '260.00', '2600.00', [],
-            'Per rivendere EsaBackup con il proprio marchio e un indirizzo IP dedicato: 10 TB e 30 TB di traffico al mese da distribuire ai propri clienti, nel pannello Esapanel e dal proprio PNLCS.'],
+            'Per rivendere EsaBackup con il proprio marchio e un indirizzo IP dedicato: 10 TB e 30 TB di traffico al mese da distribuire ai propri clienti, nel pannello Esapanel e dal proprio PNLCS. Istantanee immutabili incluse per tutti i clienti.'],
     ];
 
     /**
